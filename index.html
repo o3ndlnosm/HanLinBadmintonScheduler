@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>翰林羽球排場系統</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+
+<body>
+  <header class="header">
+    <div class="container">
+      <h1>翰林羽球排場系統</h1>
+      <div style="text-align: right; margin-top: 10px;">
+        <label class="form-check-label" style="color: white; margin-right: 10px;">
+          <input type="checkbox" id="enableVoice" checked> 啟用語音播報
+        </label>
+        <select id="voiceSelect" class="form-control" style="display: inline-block; width: auto; margin-right: 10px;">
+          <!-- 語音選項將在這裡動態生成 -->
+        </select>
+        <button id="testVoiceBtn" class="btn btn-primary btn-sm">測試語音</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="courts-container" id="courts">
+      <!-- 場地將在這裡動態生成 -->
+    </div>
+
+    <div class="main-content">
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-users"></i>
+          <h2>選手管理</h2>
+        </div>
+        <div class="card-content">
+          <!-- 添加切換按鈕 -->
+          <div class="input-mode-toggle">
+            <button id="toggleSheets" class="btn btn-primary" onclick="toggleInputMode('sheets')">
+              <i class="fas fa-table"></i> Google Sheets
+            </button>
+            <button id="toggleBatch" class="btn btn-secondary" onclick="toggleInputMode('batch')">
+              <i class="fas fa-list"></i> 批量輸入
+            </button>
+          </div>
+
+          <!-- 修改 Google Sheets 輸入區域 -->
+          <div id="sheetsInputSection">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                系統將從指定的Google試算表載入選手資料。點擊下方按鈕開始載入。
+              </div>
+            </div>
+            <button id="loadSheetsDataBtn" class="btn btn-primary btn-block" onclick="loadGoogleSheetsData()">
+              <i class="fas fa-cloud-download-alt"></i> 從 Google Sheets 載入選手資料
+            </button>
+            <div id="loadStatus" style="margin-top: 10px; font-style: italic;"></div>
+          </div>
+
+          <!-- 批量輸入區域 -->
+          <div id="batchInputSection" style="display: none;">
+            <div class="form-group">
+              <label class="form-label" for="batchPlayers">批量新增選手</label>
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <div>
+                  一行一個選手，格式：姓名加等級（如：小花3）
+                </div>
+              </div>
+              <textarea id="batchPlayers" class="form-control"
+                placeholder="小花3&#10;小魚4&#10;小名2&#10;小美3&#10;小至5&#10;小鈞5.5"></textarea>
+            </div>
+            <button class="btn btn-primary btn-block" onclick="addBatchPlayers()">
+              <i class="fas fa-plus-circle"></i> 批量新增選手
+            </button>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="card-header">
+          <i class="fas fa-list"></i>
+          <h2>選手列表</h2>
+        </div>
+        <div class="player-list" id="playerList">
+          <!-- 選手列表將在這裡動態生成 -->
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-hourglass-half"></i>
+          <h2>預備區</h2>
+          <button class="btn btn-success" onclick="generateMatches()"
+            style="margin-left: auto; min-width: 220px; padding: 0.5rem 1rem; font-size: 1rem;">
+            <i class="fas fa-play-circle"></i> 開始排場
+          </button>
+        </div>
+        <div class="player-list" id="readyList">
+          <!-- 預備區選手將在這裡動態生成 -->
+        </div>
+        <div class="divider"></div>
+        <div class="card-header">
+          <i class="fas fa-coffee"></i>
+          <h2>休息區</h2>
+        </div>
+        <div class="player-list" id="restList">
+          <!-- 休息區選手將在這裡動態生成 -->
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-history"></i>
+          <h2>歷史比賽</h2>
+        </div>
+        <div class="player-list" id="history">
+          <!-- 歷史比賽將在這裡動態生成 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/script.js"></script>
+</body>
+</html>

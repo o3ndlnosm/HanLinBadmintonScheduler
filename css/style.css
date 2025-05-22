@@ -1,0 +1,765 @@
+:root {
+  /* 平衡的配色方案 - 更鮮明但不刺眼 */
+  --primary: #4a7dbc;
+  --primary-light: #6b96d3;
+  --primary-dark: #3864a3;
+  --secondary: #52ad96;
+  --secondary-light: #6fc5af;
+  --secondary-dark: #3c9b83;
+  --warning: #d9a441;
+  --warning-light: #e6b85c;
+  --warning-dark: #c69030;
+  --danger: #d66062;
+  --danger-light: #e47d7f;
+  --danger-dark: #c04648;
+  --info: #8378d8;
+  --info-light: #9c93e6;
+  --info-dark: #6a60c9;
+  --neutral: #6b7a8d;
+  --neutral-light: #8998aa;
+  --neutral-dark: #566273;
+  --bg-light: #f5f7fa;
+  --bg-dark: #2d3748;
+  --text-light: #f8fafc;
+  --text-dark: #1e293b;
+  --border-radius: 12px;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: #f0f6ff;
+  color: var(--text-dark);
+  line-height: 1.6;
+}
+
+.header {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  padding: 0.8rem 0;
+  border-bottom: 3px solid var(--primary-dark);
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.header h1 {
+  font-size: 1.8rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.logo {
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.courts-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.2rem;
+  margin-bottom: 1.2rem;
+}
+
+.court {
+  background: linear-gradient(135deg, var(--secondary), var(--secondary-dark));
+  color: white;
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  transition: transform 0.3s, box-shadow 0.3s;
+  position: relative;
+}
+
+.court:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+}
+
+.court-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.court-players {
+  margin-top: 1rem;
+}
+
+.player-item {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+.player-item:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.player-name {
+  font-weight: 700;
+  font-size: 1.4rem;
+}
+
+.player-matches {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1rem;
+  margin-left: 1rem;
+}
+
+.main-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; /* 確保三列等寬 */
+  gap: 1rem;
+  margin-bottom: 2rem;
+  align-items: start;  /* 確保卡片從頂部對齊 */
+}
+
+.card {
+  background-color: white;
+  border-radius: var(--border-radius);
+  padding: 1.2rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+  transition: transform 0.3s ease;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid var(--primary-light);
+}
+
+.card-header h2 {
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin: 0;
+}
+
+/* 添加計數標記樣式 */
+.counter-badge {
+  display: inline-block;
+  background-color: var(--primary-light);
+  color: white;
+  padding: 0.2rem 0.6rem;
+  margin-left: 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.card-content {
+  flex: 1;
+  margin-bottom: 1rem;
+}
+
+.player-list {
+  max-height: none;       /* 移除高度限制 */
+  padding-right: 0.5rem;
+  position: relative;     /* 設置為相對定位 */
+}
+
+.player-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.player-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.player-list::-webkit-scrollbar-thumb {
+  background: var(--neutral-light);
+  border-radius: 10px;
+}
+
+.player-list::-webkit-scrollbar-thumb:hover {
+  background: var(--neutral);
+}
+
+.list-item {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  margin-bottom: 0.4rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+  border: 1px solid #e5e7eb;
+}
+
+.list-item:hover {
+  background-color: #edf2f7;
+  transform: translateX(3px);
+  border-color: #dae1e7;
+}
+
+/* 休息中選手的樣式 */
+.list-item.resting {
+  background-color: #fff8e1;
+  border-left: 3px solid var(--warning);
+}
+
+.list-item.resting:hover {
+  background-color: #ffecb3;
+}
+
+.list-item .player-info {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  flex: 1;
+}
+
+.player-level {
+  background-color: var(--primary);
+  color: white;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+.player-name {
+  font-weight: 500;
+}
+
+.player-matches {
+  color: var(--neutral);
+  font-size: 0.9rem;
+}
+
+/* 等待輪數與剛下場標記樣式 */
+.player-waiting {
+  color: var(--info-dark);
+  font-size: 0.9rem;
+  margin-left: 1rem;
+  font-weight: 500;
+}
+
+.player-just-finished {
+  color: var(--danger);
+  font-size: 0.9rem;
+  margin-left: 1rem;
+  font-weight: bold;
+}
+
+.player-just-joined {
+  color: var(--secondary-dark);
+  font-size: 0.9rem;
+  margin-left: 1rem;
+  font-weight: 500;
+  font-style: italic;
+}
+
+/* 等待輪數徽章 */
+.waiting-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--info);
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  margin-left: 6px;
+  line-height: 1;
+  position: relative;
+  top: -2px;
+}
+
+/* 高等待輪數的不同徽章顏色 */
+.waiting-highlight .waiting-badge {
+  background-color: var(--primary);
+}
+
+.waiting-urgent .waiting-badge {
+  background-color: var(--danger);
+  width: 22px;
+  height: 22px;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(214, 96, 98, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(214, 96, 98, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(214, 96, 98, 0);
+  }
+}
+
+/* 等待輪數高亮樣式強化 */
+.waiting-highlight .player-waiting {
+  color: var(--info-dark);
+  font-weight: bold;
+}
+
+/* 等待超過 1 輪的選手高亮顯示 */
+.waiting-highlight {
+  background-color: #eef7fb !important;
+  border-left: 3px solid var(--info) !important;
+}
+
+.waiting-highlight:hover {
+  background-color: #ddeef5 !important;
+}
+
+/* 等待超過 3 輪的選手更強烈高亮 */
+.waiting-urgent {
+  background-color: #e6f0ff !important;
+  border-left: 3px solid var(--primary) !important;
+  border-right: 3px solid var(--primary) !important;
+}
+
+.waiting-urgent .player-waiting {
+  color: var(--primary-dark);
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.waiting-urgent:hover {
+  background-color: #d4e5ff !important;
+}
+
+.player-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  outline: none;
+  text-decoration: none;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+.btn-icon {
+  padding: 0.75rem;
+  border-radius: 8px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+}
+
+.btn-success {
+  background-color: var(--secondary);
+  color: white;
+}
+
+.btn-success:hover {
+  background-color: var(--secondary-dark);
+}
+
+.btn-danger {
+  background-color: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: var(--danger-dark);
+}
+
+.btn-warning {
+  background-color: var(--warning);
+  color: white;
+}
+
+.btn-warning:hover {
+  background-color: var(--warning-dark);
+}
+
+.btn-neutral {
+  background-color: var(--neutral);
+  color: white;
+}
+
+.btn-neutral:hover {
+  background-color: var(--neutral-dark);
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+.btn-block {
+  display: flex;
+  width: 100%;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.1);
+}
+
+textarea.form-control {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.history-item {
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  background-color: #f8f9fa;
+  border-left: 4px solid var(--primary);
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.history-time {
+  color: var(--neutral);
+  font-size: 0.8rem;
+}
+
+.history-duration {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--info);
+  font-size: 0.75rem;
+}
+
+.time-details {
+  color: var(--neutral-light);
+  margin-left: 0.3rem;
+}
+
+.court-info {
+  background-color: var(--secondary-light);
+  color: white;
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  margin-left: 0.5rem;
+}
+
+.history-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.history-player {
+  background-color: #e9ecef;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.badge-primary {
+  background-color: var(--primary-light);
+  color: white;
+}
+
+.badge-success {
+  background-color: var(--secondary-light);
+  color: white;
+}
+
+.badge-warning {
+  background-color: var(--warning-light);
+  color: white;
+}
+
+.badge-danger {
+  background-color: var(--danger-light);
+  color: white;
+}
+
+.badge-info {
+  background-color: var(--info-light);
+  color: white;
+}
+
+/* 空狀態樣式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  color: var(--primary);
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+/* 為場地卡片的空狀態設置特殊樣式 */
+.court .empty-state {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+.court .empty-state i {
+  opacity: 0.9;
+}
+
+.divider {
+  height: 1px;
+  background-color: #e5e7eb;
+  margin: 1.5rem 0;
+}
+
+.alert {
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.alert-warning {
+  background-color: #fcf5eb;
+  border-left: 4px solid var(--warning);
+  color: var(--warning-dark);
+}
+
+.alert-info {
+  background-color: #eef2fa;
+  border-left: 4px solid var(--primary);
+  color: var(--primary-dark);
+}
+
+.alert i {
+  font-size: 1.25rem;
+}
+
+.court-end-btn {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+}
+
+.team-divider {
+  display: flex;
+  align-items: center;
+  margin: 0.75rem 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.team-divider::before,
+.team-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.team-divider span {
+  padding: 0 0.75rem;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+/* 新增的樣式，用於標題列中的下場按鈕 */
+.court-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.court-timer {
+  display: inline-block;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 0.2rem 0.5rem;
+  margin-left: 0.5rem;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+  transition: all 0.3s;
+}
+
+/* 新增的樣式，用於切換按鈕 */
+.input-mode-toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+/* 預覽表格樣式 */
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 8px;
+  text-align: left;
+}
+
+.preview-table th {
+  background-color: #f2f2f2;
+  border-bottom: 2px solid #ddd;
+}
+
+.preview-table td {
+  border-bottom: 1px solid #ddd;
+}
+
+/* 媒體查詢部分，確保在不同螢幕尺寸上正確顯示 */
+@media (max-width: 1100px) {
+  .main-content {
+    /* 平板橫向仍然保持三列，但進一步減小間距 */
+    grid-template-columns: repeat(3, minmax(250px, 1fr));
+    gap: 0.8rem;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+
+  .card-header h2 {
+    font-size: 1.3rem;
+  }
+
+  /* 調整"開始排場"按鈕在平板上的樣式 */
+  .card-header .btn-success {
+    min-width: 180px !important;
+    /* 覆蓋內聯樣式 */
+    padding: 0.4rem 0.8rem !important;
+    font-size: 0.9rem !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .main-content {
+    /* 較小平板改為兩列 */
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+
+@media (max-width: 768px) {
+  .main-content {
+    grid-template-columns: 1fr;
+  }
+
+  .courts-container {
+    grid-template-columns: 1fr;
+  }
+
+  .header h1 {
+    font-size: 1.75rem;
+  }
+
+  .card-header h2 {
+    font-size: 1.25rem;
+  }
+}
