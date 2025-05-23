@@ -488,6 +488,32 @@ textarea.form-control {
   resize: vertical;
 }
 
+/* 歷史比賽容器樣式 */
+#history {
+  max-height: 280px;  /* 大約顯示3個項目的高度 */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.5rem;
+}
+
+#history::-webkit-scrollbar {
+  width: 6px;
+}
+
+#history::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+#history::-webkit-scrollbar-thumb {
+  background: var(--neutral-light);
+  border-radius: 10px;
+}
+
+#history::-webkit-scrollbar-thumb:hover {
+  background: var(--neutral);
+}
+
 .history-item {
   padding: 0.75rem;
   border-radius: 8px;

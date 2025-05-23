@@ -302,8 +302,8 @@ function updateLists() {
           <span class="player-matches">場次: ${p.matches}</span>
         </div>
         <div class="player-actions">
-          <button class="btn btn-success btn-icon" onclick="moveToReady('${p.name}')" title="加入預備">
-            <i class="fas fa-arrow-right"></i>
+          <button class="btn btn-success" onclick="moveToReady('${p.name}')" title="加入預備">
+            進入<br>預備
           </button>
           <button class="btn btn-danger btn-icon" onclick="removePlayer('${p.name}')" title="刪除">
             <i class="fas fa-trash"></i>
@@ -362,8 +362,8 @@ function updateLists() {
           ${waitingText}
         </div>
         <div class="player-actions">
-          <button class="btn btn-neutral btn-icon" onclick="moveToRest('${p.name}')" title="休息">
-            <i class="fas fa-coffee"></i>
+          <button class="btn btn-neutral" onclick="moveToRest('${p.name}')" title="休息">
+            休息
           </button>
         </div>
       </div>
@@ -391,8 +391,8 @@ function updateLists() {
           <span class="player-matches">場次: ${p.matches}</span>
         </div>
         <div class="player-actions">
-          <button class="btn btn-success btn-icon" onclick="moveToReady('${p.name}')" title="回預備區">
-            <i class="fas fa-arrow-right"></i>
+          <button class="btn btn-success" onclick="moveToReady('${p.name}')" title="回預備區">
+            進入<br>預備
           </button>
         </div>
       </div>
@@ -517,8 +517,8 @@ function updateCourtsDisplay(updateTimesOnly = false) {
             <span class="player-name">${player.name}</span>
             <span class="player-matches">場次: ${player.matches}</span>
           </div>
-          <button class="btn btn-neutral btn-icon" onclick="restPlayerOnCourt(${i}, '${player.name}')" title="休息">
-            <i class="fas fa-coffee"></i>
+          <button class="btn btn-neutral" onclick="restPlayerOnCourt(${i}, '${player.name}')" title="休息">
+            休息
           </button>
         </div>
       `
@@ -533,8 +533,8 @@ function updateCourtsDisplay(updateTimesOnly = false) {
             <span class="player-name">${player.name}</span>
             <span class="player-matches">場次: ${player.matches}</span>
           </div>
-          <button class="btn btn-neutral btn-icon" onclick="restPlayerOnCourt(${i}, '${player.name}')" title="休息">
-            <i class="fas fa-coffee"></i>
+          <button class="btn btn-neutral" onclick="restPlayerOnCourt(${i}, '${player.name}')" title="休息">
+            休息
           </button>
         </div>
       `
