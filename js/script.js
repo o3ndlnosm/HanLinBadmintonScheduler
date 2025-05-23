@@ -794,6 +794,25 @@ function findOptimalCombination(sortedReady, lastCombination) {
     return bestCombination;
   }
 
+  // 新增：優先嘗試2+2組合
+  const justFinished = sortedReady.filter(p => p.justFinished);
+  const notJustFinished = sortedReady.filter(p => !p.justFinished);
+  
+  // 如果兩邊都有足夠人數，優先嘗試2+2組合
+  if (justFinished.length >= 2 && notJustFinished.length >= 2) {
+    console.log("【優先2+2】嘗試2等待+2剛下場的組合");
+    
+    // 建立2+2的候選池（前2個等待的 + 前2個剛下場的）
+    const mixedPool = [...notJustFinished.slice(0, 2), ...justFinished.slice(0, 2)];
+    let candidate = internalFindOptimalCombination(mixedPool, 2.5, 3);
+    
+    if (candidate) {
+      console.log("【優先2+2】成功找到2+2組合");
+      return candidate;
+    }
+    console.log("【優先2+2】2+2組合不可行，繼續其他嘗試");
+  }
+
   // 優先檢查是否有長時間等待的選手
   let longWaitingPlayers = sortedReady
     .filter((p) => (p.waitingTurns || 0) >= 2 && !p.justFinished)
@@ -1222,13 +1241,19 @@ function generateMatchForCourtImmediate(courtIndex) {
     // 1. 首先比較等待分數（等待2輪以上的絕對優先）
     if (aScore !== bScore) return aScore - bScore;
     
-    // 2. 等待分數相同時（都是剛下場或等待1輪），比較場次數
+    // 2. 等待分數相同時（都是剛下場或等待1輪），加入隨機性
+    // 場次數差異在1以內時，視為相近，用隨機決定
+    if (Math.abs(a.matches - b.matches) <= 1) {
+      return Math.random() - 0.5;
+    }
+    
+    // 3. 場次數差異大於1時，場次少的優先
     if (a.matches !== b.matches) return a.matches - b.matches;
     
-    // 3. 場次數也相同時，考慮等級
+    // 4. 其他情況考慮等級
     if (a.level !== b.level) return a.level - b.level;
     
-    // 4. 所有條件都相同時，添加隨機性避免固定順序
+    // 5. 最後隨機
     return Math.random() - 0.5;
   });
 
