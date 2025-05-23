@@ -212,14 +212,14 @@ body {
 .list-item {
   background-color: #f8f9fa;
   border-radius: 8px;
-  padding: 0.75rem;
+  padding: 0.5rem 0.75rem;
   margin-bottom: 0.4rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   transition: all 0.2s;
   border: 1px solid #e5e7eb;
-  min-height: 3.5rem;
+  min-height: 2.75rem;
 }
 
 .list-item:hover {
@@ -375,7 +375,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.8rem;
   border-radius: 8px;
   font-weight: 500;
   cursor: pointer;
@@ -386,14 +386,14 @@ body {
   font-size: 0.85rem;
   white-space: nowrap;
   touch-action: manipulation;
-  min-height: 2.25rem;
+  min-height: 2rem;
 }
 
 .btn-icon {
-  padding: 0.75rem;
+  padding: 0.5rem;
   border-radius: 8px;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 36px;
+  min-height: 36px;
 }
 
 .btn-primary {
