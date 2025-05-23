@@ -303,7 +303,7 @@ function updateLists() {
         </div>
         <div class="player-actions">
           <button class="btn btn-success" onclick="moveToReady('${p.name}')" title="加入預備">
-            進入<br>預備
+            進入預備
           </button>
           <button class="btn btn-danger btn-icon" onclick="removePlayer('${p.name}')" title="刪除">
             <i class="fas fa-trash"></i>
@@ -392,7 +392,7 @@ function updateLists() {
         </div>
         <div class="player-actions">
           <button class="btn btn-success" onclick="moveToReady('${p.name}')" title="回預備區">
-            進入<br>預備
+            進入預備
           </button>
         </div>
       </div>
