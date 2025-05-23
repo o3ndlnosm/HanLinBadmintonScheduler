@@ -212,13 +212,14 @@ body {
 .list-item {
   background-color: #f8f9fa;
   border-radius: 8px;
-  padding: 0.4rem 0.75rem;
+  padding: 0.75rem;
   margin-bottom: 0.4rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   transition: all 0.2s;
   border: 1px solid #e5e7eb;
+  min-height: 3.5rem;
 }
 
 .list-item:hover {
@@ -385,6 +386,7 @@ body {
   font-size: 0.85rem;
   white-space: nowrap;
   touch-action: manipulation;
+  min-height: 2.25rem;
 }
 
 .btn-icon {
