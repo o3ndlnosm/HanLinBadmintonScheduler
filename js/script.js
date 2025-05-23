@@ -1235,7 +1235,19 @@ function generateMatchForCourtImmediate(courtIndex) {
 
   // 記錄排序結果用於調試
   if (pool.length >= 4) {
-    // 移除 console.log
+    // 顯示排序前後的詳細資訊
+    console.log("【排序調試】排序前選手狀態：");
+    pool.slice(0, 12).forEach(p => {
+      const status = p.justFinished ? "剛下場" : `等待${p.waitingTurns || 0}輪`;
+      console.log(`- ${p.name}: ${status}, 場次${p.matches}`);
+    });
+    
+    console.log("【排序調試】排序後前8名：");
+    sortedReady.slice(0, 8).forEach((p, i) => {
+      const status = p.justFinished ? "剛下場" : `等待${p.waitingTurns || 0}輪`;
+      const score = p.justFinished ? 0 : (p.waitingTurns <= 1 ? 0 : -(p.waitingTurns - 1) * 10);
+      console.log(`${i+1}. ${p.name}: ${status}, 場次${p.matches}, 分數${score}`);
+    });
   }
 
   // 檢查是否啟用動態配額制
