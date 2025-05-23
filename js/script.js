@@ -1206,25 +1206,30 @@ function generateMatchForCourtImmediate(courtIndex) {
     return null;
   }
 
-  // 全新排序邏輯，綜合考慮等待輪數、場次數、等級
-  // 增強對等待輪數的權重，確保長時間等待的選手優先上場
+  // 全新排序邏輯：等待1輪與剛下場同等優先級，等待2輪以上絕對優先
   let sortedReady = [...pool].sort((a, b) => {
-    // 0. 首先過濾剛下場的選手
-    if (a.justFinished && !b.justFinished) return 1; // a剛下場，排後面
-    if (!a.justFinished && b.justFinished) return -1; // b剛下場，排後面
-
-    // 1. 優先考慮等待輪數（提高權重）
-    const aWaiting = a.waitingTurns || 0;
-    const bWaiting = b.waitingTurns || 0;
-    if (aWaiting !== bWaiting) return bWaiting - aWaiting; // 等待輪數高的優先
-
-    // 2. 然後考慮場次數
+    // 計算等待狀態分數
+    // 剛下場 = 0分, 等待1輪 = 0分, 等待2輪 = -10分, 等待3輪 = -20分（負分表示優先）
+    const getWaitingScore = (player) => {
+      if (player.justFinished) return 0; // 剛下場
+      const waiting = player.waitingTurns || 0;
+      if (waiting <= 1) return 0; // 等待0-1輪都視為同等
+      return -(waiting - 1) * 10; // 等待2輪以上，每多一輪優先度大幅提升
+    };
+    
+    const aScore = getWaitingScore(a);
+    const bScore = getWaitingScore(b);
+    
+    // 1. 首先比較等待分數（等待2輪以上的絕對優先）
+    if (aScore !== bScore) return aScore - bScore;
+    
+    // 2. 等待分數相同時（都是剛下場或等待1輪），比較場次數
     if (a.matches !== b.matches) return a.matches - b.matches;
-
-    // 3. 如果場次數和等待輪數都一樣，考慮等級
+    
+    // 3. 場次數也相同時，考慮等級
     if (a.level !== b.level) return a.level - b.level;
-
-    // 4. 所有條件都相同時，添加少量隨機性避免固定順序
+    
+    // 4. 所有條件都相同時，添加隨機性避免固定順序
     return Math.random() - 0.5;
   });
 
