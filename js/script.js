@@ -1236,14 +1236,15 @@ function generateMatchForCourtImmediate(courtIndex) {
   // 記錄排序結果用於調試
   if (pool.length >= 4) {
     // 顯示排序前後的詳細資訊
-    console.log("【排序調試】排序前選手狀態：");
-    pool.slice(0, 12).forEach(p => {
+    console.log(`【排序調試】排序前總人數：${pool.length}`);
+    console.log("【排序調試】排序前所有選手狀態：");
+    pool.forEach((p, index) => {
       const status = p.justFinished ? "剛下場" : `等待${p.waitingTurns || 0}輪`;
-      console.log(`- ${p.name}: ${status}, 場次${p.matches}`);
+      console.log(`${index+1}. ${p.name}: ${status}, 場次${p.matches}`);
     });
     
-    console.log("【排序調試】排序後前8名：");
-    sortedReady.slice(0, 8).forEach((p, i) => {
+    console.log("【排序調試】排序後所有選手順序：");
+    sortedReady.forEach((p, i) => {
       const status = p.justFinished ? "剛下場" : `等待${p.waitingTurns || 0}輪`;
       const score = p.justFinished ? 0 : (p.waitingTurns <= 1 ? 0 : -(p.waitingTurns - 1) * 10);
       console.log(`${i+1}. ${p.name}: ${status}, 場次${p.matches}, 分數${score}`);
