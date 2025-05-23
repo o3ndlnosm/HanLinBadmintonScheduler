@@ -798,9 +798,12 @@ function findOptimalCombination(sortedReady, lastCombination) {
   const justFinished = sortedReady.filter(p => p.justFinished);
   const notJustFinished = sortedReady.filter(p => !p.justFinished);
   
-  // 如果兩邊都有足夠人數，優先嘗試2+2組合
-  if (justFinished.length >= 2 && notJustFinished.length >= 2) {
-    console.log("【優先2+2】嘗試2等待+2剛下場的組合");
+  // 檢查是否有人等待過久（3輪以上）
+  const veryLongWaiting = sortedReady.filter(p => (p.waitingTurns || 0) >= 3);
+  
+  // 如果沒有人等待超過3輪，且兩邊都有足夠人數，可以嘗試2+2組合
+  if (veryLongWaiting.length === 0 && justFinished.length >= 2 && notJustFinished.length >= 2) {
+    console.log("【優先2+2】沒有人等待過久，嘗試2等待+2剛下場的組合");
     
     // 建立2+2的候選池（前2個等待的 + 前2個剛下場的）
     const mixedPool = [...notJustFinished.slice(0, 2), ...justFinished.slice(0, 2)];
@@ -811,6 +814,8 @@ function findOptimalCombination(sortedReady, lastCombination) {
       return candidate;
     }
     console.log("【優先2+2】2+2組合不可行，繼續其他嘗試");
+  } else if (veryLongWaiting.length > 0) {
+    console.log("【優先2+2】有人等待超過3輪，跳過2+2模式，優先處理長等待選手");
   }
 
   // 優先檢查是否有長時間等待的選手
