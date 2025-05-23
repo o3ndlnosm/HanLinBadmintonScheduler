@@ -1129,9 +1129,8 @@ async function generateMatches() {
 
 // 修改 generateMatchForCourtImmediate 函數 - 考慮等待輪數的完整優化版
 function generateMatchForCourtImmediate(courtIndex) {
-  // 首先檢查是否有足夠的選手
-  let eligibleReady = readyPlayers.filter((p) => !p.justFinished);
-  let pool = eligibleReady.length >= 4 ? eligibleReady : readyPlayers;
+  // 使用所有預備區的選手（包含剛下場的）
+  let pool = readyPlayers;
 
   // 【修改後邏輯】檢查是否出現預備區選手循環情況
   // 過濾出非剛下場的選手（真正等待的選手）
