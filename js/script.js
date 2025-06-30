@@ -2225,10 +2225,15 @@ function updateHistoryDisplay() {
 
 // Google Sheets API 整合
 const GOOGLE_API_KEY = "AIzaSyCyoLexsIwzSg6tMLVhchfMjTgmYNn6S4U"; // 您的 API 金鑰
+const GOOGLE_CLIENT_ID = "186072660354-833c6b74da3t6jgk9ace7ig2mgvcht0u.apps.googleusercontent.com"; // 您的 OAuth Client ID
 // 將這些值直接設為常量
 const SPREADSHEET_ID = "1961u7uge-1AHRLrIS1kEG8GNuMNHrf-WdjGVw-pClE0";
 const SHEET_NAME = "人員名單";
 const MATCH_RECORD_SHEET_NAME = "比賽紀錄"; // 新增比賽紀錄工作表名稱
+
+// Google OAuth 相關變數
+let googleAccessToken = null;
+let googleUser = null;
 
 // 載入 Google Sheets 資料 - 修改為直接匯入不顯示模態視窗
 async function loadGoogleSheetsData() {
@@ -2588,9 +2593,292 @@ async function syncMatchRecordsToSheets() {
 
 // 在比賽結束時自動同步（如果啟用）
 function autoSyncAfterMatch(matchIndex) {
-  if (enableSheetsSync) {
+  if (enableSheetsSync && googleAccessToken) {
     const record = prepareMatchRecordForSheets(matchIndex);
     console.log('自動同步比賽紀錄：', record);
-    // 這裡可以實作即時同步邏輯
+    // 自動寫入 Google Sheets
+    writeToGoogleSheets([record]);
   }
 }
+
+// 初始化 Google API
+function initGoogleAPI() {
+  // 載入 Google API client library
+  gapi.load('client', async () => {
+    try {
+      await gapi.client.init({
+        apiKey: GOOGLE_API_KEY,
+        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+      });
+      console.log('Google API 初始化成功');
+      
+      // 檢查是否已有存儲的 token
+      const savedToken = localStorage.getItem('googleAccessToken');
+      if (savedToken) {
+        googleAccessToken = savedToken;
+        updateGoogleSignInUI(true);
+      } else {
+        updateGoogleSignInUI(false);
+      }
+    } catch (error) {
+      console.error('Google API 初始化失敗：', error);
+    }
+  });
+}
+
+// 更新登入 UI
+function updateGoogleSignInUI(isSignedIn) {
+  const signInBtn = document.getElementById('googleSignInBtn');
+  const signOutBtn = document.getElementById('googleSignOutBtn');
+  const userInfo = document.getElementById('googleUserInfo');
+  
+  if (signInBtn && signOutBtn) {
+    if (isSignedIn) {
+      signInBtn.style.display = 'none';
+      signOutBtn.style.display = 'inline-block';
+      userInfo.textContent = googleUser ? `已登入：${googleUser.email}` : '已登入';
+    } else {
+      signInBtn.style.display = 'inline-block';
+      signOutBtn.style.display = 'none';
+      userInfo.textContent = '';
+    }
+  }
+}
+
+// 處理 Google 登入
+async function handleGoogleSignIn() {
+  const tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    callback: (response) => {
+      if (response.access_token) {
+        googleAccessToken = response.access_token;
+        localStorage.setItem('googleAccessToken', googleAccessToken);
+        
+        // 設定 API client 的 access token
+        gapi.client.setToken({ access_token: googleAccessToken });
+        
+        // 獲取用戶資訊
+        fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { Authorization: `Bearer ${googleAccessToken}` }
+        })
+        .then(res => res.json())
+        .then(userInfo => {
+          googleUser = userInfo;
+          updateGoogleSignInUI(true);
+          alert(`登入成功！歡迎 ${userInfo.email}\n\n現在您可以直接將比賽紀錄寫入 Google Sheets。`);
+        });
+      }
+    },
+    error_callback: (error) => {
+      console.error('登入失敗：', error);
+      alert('登入失敗，請重試。');
+    }
+  });
+  
+  tokenClient.requestAccessToken();
+}
+
+// 處理登出
+function handleGoogleSignOut() {
+  googleAccessToken = null;
+  googleUser = null;
+  localStorage.removeItem('googleAccessToken');
+  
+  // 撤銷 token
+  if (gapi.client.getToken()) {
+    google.accounts.oauth2.revoke(gapi.client.getToken().access_token, () => {
+      console.log('Token 已撤銷');
+    });
+    gapi.client.setToken(null);
+  }
+  
+  updateGoogleSignInUI(false);
+  alert('已登出 Google 帳號');
+}
+
+// 寫入數據到 Google Sheets
+async function writeToGoogleSheets(records) {
+  if (!googleAccessToken) {
+    alert('請先登入 Google 帳號以啟用寫入功能');
+    return;
+  }
+  
+  try {
+    // 準備要寫入的數據
+    const headers = [
+      '比賽編號', '日期', '開始時間', '結束時間', '比賽時長', '場地',
+      '第一隊選手1', '第一隊選手2', '第二隊選手1', '第二隊選手2',
+      '第一隊得分', '第二隊得分', '勝方', '比分記錄時間'
+    ];
+    
+    // 檢查工作表是否已有標題
+    const checkRange = `${MATCH_RECORD_SHEET_NAME}!A1:N1`;
+    const checkResponse = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: checkRange,
+    });
+    
+    let startRow = 1;
+    if (!checkResponse.result.values || checkResponse.result.values.length === 0) {
+      // 如果沒有標題，先寫入標題
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${MATCH_RECORD_SHEET_NAME}!A1:N1`,
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: [headers]
+        }
+      });
+      startRow = 2;
+    } else {
+      // 如果已有數據，找到最後一行
+      const dataRange = `${MATCH_RECORD_SHEET_NAME}!A:A`;
+      const dataResponse = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: dataRange,
+      });
+      
+      if (dataResponse.result.values) {
+        startRow = dataResponse.result.values.length + 1;
+      }
+    }
+    
+    // 準備要寫入的數據行
+    const rows = records.map(record => [
+      record.matchNumber,
+      record.date,
+      record.startTime,
+      record.endTime,
+      record.duration,
+      record.court,
+      record.team1Player1,
+      record.team1Player2,
+      record.team2Player1,
+      record.team2Player2,
+      record.team1Score,
+      record.team2Score,
+      record.winner,
+      record.scoreInputTime
+    ]);
+    
+    // 寫入數據
+    const response = await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${MATCH_RECORD_SHEET_NAME}!A${startRow}`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: {
+        values: rows
+      }
+    });
+    
+    console.log('寫入成功：', response);
+    alert(`成功寫入 ${records.length} 筆比賽紀錄到 Google Sheets！`);
+    
+  } catch (error) {
+    console.error('寫入 Google Sheets 失敗：', error);
+    alert('寫入失敗：' + (error.result?.error?.message || error.message));
+  }
+}
+
+// 修改同步函數以使用 OAuth 寫入
+async function syncMatchRecordsToSheets() {
+  try {
+    // 檢查是否有比賽紀錄
+    if (historyMatches.length === 0) {
+      alert('目前沒有比賽紀錄可以同步');
+      return;
+    }
+    
+    // 準備所有比賽紀錄
+    const allRecords = [];
+    for (let i = 0; i < historyMatches.length; i++) {
+      const record = prepareMatchRecordForSheets(i);
+      allRecords.push(record);
+    }
+    
+    // 如果已登入，直接寫入
+    if (googleAccessToken) {
+      await writeToGoogleSheets(allRecords);
+    } else {
+      // 否則使用原本的複製貼上方式
+      console.log('準備同步的比賽紀錄：', allRecords);
+      
+      // 準備表頭
+      const headers = [
+        '比賽編號', '日期', '開始時間', '結束時間', '比賽時長', '場地',
+        '第一隊選手1', '第一隊選手2', '第二隊選手1', '第二隊選手2',
+        '第一隊得分', '第二隊得分', '勝方', '比分記錄時間'
+      ];
+      
+      // 轉換為二維陣列（Google Sheets 格式）
+      const sheetData = [headers];
+      allRecords.forEach(record => {
+        sheetData.push([
+          record.matchNumber,
+          record.date,
+          record.startTime,
+          record.endTime,
+          record.duration,
+          record.court,
+          record.team1Player1,
+          record.team1Player2,
+          record.team2Player1,
+          record.team2Player2,
+          record.team1Score,
+          record.team2Score,
+          record.winner,
+          record.scoreInputTime
+        ]);
+      });
+      
+      console.log('Google Sheets 格式數據：', sheetData);
+      
+      // 生成 CSV 格式數據
+      const csvContent = sheetData.map(row => 
+        row.map(cell => {
+          // 如果包含逗號或換行，需要用引號包起來
+          const cellStr = String(cell);
+          if (cellStr.includes(',') || cellStr.includes('\n') || cellStr.includes('"')) {
+            return '"' + cellStr.replace(/"/g, '""') + '"';
+          }
+          return cellStr;
+        }).join(',')
+      ).join('\n');
+      
+      // 創建可複製的文字區域
+      const textarea = document.createElement('textarea');
+      textarea.value = csvContent;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      
+      try {
+        document.execCommand('copy');
+        alert(`已複製 ${allRecords.length} 筆比賽紀錄到剪貼簿！\n\n請到 Google Sheets 貼上數據：\n1. 開啟您的 Google Sheets\n2. 選擇「比賽紀錄」工作表\n3. 點擊 A1 儲存格\n4. 按 Ctrl+V (或 Cmd+V) 貼上\n\n提示：您也可以登入 Google 帳號以啟用直接寫入功能。`);
+      } catch (err) {
+        console.error('複製失敗：', err);
+        alert('自動複製失敗，請手動複製控制台中的 CSV 數據。');
+        console.log('CSV 數據：\n', csvContent);
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+    
+  } catch (error) {
+    console.error('同步失敗：', error);
+    alert('同步過程中發生錯誤，請查看控制台了解詳情。');
+  }
+}
+
+// 在頁面載入時初始化 Google API
+window.addEventListener('load', () => {
+  // 初始化 Google API
+  if (typeof gapi !== 'undefined') {
+    initGoogleAPI();
+  } else {
+    console.warn('Google API 尚未載入');
+  }
+});

@@ -68,6 +68,19 @@
               <i class="fas fa-cloud-download-alt"></i> 從 Google Sheets 載入選手資料
             </button>
             <div id="loadStatus" style="margin-top: 10px; font-style: italic;"></div>
+            
+            <!-- Google 登入按鈕 -->
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+              <div id="googleSignInDiv" style="display: flex; align-items: center; gap: 10px;">
+                <button id="googleSignInBtn" class="btn btn-success" onclick="handleGoogleSignIn()" style="display: none;">
+                  <i class="fas fa-sign-in-alt"></i> 登入 Google 以啟用寫入功能
+                </button>
+                <button id="googleSignOutBtn" class="btn btn-secondary" onclick="handleGoogleSignOut()" style="display: none;">
+                  <i class="fas fa-sign-out-alt"></i> 登出
+                </button>
+                <span id="googleUserInfo" style="font-size: 0.9rem; color: #666;"></span>
+              </div>
+            </div>
           </div>
 
           <!-- 批量輸入區域 -->
@@ -165,6 +178,9 @@
     </div>
   </div>
 
+  <!-- Google API -->
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="js/script.js"></script>
 </body>
 </html>
