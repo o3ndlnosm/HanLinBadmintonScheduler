@@ -2192,25 +2192,27 @@ function updateHistoryDisplay() {
             }</div>
             ${timeInfo}
           </div>
-          <div class="history-players">
-            ${players
-              .slice(0, 2)
-              .map((p) => {
-                // 移除括號及內容如果存在 - 例如 "小明 (3)" 變成 "小明"
-                const nameOnly = p.replace(/ \(\d+\)$/, "");
-                return `<span class="history-player">${nameOnly}</span>`;
-              })
-              .join("")}
-            <span class="badge badge-primary">VS</span>
-            ${players
-              .slice(2, 4)
-              .map((p) => {
-                const nameOnly = p.replace(/ \(\d+\)$/, "");
-                return `<span class="history-player">${nameOnly}</span>`;
-              })
-              .join("")}
+          <div class="history-content">
+            <div class="history-players">
+              ${players
+                .slice(0, 2)
+                .map((p) => {
+                  // 移除括號及內容如果存在 - 例如 "小明 (3)" 變成 "小明"
+                  const nameOnly = p.replace(/ \(\d+\)$/, "");
+                  return `<span class="history-player">${nameOnly}</span>`;
+                })
+                .join("")}
+              <span class="badge badge-primary">VS</span>
+              ${players
+                .slice(2, 4)
+                .map((p) => {
+                  const nameOnly = p.replace(/ \(\d+\)$/, "");
+                  return `<span class="history-player">${nameOnly}</span>`;
+                })
+                .join("")}
+            </div>
+            ${scoreSection}
           </div>
-          ${scoreSection}
         </div>
       `;
       })

@@ -558,17 +558,27 @@ textarea.form-control {
   margin-left: 0.5rem;
 }
 
+.history-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .history-players {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  flex: 1;
+  min-width: 200px;
 }
 
 .history-score {
-  margin-top: 0.5rem;
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .score-display {
@@ -584,6 +594,7 @@ textarea.form-control {
 .score-input-btn {
   font-size: 0.8rem;
   padding: 0.3rem 0.6rem;
+  white-space: nowrap;
 }
 
 .history-player {
@@ -963,5 +974,15 @@ textarea.form-control {
   .vs-divider {
     order: 2;
     padding: 0.5rem 0;
+  }
+  
+  .history-content {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .history-score {
+    width: 100%;
+    justify-content: center;
   }
 }
