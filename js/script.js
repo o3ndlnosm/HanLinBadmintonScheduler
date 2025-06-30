@@ -669,49 +669,20 @@ function updatePairingHistory(teamKey) {
 }
 
 /* 
-  修改 findOptimalCombination 函式：
-  1. 評分機制中加入等級差異考量，使其對實力平衡的組合給予更高評分
-  2. 確保所有可能的組合都被充分評估
-  3. 使用更全面的評分標準，避免僅根據歷史配對頻率決定最佳組合
+  修改 findOptimalCombination 函式 - 新規則 2024/06/30：
+  1. 已移除四人完全不能重複組合的限制
+  2. 絕對規則：AB vs CD 兩隊等級相加差異必須在 ±1.5 範圍內
+  3. 不符合等級規則則返回 null，由外部處理放寬邏輯
 */
 function findOptimalCombination(sortedReady, lastCombination) {
-  function internalFindOptimalCombination(pool, threshold, allowedOverlap) {
+  function internalFindOptimalCombination(pool, threshold) {
     let bestCombination = null;
     let bestScore = Infinity;
     let currentCombination = [];
 
     function evaluateCombination(comb) {
-      // 檢查傳入的 lastCombination（若有）與候選組合重複的人數
-      if (lastCombination && lastCombination.length === 4) {
-        let overlap = comb.filter((player) => {
-          return lastCombination.find(
-            (lp) => lp.name.trim() === player.name.trim()
-          );
-        }).length;
-        // 對最近一場比賽，仍然嚴格限制重疊人數
-        if (overlap > allowedOverlap) {
-          return { score: Infinity, pairing: null };
-        }
-      }
-
-      // 檢查所有歷史比賽組合（historyMatchesArr），但人數少時放寬限制
-      // 只檢查前5場比賽的歷史記錄
-      const recentHistoryLimit = 5;
-      const checkHistory = historyMatchesArr.slice(
-        0,
-        Math.min(recentHistoryLimit, historyMatchesArr.length)
-      );
-
-      for (let hist of checkHistory) {
-        let commonCount = comb.filter((player) => {
-          return hist.find((lp) => lp.name.trim() === player.name.trim());
-        }).length;
-        // 放寬歷史重複限制：允許更多重疊
-        if (commonCount > allowedOverlap + 1) {
-          // 比正常允許值多允許1人重疊
-          return { score: Infinity, pairing: null };
-        }
-      }
+      // 已移除所有重複組合的檢查邏輯
+      // 現在只評估等級平衡（絕對規則 ±1.5）和等待輪數
 
       let bestLocalScore = Infinity;
       let bestPairing = null;
@@ -736,23 +707,12 @@ function findOptimalCombination(sortedReady, lastCombination) {
         let team2Sum = team2[0].level + team2[1].level;
         let levelDiff = Math.abs(team1Sum - team2Sum);
 
+        // 絕對規則：兩隊等級相加差異必須在 threshold 以內
         if (levelDiff <= threshold) {
-          let team1Key = getPairKey(team1[0].name, team1[1].name);
-          let team2Key = getPairKey(team2[0].name, team2[1].name);
-
-          // 修改評分機制：不僅考慮歷史配對頻率，還要考慮等待輪數
-          // 配對頻率越低越好(0是最好的)，等待輪數越高越好
-          let pairingScore =
-            (pairingHistory[team1Key] || 0) + (pairingHistory[team2Key] || 0);
-
-          // 計算等待分數：等待輪數較多的選手應優先考慮，因此等待分數為正向評分
-          // 等待輪數總和越高，等待分數越低（因為總分越低越好）
-
-          // 強化等待輪數的影響 - 使用平方值提升權重差異
+          // 計算等待輪數分數：等待輪數越高的選手優先度越高
           let waitingScoreTeam1 = team1.reduce((sum, p) => {
             const turns = p.waitingTurns || 0;
-            // 對等待輪數平方來增強影響力
-            return sum - turns * turns;
+            return sum - turns * turns; // 等待輪數越高，分數越低（優先度越高）
           }, 0);
 
           let waitingScoreTeam2 = team2.reduce((sum, p) => {
@@ -762,9 +722,8 @@ function findOptimalCombination(sortedReady, lastCombination) {
 
           let waitingTurnsSum = waitingScoreTeam1 + waitingScoreTeam2;
 
-          // 綜合得分：配對頻率(負向) + 等待輪數(正向) + 等級差異(負向)
-          // 等待輪數權重為5，配對頻率權重為1
-          let score = pairingScore + waitingTurnsSum * 5 + levelDiff;
+          // 簡化評分：主要考慮等待輪數，其次考慮等級差異
+          let score = waitingTurnsSum * 10 + levelDiff;
 
           if (score < bestLocalScore) {
             bestLocalScore = score;
@@ -794,115 +753,262 @@ function findOptimalCombination(sortedReady, lastCombination) {
     return bestCombination;
   }
 
-  // 新增：優先嘗試2+2組合
-  const justFinished = sortedReady.filter(p => p.justFinished);
-  const notJustFinished = sortedReady.filter(p => !p.justFinished);
+  // 絕對規則：只嘗試 1.5 等級差異
+  let candidate = internalFindOptimalCombination(sortedReady, 1.5);
   
-  // 檢查是否有人等待過久（3輪以上）
-  const veryLongWaiting = sortedReady.filter(p => (p.waitingTurns || 0) >= 3);
-  
-  // 如果沒有人等待超過3輪，且兩邊都有足夠人數，可以嘗試2+2組合
-  if (veryLongWaiting.length === 0 && justFinished.length >= 2 && notJustFinished.length >= 2) {
-    console.log("【優先2+2】沒有人等待過久，嘗試2等待+2剛下場的組合");
-    
-    // 建立2+2的候選池（前2個等待的 + 前2個剛下場的）
-    const mixedPool = [...notJustFinished.slice(0, 2), ...justFinished.slice(0, 2)];
-    let candidate = internalFindOptimalCombination(mixedPool, 2.5, 3);
-    
-    if (candidate) {
-      console.log("【優先2+2】成功找到2+2組合");
-      return candidate;
-    }
-    console.log("【優先2+2】2+2組合不可行，繼續其他嘗試");
-  } else if (veryLongWaiting.length > 0) {
-    console.log("【優先2+2】有人等待超過3輪，跳過2+2模式，優先處理長等待選手");
+  // 如果找不到符合 ±1.5 等級差異的組合，返回 null
+  // 不放寬標準，由外部處理
+  if (candidate) {
+    return candidate;
+  } else {
+    return null;
   }
+  return candidate;
+}
 
-  // 優先檢查是否有長時間等待的選手
-  let longWaitingPlayers = sortedReady
-    .filter((p) => (p.waitingTurns || 0) >= 2 && !p.justFinished)
-    .sort((a, b) => (b.waitingTurns || 0) - (a.waitingTurns || 0));
+/* 
+  放寬標準的組合尋找函式 - 無視等級差異限制
+  僅考慮等待輪數和場次優先級
+*/
+function findOptimalCombinationRelaxed(sortedReady, lastCombination) {
+  function internalFindOptimalCombination(pool) {
+    let bestCombination = null;
+    let bestScore = Infinity;
+    let currentCombination = [];
 
-  // 如果有足夠的長等待選手，嘗試優先選擇
-  if (longWaitingPlayers.length >= 4) {
-    let priorityPool = longWaitingPlayers.slice(
-      0,
-      Math.min(12, longWaitingPlayers.length)
-    );
-    let candidate = internalFindOptimalCombination(priorityPool, 2.5, 2);
-    if (candidate) {
-      return candidate;
-    }
-  }
+    function evaluateCombination(comb) {
+      // 放寬標準：無視等級差異，僅考慮等待輪數
+      let bestLocalScore = Infinity;
+      let bestPairing = null;
+      let pairings = [
+        [
+          [0, 1],
+          [2, 3],
+        ],
+        [
+          [0, 2],
+          [1, 3],
+        ],
+        [
+          [0, 3],
+          [1, 2],
+        ],
+      ];
+      
+      for (let pairing of pairings) {
+        let team1 = [comb[pairing[0][0]], comb[pairing[0][1]]];
+        let team2 = [comb[pairing[1][0]], comb[pairing[1][1]]];
 
-  // 如果有超過2輪的長等待選手，確保優先納入
-  let veryLongWaitingPlayers = sortedReady.filter(
-    (p) => (p.waitingTurns || 0) >= 3 && !p.justFinished
-  );
-  if (veryLongWaitingPlayers.length > 0 && veryLongWaitingPlayers.length < 4) {
-    // 從其他選手中選出適合的搭配
-    let otherPlayers = sortedReady.filter(
-      (p) => (p.waitingTurns || 0) < 3 || p.justFinished
-    );
+        // 計算等待輪數分數：等待輪數越高的選手優先度越高
+        let waitingScoreTeam1 = team1.reduce((sum, p) => {
+          const turns = p.waitingTurns || 0;
+          return sum - turns * turns; // 等待輪數越高，分數越低（優先度越高）
+        }, 0);
 
-    // 構建一個混合池，先放入所有超長等待選手，再加入其他選手
-    let mixedPool = [...veryLongWaitingPlayers];
+        let waitingScoreTeam2 = team2.reduce((sum, p) => {
+          const turns = p.waitingTurns || 0;
+          return sum - turns * turns;
+        }, 0);
 
-    // 根據需要補充其他選手到至少4人
-    let neededPlayers = 4 - mixedPool.length;
-    if (neededPlayers > 0 && otherPlayers.length >= neededPlayers) {
-      // 添加足夠數量的其他選手
-      mixedPool = mixedPool.concat(
-        otherPlayers.slice(0, Math.min(12, otherPlayers.length))
-      );
+        let waitingTurnsSum = waitingScoreTeam1 + waitingScoreTeam2;
 
-      let candidate = internalFindOptimalCombination(mixedPool, 2.5, 2);
-      if (candidate) {
-        // 檢查是否所有超長等待選手都被納入
-        const allVeryLongWaitingIncluded = veryLongWaitingPlayers.every(
-          (veryLongPlayer) =>
-            candidate.some(
-              (selectedPlayer) => selectedPlayer.name === veryLongPlayer.name
-            )
-        );
+        // 放寬標準評分：主要考慮等待輪數，無等級差異限制
+        let score = waitingTurnsSum * 10;
 
-        if (allVeryLongWaitingIncluded) {
-          return candidate;
+        if (score < bestLocalScore) {
+          bestLocalScore = score;
+          bestPairing = [team1[0], team1[1], team2[0], team2[1]];
         }
       }
+      return { score: bestLocalScore, pairing: bestPairing };
     }
+
+    function backtrack(start) {
+      if (currentCombination.length === 4) {
+        let result = evaluateCombination(currentCombination);
+        if (result.pairing && result.score < bestScore) {
+          bestScore = result.score;
+          bestCombination = result.pairing.slice();
+        }
+        return;
+      }
+      for (let i = start; i < pool.length; i++) {
+        currentCombination.push(pool[i]);
+        backtrack(i + 1);
+        currentCombination.pop();
+      }
+    }
+    backtrack(0);
+    return bestCombination;
   }
 
-  // 原有邏輯 - 先嘗試 strict 模式：允許重複不超過 2 人（即 overlap 最大為 2）
-  let candidate = internalFindOptimalCombination(sortedReady, 1.5, 2);
-  if (candidate) return candidate;
+  // 放寬標準：直接尋找最佳組合，無等級差異限制
+  return internalFindOptimalCombination(sortedReady);
+}
 
-  // 修改：不再優先考慮忽略justFinished標記的剛下場選手
-  // 而是在找不到合適組合時，直接放寬等級差異條件
-  candidate = internalFindOptimalCombination(sortedReady, 1.8, 2);
-  if (candidate) return candidate;
-  candidate = internalFindOptimalCombination(sortedReady, 2.1, 2);
-  if (candidate) return candidate;
-
-  // 如果 strict 模式下找不到合適組合，則放寬條件：允許重複不超過 3 人（即 overlap 最大為 3）
-  candidate = internalFindOptimalCombination(sortedReady, 1.5, 3);
-  if (candidate) return candidate;
-
-  // 放寬條件 - 如果真的找不到合適組合，才考慮放寬justFinished限制
-  for (let i = 0; i < sortedReady.length; i++) {
-    if (sortedReady[i].justFinished) {
-      let originalJustFinished = sortedReady[i].justFinished;
-      sortedReady[i].justFinished = false;
-      candidate = internalFindOptimalCombination(sortedReady, 2.1, 3);
-      if (candidate) return candidate;
-      sortedReady[i].justFinished = originalJustFinished;
-    }
+/*
+  新排場邏輯：根據準備區人數選擇選手
+  實作情況一（1-4人）和情況二（5-8+人）的選手選擇邏輯
+*/
+function selectPlayersForMatch() {
+  // 分別取得準備區選手和剛下場選手
+  const readyNonFinished = readyPlayers.filter(p => !p.justFinished);
+  const justFinishedPlayers = readyPlayers.filter(p => p.justFinished);
+  
+  const readyCount = readyNonFinished.length;
+  
+  console.log(`【新排場邏輯】準備區非剛下場選手: ${readyCount}人, 剛下場選手: ${justFinishedPlayers.length}人`);
+  
+  // 依據準備區人數決定使用情況一或情況二
+  if (readyCount >= 1 && readyCount <= 4) {
+    return selectPlayersScenarioOne(readyNonFinished, justFinishedPlayers);
+  } else if (readyCount >= 5) {
+    return selectPlayersScenarioTwo(readyNonFinished, justFinishedPlayers);
+  } else {
+    // 準備區無選手，使用原邏輯
+    return null;
   }
+}
 
-  candidate = internalFindOptimalCombination(sortedReady, 1.8, 3);
-  if (candidate) return candidate;
-  candidate = internalFindOptimalCombination(sortedReady, 2.1, 3);
-  return candidate;
+/*
+  情況一：準備區 1-4 人的選手選擇邏輯
+*/
+function selectPlayersScenarioOne(readyNonFinished, justFinishedPlayers) {
+  const readyCount = readyNonFinished.length;
+  let selectedPlayers = [];
+  
+  console.log(`【情況一】準備區${readyCount}人，開始選擇選手`);
+  
+  // 準備區選手按優先序排序
+  const sortedReady = [...readyNonFinished].sort((a, b) => {
+    // 第一優先：等待輪次最高
+    if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
+      return (b.waitingTurns || 0) - (a.waitingTurns || 0);
+    }
+    // 第二優先：場次最低
+    if (a.matches !== b.matches) {
+      return a.matches - b.matches;
+    }
+    // 第三優先：隨機
+    return Math.random() - 0.5;
+  });
+  
+  // 剛下場選手隨機排序
+  const shuffledJustFinished = [...justFinishedPlayers].sort(() => Math.random() - 0.5);
+  
+  switch (readyCount) {
+    case 1:
+      // 準備區1人全上 + 剛下場4人取3人
+      selectedPlayers = [...sortedReady]; // 1人
+      selectedPlayers.push(...shuffledJustFinished.slice(0, 3)); // 3人
+      console.log(`【情況一-1人】選出: 準備區1人 + 剛下場3人`);
+      break;
+      
+    case 2:
+      // 準備區2人全上 + 剛下場4人取2人
+      selectedPlayers = [...sortedReady]; // 2人
+      selectedPlayers.push(...shuffledJustFinished.slice(0, 2)); // 2人
+      console.log(`【情況一-2人】選出: 準備區2人 + 剛下場2人`);
+      break;
+      
+    case 3:
+      // 準備區3人取2人 + 剛下場4人取2人
+      selectedPlayers = sortedReady.slice(0, 2); // 2人
+      selectedPlayers.push(...shuffledJustFinished.slice(0, 2)); // 2人
+      console.log(`【情況一-3人】選出: 準備區前2人 + 剛下場2人`);
+      break;
+      
+    case 4:
+      // 準備區4人取2人 + 剛下場4人取2人
+      selectedPlayers = sortedReady.slice(0, 2); // 2人
+      selectedPlayers.push(...shuffledJustFinished.slice(0, 2)); // 2人
+      console.log(`【情況一-4人】選出: 準備區前2人 + 剛下場2人`);
+      break;
+  }
+  
+  console.log(`【情況一】最終選出選手: ${selectedPlayers.map(p => p.name).join(', ')}`);
+  return selectedPlayers;
+}
+
+/*
+  情況二：準備區 5-8+ 人的選手選擇邏輯
+*/
+function selectPlayersScenarioTwo(readyNonFinished, justFinishedPlayers) {
+  const readyCount = readyNonFinished.length;
+  let selectedPlayers = [];
+  
+  console.log(`【情況二】準備區${readyCount}人，開始選擇選手`);
+  
+  if (readyCount === 5) {
+    // 準備區5人取3人 + 剛下場4人取1人
+    
+    // 準備區選手按優先序排序
+    const sortedReady = [...readyNonFinished].sort((a, b) => {
+      if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
+        return (b.waitingTurns || 0) - (a.waitingTurns || 0);
+      }
+      if (a.matches !== b.matches) {
+        return a.matches - b.matches;
+      }
+      return Math.random() - 0.5;
+    });
+    
+    // 剛下場選手按場次最低優先
+    const sortedJustFinished = [...justFinishedPlayers].sort((a, b) => {
+      if (a.matches !== b.matches) {
+        return a.matches - b.matches;
+      }
+      return Math.random() - 0.5;
+    });
+    
+    selectedPlayers = sortedReady.slice(0, 3); // 準備區3人
+    selectedPlayers.push(...sortedJustFinished.slice(0, 1)); // 剛下場1人
+    console.log(`【情況二-5人】選出: 準備區前3人 + 剛下場1人`);
+    
+  } else if (readyCount === 6 || readyCount === 7) {
+    // 準備區6-7人取4人，剛下場全下
+    const shuffledReady = [...readyNonFinished].sort(() => Math.random() - 0.5);
+    selectedPlayers = shuffledReady.slice(0, 4);
+    console.log(`【情況二-${readyCount}人】選出: 準備區隨機4人，剛下場全下`);
+    
+  } else if (readyCount >= 8) {
+    // 準備區8+人：先取等待輪次最高2人，再取場次最低2人
+    
+    // 按等待輪次排序
+    const sortedByWaiting = [...readyNonFinished].sort((a, b) => {
+      if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
+        return (b.waitingTurns || 0) - (a.waitingTurns || 0);
+      }
+      return Math.random() - 0.5;
+    });
+    
+    // 按場次排序
+    const sortedByMatches = [...readyNonFinished].sort((a, b) => {
+      if (a.matches !== b.matches) {
+        return a.matches - b.matches;
+      }
+      return Math.random() - 0.5;
+    });
+    
+    // 先取等待輪次最高2人
+    const topWaiting = sortedByWaiting.slice(0, 2);
+    selectedPlayers.push(...topWaiting);
+    
+    // 再從剩餘選手中取場次最低2人（避免重複）
+    const remainingPlayers = readyNonFinished.filter(p => !topWaiting.includes(p));
+    const sortedRemaining = remainingPlayers.sort((a, b) => {
+      if (a.matches !== b.matches) {
+        return a.matches - b.matches;
+      }
+      return Math.random() - 0.5;
+    });
+    
+    selectedPlayers.push(...sortedRemaining.slice(0, 2));
+    console.log(`【情況二-8+人】選出: 等待輪次最高2人 + 場次最低2人`);
+  }
+  
+  console.log(`【情況二】最終選出選手: ${selectedPlayers.map(p => p.name).join(', ')}`);
+  return selectedPlayers;
 }
 
 // 添加特殊標記清除和修正函數
@@ -1155,6 +1261,7 @@ async function generateMatches() {
 function generateMatchForCourtImmediate(courtIndex) {
   // 使用所有預備區的選手（包含剛下場的）
   let pool = readyPlayers;
+  let candidatePool;
 
   // 【修改後邏輯】檢查是否出現預備區選手循環情況
   // 過濾出非剛下場的選手（真正等待的選手）
@@ -1351,6 +1458,89 @@ function generateMatchForCourtImmediate(courtIndex) {
   // 取得該場地上次的組合
   let lastCombination = lastCombinationByCourt[courtIndex] || [];
   if (courts[courtIndex].length === 0 && candidatePool.length >= 4) {
+    
+    // 【新排場邏輯】優先使用新的選手選擇邏輯
+    console.log("【新排場邏輯】開始使用新的選手選擇邏輯");
+    const newSelectedPlayers = selectPlayersForMatch();
+    
+    if (newSelectedPlayers && newSelectedPlayers.length === 4) {
+      console.log("【新排場邏輯】成功選出4位選手，開始組隊配對");
+      
+      // 使用選出的選手進行等級配對
+      let candidate = findOptimalCombination(newSelectedPlayers, lastCombination);
+      
+      if (candidate) {
+        // 成功找到符合等級規則的組合
+        candidate.forEach((player) => {
+          player.justFinished = false;
+          player.justJoinedReady = false;
+          player.waitingTurns = 0;
+          readyPlayers = readyPlayers.filter((p) => p.name !== player.name);
+          players = players.filter((p) => p.name !== player.name);
+          restingPlayers = restingPlayers.filter((p) => p.name !== player.name);
+        });
+        
+        let team1Key = getPairKey(candidate[0].name, candidate[1].name);
+        let team2Key = getPairKey(candidate[2].name, candidate[3].name);
+        lastPairings = new Set([team1Key, team2Key]);
+        
+        const startTime = new Date();
+        candidate.forEach((player) => {
+          player.currentMatchStartTime = startTime;
+        });
+        
+        courts[courtIndex] = candidate;
+        lastCombinationByCourt[courtIndex] = candidate;
+        courts[courtIndex].startTime = startTime;
+        courts[courtIndex].formattedStartTime = formatTime(startTime);
+        
+        updateLists();
+        updateCourtsDisplay();
+        
+        console.log("【新排場邏輯】成功建立比賽組合:", candidate.map(p => p.name).join(", "));
+        return candidate;
+      } else {
+        // 無法找到符合等級規則的組合，觸發放寬標準
+        console.log("【新排場邏輯】無法找到符合等級規則的組合，觸發放寬標準");
+        alert("即將單次放寬組合標準以利進行組隊");
+        
+        const relaxedCandidate = findOptimalCombinationRelaxed(newSelectedPlayers, lastCombination);
+        
+        if (relaxedCandidate) {
+          relaxedCandidate.forEach((player) => {
+            player.justFinished = false;
+            player.justJoinedReady = false;
+            player.waitingTurns = 0;
+            readyPlayers = readyPlayers.filter((p) => p.name !== player.name);
+            players = players.filter((p) => p.name !== player.name);
+            restingPlayers = restingPlayers.filter((p) => p.name !== player.name);
+          });
+          
+          let team1Key = getPairKey(relaxedCandidate[0].name, relaxedCandidate[1].name);
+          let team2Key = getPairKey(relaxedCandidate[2].name, relaxedCandidate[3].name);
+          lastPairings = new Set([team1Key, team2Key]);
+          
+          const startTime = new Date();
+          relaxedCandidate.forEach((player) => {
+            player.currentMatchStartTime = startTime;
+          });
+          
+          courts[courtIndex] = relaxedCandidate;
+          lastCombinationByCourt[courtIndex] = relaxedCandidate;
+          courts[courtIndex].startTime = startTime;
+          courts[courtIndex].formattedStartTime = formatTime(startTime);
+          
+          updateLists();
+          updateCourtsDisplay();
+          
+          console.log("【新排場邏輯-放寬標準】成功建立比賽組合:", relaxedCandidate.map(p => p.name).join(", "));
+          return relaxedCandidate;
+        }
+      }
+    }
+    
+    console.log("【新排場邏輯】選手選擇失敗，回退到原邏輯");
+    
     // 【修改後邏輯】檢查是否需要激活交叉選擇 - 考慮非剛下場選手
     // 過濾出非剛下場的選手
     const nonJustFinishedCount = readyPlayers.filter(
@@ -1559,8 +1749,55 @@ function generateMatchForCourtImmediate(courtIndex) {
 
       return candidate;
     } else {
-      alert("無法找到符合條件的候選組合！可能需要更多選手或調整等級搭配。");
-      return null;
+      // 當無法找到符合 ±1.5 等級差異的組合時，進行放寬標準配對
+      alert("即將單次放寬組合標準以利進行組隊");
+      
+      // 使用放寬標準（無視等級差異）重新尋找組合
+      const relaxedCandidate = findOptimalCombinationRelaxed(candidatePool, lastCombination);
+      
+      if (relaxedCandidate) {
+        relaxedCandidate.forEach((player) => {
+          // 清除所有標記
+          player.justFinished = false;
+          player.justJoinedReady = false;
+          player.waitingTurns = 0; // 選手被選中上場，等待輪數重置為0
+
+          // 把被選中的選手從預備區移除（如果在預備區中）
+          readyPlayers = readyPlayers.filter((p) => p.name !== player.name);
+          // 同時從其他區域移除（如果選手是剛下場的）
+          players = players.filter((p) => p.name !== player.name);
+          restingPlayers = restingPlayers.filter((p) => p.name !== player.name);
+        });
+
+        // 更新配對記錄
+        let team1Key = getPairKey(relaxedCandidate[0].name, relaxedCandidate[1].name);
+        let team2Key = getPairKey(relaxedCandidate[2].name, relaxedCandidate[3].name);
+        lastPairings = new Set([team1Key, team2Key]);
+
+        // 添加比賽開始時間記錄
+        const startTime = new Date();
+        relaxedCandidate.forEach((player) => {
+          player.currentMatchStartTime = startTime;
+        });
+
+        // 更新場地
+        courts[courtIndex] = relaxedCandidate;
+        lastCombinationByCourt[courtIndex] = relaxedCandidate;
+
+        // 記錄在場地屬性中
+        courts[courtIndex].startTime = startTime;
+        courts[courtIndex].formattedStartTime = formatTime(startTime);
+
+        // 更新介面顯示
+        updateLists();
+        updateCourtsDisplay();
+
+        console.log("【放寬標準】成功建立放寬等級標準的組合:", relaxedCandidate.map(p => p.name).join(", "));
+        return relaxedCandidate;
+      } else {
+        alert("無法找到任何可用的候選組合！可能需要更多選手。");
+        return null;
+      }
     }
   }
   return null;
