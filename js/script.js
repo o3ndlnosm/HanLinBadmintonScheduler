@@ -12,6 +12,8 @@ let lastCombinationByCourt = {};
 let historyMatchesArr = [];
 // 存放所有歷史比賽的時間記錄（與historyMatchesArr對應）
 let historyMatchTimes = [];
+// 存放所有歷史比賽的比分記錄（與historyMatchesArr對應）
+let historyMatchScores = [];
 // 用於檢測固定循環組合的變數
 let readyPlayersCycleCount = 0;
 let lastReadyPlayersNames = [];
@@ -1938,6 +1940,9 @@ function endMatch(courtIndex) {
   // 保存到歷史記錄 - 使用存儲的原始場次數而非增加後的數值
   historyMatchTimes.unshift(timeRecord);
 
+  // 初始化比分記錄（尚未輸入）
+  historyMatchScores.unshift(null);
+
   // 僅記錄選手名稱，不包含場次數
   historyMatches.unshift(
     playerBeforeMatches
@@ -2164,6 +2169,21 @@ function updateHistoryDisplay() {
         </div>`;
         }
 
+        // 獲取比分記錄
+        const scoreRecord = index < historyMatchScores.length ? historyMatchScores[index] : null;
+        const hasScore = scoreRecord && scoreRecord.team1Score !== undefined && scoreRecord.team2Score !== undefined;
+        
+        // 比分顯示或按鈕
+        const scoreSection = hasScore 
+          ? `<div class="history-score">
+               <span class="score-display">${scoreRecord.team1Score} - ${scoreRecord.team2Score}</span>
+             </div>`
+          : `<div class="history-score">
+               <button class="btn btn-sm btn-primary score-input-btn" onclick="openScoreInput(${index})">
+                 <i class="fas fa-edit"></i> 記錄比分
+               </button>
+             </div>`;
+
         return `
         <div class="history-item">
           <div class="history-header">
@@ -2190,6 +2210,7 @@ function updateHistoryDisplay() {
               })
               .join("")}
           </div>
+          ${scoreSection}
         </div>
       `;
       })
@@ -2337,4 +2358,93 @@ document.addEventListener("DOMContentLoaded", function () {
 window.addEventListener("beforeunload", function (e) {
   e.preventDefault();
   e.returnValue = "警告：關閉此網頁將會清空所有資料，是否確認關閉？";
+});
+
+// 比分輸入相關功能
+let currentScoreIndex = -1;
+
+// 開啟比分輸入對話框
+function openScoreInput(matchIndex) {
+  currentScoreIndex = matchIndex;
+  
+  // 獲取對戰選手資訊
+  const match = historyMatches[matchIndex];
+  const players = match.split(" / ");
+  
+  // 顯示對戰隊伍
+  const modalPlayersEl = document.getElementById("scoreModalPlayers");
+  modalPlayersEl.innerHTML = `
+    <div style="font-weight: bold; margin-bottom: 0.5rem;">對戰隊伍</div>
+    <div style="display: flex; justify-content: space-around; align-items: center;">
+      <div style="text-align: center;">
+        <div style="font-weight: 500; color: var(--primary);">第一隊</div>
+        <div>${players[0]}</div>
+        <div>${players[1]}</div>
+      </div>
+      <div style="font-size: 1.2rem; font-weight: bold; color: var(--neutral);">VS</div>
+      <div style="text-align: center;">
+        <div style="font-weight: 500; color: var(--primary);">第二隊</div>
+        <div>${players[2]}</div>
+        <div>${players[3]}</div>
+      </div>
+    </div>
+  `;
+  
+  // 重置輸入值
+  document.getElementById("team1Score").value = "21";
+  document.getElementById("team2Score").value = "0";
+  
+  // 顯示對話框
+  document.getElementById("scoreInputModal").style.display = "flex";
+}
+
+// 關閉比分輸入對話框
+function closeScoreInput() {
+  document.getElementById("scoreInputModal").style.display = "none";
+  currentScoreIndex = -1;
+}
+
+// 儲存比分
+function saveScore() {
+  const team1Score = parseInt(document.getElementById("team1Score").value);
+  const team2Score = parseInt(document.getElementById("team2Score").value);
+  
+  // 驗證輸入
+  if (isNaN(team1Score) || isNaN(team2Score) || team1Score < 0 || team2Score < 0) {
+    alert("請輸入有效的比分數字");
+    return;
+  }
+  
+  // 驗證比分邏輯（一般21分制，領先2分或21分結束）
+  if (team1Score !== 21 && team2Score !== 21) {
+    if (!confirm("比分似乎不是標準的21分制結果，確認要儲存嗎？")) {
+      return;
+    }
+  }
+  
+  // 儲存比分記錄
+  historyMatchScores[currentScoreIndex] = {
+    team1Score: team1Score,
+    team2Score: team2Score,
+    inputTime: new Date().toISOString()
+  };
+  
+  console.log(`儲存比分：比賽#${historyMatches.length - currentScoreIndex}，比分 ${team1Score}-${team2Score}`);
+  
+  // 更新歷史顯示
+  updateHistoryDisplay();
+  
+  // 關閉對話框
+  closeScoreInput();
+  
+  // 顯示成功訊息
+  alert(`比分已儲存：${team1Score} - ${team2Score}`);
+}
+
+// 點擊對話框外部關閉
+document.addEventListener('click', function(event) {
+  const modal = document.getElementById('scoreInputModal');
+  if (event.target === modal) {
+    closeScoreInput();
+  }
 });
