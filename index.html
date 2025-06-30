@@ -12,23 +12,34 @@
   <header class="header">
     <div class="container">
       <h1>翰林羽球排場系統</h1>
-      <div style="text-align: right; margin-top: 10px;">
-        <label class="form-check-label" style="color: white; margin-right: 15px;">
-          <input type="checkbox" id="enableDynamicRotation"> 動態配額制
+      <div style="text-align: right; margin-top: 10px; display: flex; align-items: center; justify-content: flex-end; gap: 15px;">
+        <!-- Google 登入按鈕 -->
+        <div id="googleSignInDiv" style="display: flex; align-items: center; gap: 10px;">
+          <span id="googleUserInfo" style="font-size: 0.9rem; color: white;"></span>
+          <button id="googleSignInBtn" class="btn btn-success btn-sm" onclick="handleGoogleSignIn()" style="display: none;">
+            <i class="fas fa-sign-in-alt"></i> 登入 Google
+          </button>
+          <button id="googleSignOutBtn" class="btn btn-secondary btn-sm" onclick="handleGoogleSignOut()" style="display: none;">
+            <i class="fas fa-sign-out-alt"></i> 登出
+          </button>
+        </div>
+        
+        <div style="border-left: 1px solid rgba(255,255,255,0.3); height: 20px;"></div>
+        
+        <label class="form-check-label" style="color: white; margin: 0;">
+          <input type="checkbox" id="enableSheetsSync"> 自動同步
           <i class="fas fa-info-circle" style="margin-left: 5px; cursor: help;" 
-             title="開啟後，當預備區有8人（4等待+4剛下場）時，會交替選擇不同比例的選手上場，增加組合多樣性"></i>
+             title="開啟後，比賽結束時會自動將紀錄同步到Google Sheets（需要先登入）"></i>
         </label>
-        <label class="form-check-label" style="color: white; margin-right: 15px;">
-          <input type="checkbox" id="enableSheetsSync"> 同步比賽紀錄
-          <i class="fas fa-info-circle" style="margin-left: 5px; cursor: help;" 
-             title="開啟後，比賽結束時會自動將紀錄同步到Google Sheets（需要設定權限）"></i>
+        
+        <label class="form-check-label" style="color: white; margin: 0;">
+          <input type="checkbox" id="enableVoice" checked> 語音播報
         </label>
-        <label class="form-check-label" style="color: white; margin-right: 10px;">
-          <input type="checkbox" id="enableVoice" checked> 啟用語音播報
-        </label>
-        <select id="voiceSelect" class="form-control" style="display: inline-block; width: auto; margin-right: 10px;">
+        
+        <select id="voiceSelect" class="form-control" style="display: inline-block; width: auto;">
           <!-- 語音選項將在這裡動態生成 -->
         </select>
+        
         <button id="testVoiceBtn" class="btn btn-primary btn-sm">測試語音</button>
       </div>
     </div>
@@ -68,19 +79,6 @@
               <i class="fas fa-cloud-download-alt"></i> 從 Google Sheets 載入選手資料
             </button>
             <div id="loadStatus" style="margin-top: 10px; font-style: italic;"></div>
-            
-            <!-- Google 登入按鈕 -->
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-              <div id="googleSignInDiv" style="display: flex; align-items: center; gap: 10px;">
-                <button id="googleSignInBtn" class="btn btn-success" onclick="handleGoogleSignIn()" style="display: none;">
-                  <i class="fas fa-sign-in-alt"></i> 登入 Google 以啟用寫入功能
-                </button>
-                <button id="googleSignOutBtn" class="btn btn-secondary" onclick="handleGoogleSignOut()" style="display: none;">
-                  <i class="fas fa-sign-out-alt"></i> 登出
-                </button>
-                <span id="googleUserInfo" style="font-size: 0.9rem; color: #666;"></span>
-              </div>
-            </div>
           </div>
 
           <!-- 批量輸入區域 -->

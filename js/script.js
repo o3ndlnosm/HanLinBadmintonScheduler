@@ -18,9 +18,6 @@ let historyMatchScores = [];
 let readyPlayersCycleCount = 0;
 let lastReadyPlayersNames = [];
 
-// 動態配額制相關變數
-let enableDynamicRotation = false;  // 是否啟用動態配額制
-let matchRotationCounter = 0;       // 排場輪次計數器
 
 // 時間格式化函數
 function formatTime(date) {
@@ -1445,65 +1442,8 @@ function generateMatchForCourtImmediate(courtIndex) {
     });
   }
 
-  // 檢查是否啟用動態配額制
-  if (enableDynamicRotation) {
-    const waitingPlayers = pool.filter(p => !p.justFinished);
-    const justFinishedPlayers = pool.filter(p => p.justFinished);
-    
-    // 當等待和剛下場各為4人時，使用動態配額
-    if (waitingPlayers.length === 4 && justFinishedPlayers.length === 4) {
-      console.log(`【動態配額制】啟動！等待${waitingPlayers.length}人，剛下場${justFinishedPlayers.length}人`);
-      matchRotationCounter++;
-      
-      let dynamicPool = [];
-      
-      if (matchRotationCounter % 2 === 1) {
-        // 奇數輪：等待3人 + 剛下場1人
-        console.log(`【動態配額制】第${matchRotationCounter}輪（奇數輪）：選擇等待3人 + 剛下場1人`);
-        
-        // 從等待的選手中選3人（按場次少的優先）
-        const selectedWaiting = [...waitingPlayers]
-          .sort((a, b) => a.matches - b.matches)
-          .slice(0, 3);
-        
-        // 從剛下場的選手中選1人（按場次少的優先）
-        const selectedJustFinished = [...justFinishedPlayers]
-          .sort((a, b) => a.matches - b.matches)
-          .slice(0, 1);
-        
-        dynamicPool = [...selectedWaiting, ...selectedJustFinished];
-      } else {
-        // 偶數輪：等待1人 + 剛下場3人
-        console.log(`【動態配額制】第${matchRotationCounter}輪（偶數輪）：選擇等待1人 + 剛下場3人`);
-        
-        // 從等待的選手中選1人（按場次少的優先）
-        const selectedWaiting = [...waitingPlayers]
-          .sort((a, b) => a.matches - b.matches)
-          .slice(0, 1);
-        
-        // 從剛下場的選手中選3人（按場次少的優先）
-        const selectedJustFinished = [...justFinishedPlayers]
-          .sort((a, b) => a.matches - b.matches)
-          .slice(0, 3);
-        
-        dynamicPool = [...selectedWaiting, ...selectedJustFinished];
-      }
-      
-      console.log(`【動態配額制】選出的4人：${dynamicPool.map(p => p.name).join(', ')}`);
-      
-      // 使用動態選出的4人進行排序（考慮等級平衡）
-      candidatePool = dynamicPool.sort((a, b) => {
-        if (a.level !== b.level) return a.level - b.level;
-        return Math.random() - 0.5;
-      });
-    } else {
-      // 人數不符合條件，使用原邏輯
-      candidatePool = sortedReady;
-    }
-  } else {
-    // 未啟用動態配額制，使用原邏輯
-    candidatePool = sortedReady;
-  }
+  // 直接使用排序後的選手池
+  candidatePool = sortedReady;
 
   // 如果有長時間等待選手，可視情況將其顯示在控制台，幫助偵錯
   const longWaitingPlayers = sortedReady.filter(
@@ -2351,19 +2291,6 @@ document.addEventListener("DOMContentLoaded", function () {
   updateHistoryDisplay();
   initVoice(); // 初始化語音功能
 
-  // 初始化動態配額制開關
-  const dynamicRotationCheckbox = document.getElementById('enableDynamicRotation');
-  if (dynamicRotationCheckbox) {
-    dynamicRotationCheckbox.addEventListener('change', function() {
-      enableDynamicRotation = this.checked;
-      if (enableDynamicRotation) {
-        console.log('動態配額制已開啟');
-      } else {
-        console.log('動態配額制已關閉');
-        matchRotationCounter = 0; // 重置計數器
-      }
-    });
-  }
 });
 
 window.addEventListener("beforeunload", function (e) {
@@ -2635,10 +2562,10 @@ function updateGoogleSignInUI(isSignedIn) {
   if (signInBtn && signOutBtn) {
     if (isSignedIn) {
       signInBtn.style.display = 'none';
-      signOutBtn.style.display = 'inline-block';
+      signOutBtn.style.display = 'inline-flex';
       userInfo.textContent = googleUser ? `已登入：${googleUser.email}` : '已登入';
     } else {
-      signInBtn.style.display = 'inline-block';
+      signInBtn.style.display = 'inline-flex';
       signOutBtn.style.display = 'none';
       userInfo.textContent = '';
     }
