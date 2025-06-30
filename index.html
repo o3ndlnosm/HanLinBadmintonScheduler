@@ -18,6 +18,11 @@
           <i class="fas fa-info-circle" style="margin-left: 5px; cursor: help;" 
              title="開啟後，當預備區有8人（4等待+4剛下場）時，會交替選擇不同比例的選手上場，增加組合多樣性"></i>
         </label>
+        <label class="form-check-label" style="color: white; margin-right: 15px;">
+          <input type="checkbox" id="enableSheetsSync"> 同步比賽紀錄
+          <i class="fas fa-info-circle" style="margin-left: 5px; cursor: help;" 
+             title="開啟後，比賽結束時會自動將紀錄同步到Google Sheets（需要設定權限）"></i>
+        </label>
         <label class="form-check-label" style="color: white; margin-right: 10px;">
           <input type="checkbox" id="enableVoice" checked> 啟用語音播報
         </label>
@@ -109,6 +114,9 @@
         <div class="card-header">
           <i class="fas fa-history"></i>
           <h2>歷史比賽</h2>
+          <button class="btn btn-sm btn-success" onclick="syncMatchRecordsToSheets()" style="margin-left: auto;">
+            <i class="fas fa-sync"></i> 同步到 Sheets
+          </button>
         </div>
         <div class="player-list" id="history">
           <!-- 歷史比賽將在這裡動態生成 -->
@@ -140,18 +148,14 @@
         </div>
         <div class="score-input-section">
           <div class="score-input-group">
-            <label for="team1Score">第一隊得分</label>
-            <input type="number" id="team1Score" min="0" max="50" value="21">
+            <label for="team1Score">得分</label>
+            <input type="number" id="team1Score" min="0" max="50" value="0">
           </div>
           <div class="vs-divider">VS</div>
           <div class="score-input-group">
-            <label for="team2Score">第二隊得分</label>
+            <label for="team2Score">得分</label>
             <input type="number" id="team2Score" min="0" max="50" value="0">
           </div>
-        </div>
-        <div class="score-note">
-          <i class="fas fa-info-circle"></i>
-          <span>比賽到21分結束，可以根據實際情況調整分數</span>
         </div>
       </div>
       <div class="modal-footer">

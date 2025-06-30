@@ -2072,6 +2072,9 @@ function endMatch(courtIndex) {
   updateLists();
   updateCourtsDisplay();
   updateHistoryDisplay();
+  
+  // 自動同步到 Google Sheets（如果啟用）
+  autoSyncAfterMatch(0); // 傳入 0 因為剛新增的比賽在陣列最前面
 
   // 在下場且更新等待輪數後進行新一輪排場
 
@@ -2225,6 +2228,7 @@ const GOOGLE_API_KEY = "AIzaSyCyoLexsIwzSg6tMLVhchfMjTgmYNn6S4U"; // 您的 API 
 // 將這些值直接設為常量
 const SPREADSHEET_ID = "1961u7uge-1AHRLrIS1kEG8GNuMNHrf-WdjGVw-pClE0";
 const SHEET_NAME = "人員名單";
+const MATCH_RECORD_SHEET_NAME = "比賽紀錄"; // 新增比賽紀錄工作表名稱
 
 // 載入 Google Sheets 資料 - 修改為直接匯入不顯示模態視窗
 async function loadGoogleSheetsData() {
@@ -2379,13 +2383,11 @@ function openScoreInput(matchIndex) {
     <div style="font-weight: bold; margin-bottom: 0.5rem;">對戰隊伍</div>
     <div style="display: flex; justify-content: space-around; align-items: center;">
       <div style="text-align: center;">
-        <div style="font-weight: 500; color: var(--primary);">第一隊</div>
         <div>${players[0]}</div>
         <div>${players[1]}</div>
       </div>
       <div style="font-size: 1.2rem; font-weight: bold; color: var(--neutral);">VS</div>
       <div style="text-align: center;">
-        <div style="font-weight: 500; color: var(--primary);">第二隊</div>
         <div>${players[2]}</div>
         <div>${players[3]}</div>
       </div>
@@ -2393,7 +2395,7 @@ function openScoreInput(matchIndex) {
   `;
   
   // 重置輸入值
-  document.getElementById("team1Score").value = "21";
+  document.getElementById("team1Score").value = "0";
   document.getElementById("team2Score").value = "0";
   
   // 顯示對話框
@@ -2450,3 +2452,145 @@ document.addEventListener('click', function(event) {
     closeScoreInput();
   }
 });
+
+// Google Sheets 同步功能
+let enableSheetsSync = false;
+
+// 初始化同步設定
+document.addEventListener('DOMContentLoaded', function() {
+  const syncCheckbox = document.getElementById('enableSheetsSync');
+  if (syncCheckbox) {
+    syncCheckbox.addEventListener('change', function(e) {
+      enableSheetsSync = e.target.checked;
+      if (enableSheetsSync) {
+        console.log('已啟用 Google Sheets 同步功能');
+        alert('提醒：Google Sheets 寫入功能需要額外的權限設定。目前僅會在控制台顯示要同步的數據。');
+      }
+    });
+  }
+});
+
+// 準備比賽紀錄數據格式
+function prepareMatchRecordForSheets(matchIndex) {
+  const match = historyMatches[matchIndex];
+  const timeRecord = historyMatchTimes[matchIndex];
+  const scoreRecord = historyMatchScores[matchIndex];
+  const players = match.split(" / ");
+  
+  // 建立比賽紀錄物件
+  const record = {
+    matchNumber: historyMatches.length - matchIndex,
+    date: timeRecord ? new Date(timeRecord.startTime).toLocaleDateString('zh-TW') : '',
+    startTime: timeRecord ? timeRecord.formattedStart : '',
+    endTime: timeRecord ? timeRecord.formattedEnd : '',
+    duration: timeRecord ? `${timeRecord.duration || 0}分${timeRecord.seconds || 0}秒` : '',
+    court: timeRecord ? `場地${timeRecord.courtIndex + 1}` : '',
+    team1Player1: players[0] || '',
+    team1Player2: players[1] || '',
+    team2Player1: players[2] || '',
+    team2Player2: players[3] || '',
+    team1Score: scoreRecord ? scoreRecord.team1Score : '',
+    team2Score: scoreRecord ? scoreRecord.team2Score : '',
+    winner: scoreRecord ? (scoreRecord.team1Score > scoreRecord.team2Score ? '第一隊' : '第二隊') : '',
+    scoreInputTime: scoreRecord ? new Date(scoreRecord.inputTime).toLocaleString('zh-TW') : ''
+  };
+  
+  return record;
+}
+
+// 同步所有比賽紀錄到 Google Sheets
+async function syncMatchRecordsToSheets() {
+  try {
+    // 檢查是否有比賽紀錄
+    if (historyMatches.length === 0) {
+      alert('目前沒有比賽紀錄可以同步');
+      return;
+    }
+    
+    // 準備所有比賽紀錄
+    const allRecords = [];
+    for (let i = 0; i < historyMatches.length; i++) {
+      const record = prepareMatchRecordForSheets(i);
+      allRecords.push(record);
+    }
+    
+    console.log('準備同步的比賽紀錄：', allRecords);
+    
+    // 準備表頭
+    const headers = [
+      '比賽編號', '日期', '開始時間', '結束時間', '比賽時長', '場地',
+      '第一隊選手1', '第一隊選手2', '第二隊選手1', '第二隊選手2',
+      '第一隊得分', '第二隊得分', '勝方', '比分記錄時間'
+    ];
+    
+    // 轉換為二維陣列（Google Sheets 格式）
+    const sheetData = [headers];
+    allRecords.forEach(record => {
+      sheetData.push([
+        record.matchNumber,
+        record.date,
+        record.startTime,
+        record.endTime,
+        record.duration,
+        record.court,
+        record.team1Player1,
+        record.team1Player2,
+        record.team2Player1,
+        record.team2Player2,
+        record.team1Score,
+        record.team2Score,
+        record.winner,
+        record.scoreInputTime
+      ]);
+    });
+    
+    console.log('Google Sheets 格式數據：', sheetData);
+    
+    // 生成 CSV 格式數據
+    const csvContent = sheetData.map(row => 
+      row.map(cell => {
+        // 如果包含逗號或換行，需要用引號包起來
+        const cellStr = String(cell);
+        if (cellStr.includes(',') || cellStr.includes('\n') || cellStr.includes('"')) {
+          return '"' + cellStr.replace(/"/g, '""') + '"';
+        }
+        return cellStr;
+      }).join(',')
+    ).join('\n');
+    
+    // 創建可複製的文字區域
+    const textarea = document.createElement('textarea');
+    textarea.value = csvContent;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    
+    try {
+      document.execCommand('copy');
+      alert(`已複製 ${allRecords.length} 筆比賽紀錄到剪貼簿！\n\n請到 Google Sheets 貼上數據：\n1. 開啟您的 Google Sheets\n2. 選擇「比賽紀錄」工作表\n3. 點擊 A1 儲存格\n4. 按 Ctrl+V (或 Cmd+V) 貼上`);
+    } catch (err) {
+      console.error('複製失敗：', err);
+      alert('自動複製失敗，請手動複製控制台中的 CSV 數據。');
+      console.log('CSV 數據：\n', csvContent);
+    } finally {
+      document.body.removeChild(textarea);
+    }
+    
+    // 這裡可以實作實際的 Google Sheets API 寫入
+    // 需要 OAuth 2.0 認證或 Google Apps Script
+    
+  } catch (error) {
+    console.error('同步失敗：', error);
+    alert('同步過程中發生錯誤，請查看控制台了解詳情。');
+  }
+}
+
+// 在比賽結束時自動同步（如果啟用）
+function autoSyncAfterMatch(matchIndex) {
+  if (enableSheetsSync) {
+    const record = prepareMatchRecordForSheets(matchIndex);
+    console.log('自動同步比賽紀錄：', record);
+    // 這裡可以實作即時同步邏輯
+  }
+}
