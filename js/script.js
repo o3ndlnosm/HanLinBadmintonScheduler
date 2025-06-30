@@ -1803,7 +1803,7 @@ function generateMatchForCourtImmediate(courtIndex) {
 
 // 下場按鈕點擊後，更新該場地的新對戰組合
 function endMatch(courtIndex) {
-  if (!confirm("確認 場地" + (courtIndex + 1) + " 下場？")) {
+  if (!confirm("確認 場地" + (courtIndex + 1) + " 下場？\n\n提醒：請記得到比賽紀錄區回填分數")) {
     return;
   }
 
@@ -2747,7 +2747,8 @@ async function writeToGoogleSheets(records) {
     });
     
     console.log('寫入成功：', response);
-    alert(`成功寫入 ${records.length} 筆比賽紀錄到 Google Sheets！`);
+    // 靜默同步，不顯示成功訊息，避免干擾現場操作
+    console.log(`✅ 已自動同步 ${records.length} 筆比賽紀錄到 Google Sheets`);
     
   } catch (error) {
     console.error('寫入 Google Sheets 失敗：', error);
