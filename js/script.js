@@ -919,10 +919,20 @@ function selectPlayersScenarioOne(readyNonFinished, justFinishedPlayers) {
       break;
       
     case 4:
-      // 準備區4人取2人 + 剛下場4人取2人
-      selectedPlayers = sortedReady.slice(0, 2); // 2人
-      selectedPlayers.push(...shuffledJustFinished.slice(0, 2)); // 2人
-      console.log(`【情況一-4人】選出: 準備區前2人 + 剛下場2人`);
+      // 準備區4人取3人 + 剛下場4人取1人
+      // 準備區按場次最低優先（無視等待輪次）
+      const sortedReadyByMatches = [...readyNonFinished].sort((a, b) => {
+        // 第一優先：場次最低
+        if (a.matches !== b.matches) {
+          return a.matches - b.matches;
+        }
+        // 第二優先：隨機
+        return Math.random() - 0.5;
+      });
+      
+      selectedPlayers = sortedReadyByMatches.slice(0, 3); // 3人
+      selectedPlayers.push(...shuffledJustFinished.slice(0, 1)); // 1人
+      console.log(`【情況一-4人】選出: 準備區前3人(按場次) + 剛下場1人`);
       break;
   }
   
@@ -967,9 +977,55 @@ function selectPlayersScenarioTwo(readyNonFinished, justFinishedPlayers) {
     
   } else if (readyCount === 6 || readyCount === 7) {
     // 準備區6-7人取4人，剛下場全下
-    const shuffledReady = [...readyNonFinished].sort(() => Math.random() - 0.5);
-    selectedPlayers = shuffledReady.slice(0, 4);
-    console.log(`【情況二-${readyCount}人】選出: 準備區隨機4人，剛下場全下`);
+    // 新邏輯：等待輪次為2輪優先，全部選手等待輪次不可高於3輪
+    
+    // 先檢查是否有選手等待超過3輪
+    const overThreeRounds = readyNonFinished.filter(p => (p.waitingTurns || 0) > 3);
+    if (overThreeRounds.length > 0) {
+      console.log(`【情況二-${readyCount}人】警告：有${overThreeRounds.length}位選手等待超過3輪`);
+    }
+    
+    // 按等待輪次分組
+    const waitingTwoRounds = readyNonFinished.filter(p => (p.waitingTurns || 0) === 2);
+    const waitingOneOrLess = readyNonFinished.filter(p => (p.waitingTurns || 0) <= 1);
+    
+    if (waitingTwoRounds.length > 0) {
+      // 有等待2輪的選手，優先選擇
+      console.log(`【情況二-${readyCount}人】優先選擇等待2輪的選手: ${waitingTwoRounds.length}人`);
+      
+      if (waitingTwoRounds.length >= 4) {
+        // 等待2輪的選手超過4人，從中選4人
+        selectedPlayers = waitingTwoRounds.slice(0, 4);
+      } else {
+        // 等待2輪的選手不足4人，補充其他選手
+        selectedPlayers = [...waitingTwoRounds];
+        
+        // 從等待1輪以下的選手中按場次最低優先補充
+        const sortedWaitingOneOrLess = waitingOneOrLess.sort((a, b) => {
+          if (a.matches !== b.matches) {
+            return a.matches - b.matches;
+          }
+          return Math.random() - 0.5;
+        });
+        
+        const needed = 4 - selectedPlayers.length;
+        selectedPlayers.push(...sortedWaitingOneOrLess.slice(0, needed));
+      }
+    } else {
+      // 沒有等待2輪的選手，按場次最低優先
+      console.log(`【情況二-${readyCount}人】無等待2輪選手，按場次最低優先`);
+      
+      const sortedByMatches = [...readyNonFinished].sort((a, b) => {
+        if (a.matches !== b.matches) {
+          return a.matches - b.matches;
+        }
+        return Math.random() - 0.5;
+      });
+      
+      selectedPlayers = sortedByMatches.slice(0, 4);
+    }
+    
+    console.log(`【情況二-${readyCount}人】選出: 準備區4人，剛下場全下`);
     
   } else if (readyCount >= 8) {
     // 準備區8+人：先取等待輪次最高2人，再取場次最低2人
