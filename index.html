@@ -13,6 +13,16 @@
     <div class="container">
       <h1>翰林羽球排場系統</h1>
       <div style="text-align: right; margin-top: 10px; display: flex; align-items: center; justify-content: flex-end; gap: 15px;">
+        <label class="form-check-label" style="color: white; margin: 0;">
+          <input type="checkbox" id="enableVoice" checked> 語音播報
+        </label>
+        
+        <select id="voiceSelect" class="form-control" style="display: inline-block; width: auto;">
+          <!-- 語音選項將在這裡動態生成 -->
+        </select>
+        
+        <button id="testVoiceBtn" class="btn btn-primary btn-sm">測試語音</button>
+        
         <!-- Google 登入按鈕 -->
         <div id="googleSignInDiv" style="display: flex; align-items: center; gap: 10px;">
           <span id="googleUserInfo" style="font-size: 0.9rem; color: white;"></span>
@@ -23,24 +33,6 @@
             <i class="fas fa-sign-out-alt"></i> 登出
           </button>
         </div>
-        
-        <div style="border-left: 1px solid rgba(255,255,255,0.3); height: 20px;"></div>
-        
-        <label class="form-check-label" style="color: white; margin: 0;">
-          <input type="checkbox" id="enableSheetsSync"> 自動同步
-          <i class="fas fa-info-circle" style="margin-left: 5px; cursor: help;" 
-             title="開啟後，比賽結束時會自動將紀錄同步到Google Sheets（需要先登入）"></i>
-        </label>
-        
-        <label class="form-check-label" style="color: white; margin: 0;">
-          <input type="checkbox" id="enableVoice" checked> 語音播報
-        </label>
-        
-        <select id="voiceSelect" class="form-control" style="display: inline-block; width: auto;">
-          <!-- 語音選項將在這裡動態生成 -->
-        </select>
-        
-        <button id="testVoiceBtn" class="btn btn-primary btn-sm">測試語音</button>
       </div>
     </div>
   </header>

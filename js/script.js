@@ -2385,22 +2385,8 @@ document.addEventListener('click', function(event) {
   }
 });
 
-// Google Sheets 同步功能
+// Google Sheets 同步功能 - 登入後自動啟用
 let enableSheetsSync = false;
-
-// 初始化同步設定
-document.addEventListener('DOMContentLoaded', function() {
-  const syncCheckbox = document.getElementById('enableSheetsSync');
-  if (syncCheckbox) {
-    syncCheckbox.addEventListener('change', function(e) {
-      enableSheetsSync = e.target.checked;
-      if (enableSheetsSync) {
-        console.log('已啟用 Google Sheets 同步功能');
-        alert('提醒：Google Sheets 寫入功能需要額外的權限設定。目前僅會在控制台顯示要同步的數據。');
-      }
-    });
-  }
-});
 
 // 準備比賽紀錄數據格式
 function prepareMatchRecordForSheets(matchIndex) {
@@ -2518,9 +2504,9 @@ async function syncMatchRecordsToSheets() {
   }
 }
 
-// 在比賽結束時自動同步（如果啟用）
+// 在比賽結束時自動同步（如果已登入）
 function autoSyncAfterMatch(matchIndex) {
-  if (enableSheetsSync && googleAccessToken) {
+  if (googleAccessToken) {
     const record = prepareMatchRecordForSheets(matchIndex);
     console.log('自動同步比賽紀錄：', record);
     // 自動寫入 Google Sheets
@@ -2619,18 +2605,21 @@ async function handleGoogleSignIn() {
             if (userResponse.ok) {
               const userInfo = await userResponse.json();
               googleUser = userInfo;
+              enableSheetsSync = true; // 登入成功後自動啟用同步
               updateGoogleSignInUI(true);
-              alert(`登入成功！歡迎 ${userInfo.email}\n\n現在您可以直接將比賽紀錄寫入 Google Sheets。`);
+              alert(`登入成功！歡迎 ${userInfo.email}\n\n比賽紀錄將自動同步到 Google Sheets。`);
             } else {
               // 如果無法獲取用戶資訊，仍然算登入成功
+              enableSheetsSync = true; // 登入成功後自動啟用同步
               updateGoogleSignInUI(true);
-              alert('登入成功！現在您可以直接將比賽紀錄寫入 Google Sheets。');
+              alert('登入成功！比賽紀錄將自動同步到 Google Sheets。');
             }
           } catch (userError) {
             console.warn('無法獲取用戶資訊：', userError);
             // 但仍然更新 UI 為已登入狀態
+            enableSheetsSync = true; // 登入成功後自動啟用同步
             updateGoogleSignInUI(true);
-            alert('登入成功！現在您可以直接將比賽紀錄寫入 Google Sheets。');
+            alert('登入成功！比賽紀錄將自動同步到 Google Sheets。');
           }
         }
       },
@@ -2656,6 +2645,7 @@ async function handleGoogleSignIn() {
 function handleGoogleSignOut() {
   googleAccessToken = null;
   googleUser = null;
+  enableSheetsSync = false; // 登出時停用同步
   localStorage.removeItem('googleAccessToken');
   
   // 撤銷 token
