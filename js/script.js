@@ -2012,9 +2012,6 @@ function endMatch(courtIndex) {
   updateLists();
   updateCourtsDisplay();
   updateHistoryDisplay();
-  
-  // 自動同步到 Google Sheets（如果啟用）
-  autoSyncAfterMatch(0); // 傳入 0 因為剛新增的比賽在陣列最前面
 
   // 在下場且更新等待輪數後進行新一輪排場
 
@@ -2372,6 +2369,11 @@ function saveScore() {
   
   // 關閉對話框
   closeScoreInput();
+  
+  // 分數儲存成功後自動同步到 Google Sheets（如果已登入）
+  if (googleAccessToken) {
+    autoSyncAfterMatch(currentScoreIndex);
+  }
   
   // 顯示成功訊息
   alert(`比分已儲存：${team1Score} - ${team2Score}`);
