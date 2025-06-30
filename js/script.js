@@ -2528,6 +2528,30 @@ function autoSyncAfterMatch(matchIndex) {
   }
 }
 
+// 驗證 token 是否有效
+async function validateToken(token) {
+  try {
+    const response = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + token);
+    if (response.ok) {
+      const tokenInfo = await response.json();
+      if (!tokenInfo.error) {
+        // Token 仍然有效
+        googleAccessToken = token;
+        gapi.client.setToken({ access_token: token });
+        updateGoogleSignInUI(true);
+        return;
+      }
+    }
+  } catch (error) {
+    console.log('Token 驗證失敗：', error);
+  }
+  
+  // Token 無效，清除並更新 UI
+  localStorage.removeItem('googleAccessToken');
+  googleAccessToken = null;
+  updateGoogleSignInUI(false);
+}
+
 // 初始化 Google API
 function initGoogleAPI() {
   // 載入 Google API client library
@@ -2542,8 +2566,8 @@ function initGoogleAPI() {
       // 檢查是否已有存儲的 token
       const savedToken = localStorage.getItem('googleAccessToken');
       if (savedToken) {
-        googleAccessToken = savedToken;
-        updateGoogleSignInUI(true);
+        // 驗證 token 是否仍然有效
+        validateToken(savedToken);
       } else {
         updateGoogleSignInUI(false);
       }
@@ -2574,36 +2598,58 @@ function updateGoogleSignInUI(isSignedIn) {
 
 // 處理 Google 登入
 async function handleGoogleSignIn() {
-  const tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
-    callback: (response) => {
-      if (response.access_token) {
-        googleAccessToken = response.access_token;
-        localStorage.setItem('googleAccessToken', googleAccessToken);
-        
-        // 設定 API client 的 access token
-        gapi.client.setToken({ access_token: googleAccessToken });
-        
-        // 獲取用戶資訊
-        fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-          headers: { Authorization: `Bearer ${googleAccessToken}` }
-        })
-        .then(res => res.json())
-        .then(userInfo => {
-          googleUser = userInfo;
-          updateGoogleSignInUI(true);
-          alert(`登入成功！歡迎 ${userInfo.email}\n\n現在您可以直接將比賽紀錄寫入 Google Sheets。`);
-        });
+  try {
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email',
+      callback: async (response) => {
+        if (response.access_token) {
+          googleAccessToken = response.access_token;
+          localStorage.setItem('googleAccessToken', googleAccessToken);
+          
+          // 設定 API client 的 access token
+          gapi.client.setToken({ access_token: googleAccessToken });
+          
+          try {
+            // 獲取用戶資訊
+            const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+              headers: { Authorization: `Bearer ${googleAccessToken}` }
+            });
+            
+            if (userResponse.ok) {
+              const userInfo = await userResponse.json();
+              googleUser = userInfo;
+              updateGoogleSignInUI(true);
+              alert(`登入成功！歡迎 ${userInfo.email}\n\n現在您可以直接將比賽紀錄寫入 Google Sheets。`);
+            } else {
+              // 如果無法獲取用戶資訊，仍然算登入成功
+              updateGoogleSignInUI(true);
+              alert('登入成功！現在您可以直接將比賽紀錄寫入 Google Sheets。');
+            }
+          } catch (userError) {
+            console.warn('無法獲取用戶資訊：', userError);
+            // 但仍然更新 UI 為已登入狀態
+            updateGoogleSignInUI(true);
+            alert('登入成功！現在您可以直接將比賽紀錄寫入 Google Sheets。');
+          }
+        }
+      },
+      error_callback: (error) => {
+        if (error.type === 'popup_closed') {
+          console.log('使用者關閉了登入視窗');
+          // 不顯示錯誤訊息，因為使用者可能只是改變主意
+        } else {
+          console.error('登入失敗：', error);
+          alert('登入失敗，請重試。');
+        }
       }
-    },
-    error_callback: (error) => {
-      console.error('登入失敗：', error);
-      alert('登入失敗，請重試。');
-    }
-  });
-  
-  tokenClient.requestAccessToken();
+    });
+    
+    tokenClient.requestAccessToken();
+  } catch (error) {
+    console.error('初始化登入時發生錯誤：', error);
+    alert('登入功能初始化失敗，請重新整理頁面後再試。');
+  }
 }
 
 // 處理登出
