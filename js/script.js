@@ -13,10 +13,11 @@ let historyMatchesArr = [];
 // 存放所有歷史比賽的時間記錄（與historyMatchesArr對應）
 let historyMatchTimes = [];
 // 存放所有歷史比賽的比分記錄（與historyMatchesArr對應）
-let historyMatchScores = [];
 // 用於檢測固定循環組合的變數
 let readyPlayersCycleCount = 0;
 let lastReadyPlayersNames = [];
+// 手動排場模式
+let isManualMode = false;
 
 
 // 時間格式化函數
@@ -368,6 +369,11 @@ function updateLists() {
           <button class="btn btn-neutral" onclick="moveToRest('${p.name}')" title="休息">
             休息
           </button>
+          ${isManualMode ? `
+            <button class="btn btn-sm btn-success" onclick="manualJoinCourt('${p.name}')" title="自動分配到空閒場地">
+              上場
+            </button>
+          ` : ''}
         </div>
       </div>
     `;
@@ -561,8 +567,8 @@ function updateCourtsDisplay(updateTimesOnly = false) {
                   ${getElapsedTimeString(court.startTime)}
                 </span>
               </div>
-              <button class="btn btn-warning" onclick="endMatch(${i})">
-                <i class="fas fa-check-circle"></i> 下場
+              <button class="btn btn-warning" onclick="${isManualMode ? `manualEndMatch(${i})` : `endMatch(${i})`}">
+                <i class="fas fa-check-circle"></i> ${isManualMode ? '清空' : '下場'}
               </button>
             </div>
           </div>
@@ -1880,8 +1886,7 @@ function endMatch(courtIndex) {
   // 保存到歷史記錄 - 使用存儲的原始場次數而非增加後的數值
   historyMatchTimes.unshift(timeRecord);
 
-  // 初始化比分記錄（尚未輸入）
-  historyMatchScores.unshift(null);
+  // 移除比分記錄功能
 
   // 僅記錄選手名稱，不包含場次數
   historyMatches.unshift(
@@ -2012,6 +2017,13 @@ function endMatch(courtIndex) {
   updateLists();
   updateCourtsDisplay();
   updateHistoryDisplay();
+  
+  // 自動同步到 Google Sheets（如果已登入）
+  if (googleAccessToken && enableSheetsSync) {
+    const matchIndex = 0; // 最新的比賽記錄在索引 0
+    console.log('比賽結束，準備自動同步到 Google Sheets');
+    autoSyncAfterMatch(matchIndex);
+  }
 
   // 在下場且更新等待輪數後進行新一輪排場
 
@@ -2109,20 +2121,7 @@ function updateHistoryDisplay() {
         </div>`;
         }
 
-        // 獲取比分記錄
-        const scoreRecord = index < historyMatchScores.length ? historyMatchScores[index] : null;
-        const hasScore = scoreRecord && scoreRecord.team1Score !== undefined && scoreRecord.team2Score !== undefined;
-        
-        // 比分顯示或按鈕
-        const scoreSection = hasScore 
-          ? `<div class="history-score">
-               <span class="score-display">${scoreRecord.team1Score} - ${scoreRecord.team2Score}</span>
-             </div>`
-          : `<div class="history-score">
-               <button class="btn btn-sm btn-primary score-input-btn" onclick="openScoreInput(${index})">
-                 <i class="fas fa-edit"></i> 記錄比分
-               </button>
-             </div>`;
+        // 移除比分記錄功能，只保留組合和時間記錄
 
         return `
         <div class="history-item">
@@ -2151,7 +2150,6 @@ function updateHistoryDisplay() {
                 })
                 .join("")}
             </div>
-            ${scoreSection}
           </div>
         </div>
       `;
@@ -2281,13 +2279,84 @@ function toggleInputMode(mode) {
   }
 }
 
+// 手動模式切換
+function toggleManualMode() {
+  isManualMode = document.getElementById('manualMode').checked;
+  updateCourtsDisplay(); // 更新場地顯示
+  updateLists(); // 更新選手列表顯示
+}
+
+// 手動清空場地
+function manualEndMatch(courtIndex) {
+  if (!confirm("確認清空場地" + (courtIndex + 1) + "？")) {
+    return;
+  }
+
+  // 將場地選手移回預備區
+  let playersToReady = courts[courtIndex];
+  courts[courtIndex] = [];
+  readyPlayers.push(...playersToReady);
+
+  // 更新界面
+  updateLists();
+  updateCourtsDisplay();
+}
+
+// 手動上場功能 - 自動分配到空閒場地
+function manualJoinCourt(playerName) {
+  // 找到第一個有空位的場地
+  let availableCourtIndex = -1;
+  for (let i = 0; i < courts.length; i++) {
+    if (courts[i].length < 4) {
+      availableCourtIndex = i;
+      break;
+    }
+  }
+
+  // 檢查是否有可用場地
+  if (availableCourtIndex === -1) {
+    alert("所有場地都已滿，無法上場");
+    return;
+  }
+
+  // 從預備區找到選手
+  const playerIndex = readyPlayers.findIndex(p => p.name === playerName);
+  if (playerIndex === -1) {
+    alert("找不到選手");
+    return;
+  }
+
+  // 移動選手到場地
+  const player = readyPlayers.splice(playerIndex, 1)[0];
+  courts[availableCourtIndex].push(player);
+
+  // 如果場地滿了，設定開始時間
+  if (courts[availableCourtIndex].length === 4) {
+    courts[availableCourtIndex].startTime = new Date();
+  }
+
+  // 更新界面
+  updateLists();
+  updateCourtsDisplay();
+
+  // 如果場地滿了，播報
+  if (courts[availableCourtIndex].length === 4) {
+    announceCourt(availableCourtIndex);
+  }
+
+  console.log(`${playerName} 已分配到場地 ${availableCourtIndex + 1}`);
+}
+
 // 頁面加載完成後初始化
 document.addEventListener("DOMContentLoaded", function () {
   updateLists();
   updateCourtsDisplay();
   updateHistoryDisplay();
   initVoice(); // 初始化語音功能
+  initGoogleAPI(); // 初始化 Google API
 
+  // 綁定手動模式切換事件
+  document.getElementById('manualMode').addEventListener('change', toggleManualMode);
 });
 
 window.addEventListener("beforeunload", function (e) {
@@ -2296,88 +2365,9 @@ window.addEventListener("beforeunload", function (e) {
 });
 
 // 比分輸入相關功能
-let currentScoreIndex = -1;
 
-// 開啟比分輸入對話框
-function openScoreInput(matchIndex) {
-  currentScoreIndex = matchIndex;
-  
-  // 獲取對戰選手資訊
-  const match = historyMatches[matchIndex];
-  const players = match.split(" / ");
-  
-  // 顯示對戰隊伍
-  const modalPlayersEl = document.getElementById("scoreModalPlayers");
-  modalPlayersEl.innerHTML = `
-    <div style="font-weight: bold; margin-bottom: 0.5rem;">對戰隊伍</div>
-    <div style="display: flex; justify-content: space-around; align-items: center;">
-      <div style="text-align: center;">
-        <div>${players[0]}</div>
-        <div>${players[1]}</div>
-      </div>
-      <div style="font-size: 1.2rem; font-weight: bold; color: var(--neutral);">VS</div>
-      <div style="text-align: center;">
-        <div>${players[2]}</div>
-        <div>${players[3]}</div>
-      </div>
-    </div>
-  `;
-  
-  // 重置輸入值
-  document.getElementById("team1Score").value = "0";
-  document.getElementById("team2Score").value = "0";
-  
-  // 顯示對話框
-  document.getElementById("scoreInputModal").style.display = "flex";
-}
 
-// 關閉比分輸入對話框
-function closeScoreInput() {
-  document.getElementById("scoreInputModal").style.display = "none";
-  currentScoreIndex = -1;
-}
 
-// 儲存比分
-function saveScore() {
-  const team1Score = parseInt(document.getElementById("team1Score").value);
-  const team2Score = parseInt(document.getElementById("team2Score").value);
-  
-  // 驗證輸入
-  if (isNaN(team1Score) || isNaN(team2Score) || team1Score < 0 || team2Score < 0) {
-    alert("請輸入有效的比分數字");
-    return;
-  }
-  
-  // 驗證比分邏輯（一般21分制，領先2分或21分結束）
-  if (team1Score !== 21 && team2Score !== 21) {
-    if (!confirm("比分似乎不是標準的21分制結果，確認要儲存嗎？")) {
-      return;
-    }
-  }
-  
-  // 儲存比分記錄
-  historyMatchScores[currentScoreIndex] = {
-    team1Score: team1Score,
-    team2Score: team2Score,
-    inputTime: new Date().toISOString()
-  };
-  
-  console.log(`儲存比分：比賽#${historyMatches.length - currentScoreIndex}，比分 ${team1Score}-${team2Score}`);
-  
-  // 更新歷史顯示
-  updateHistoryDisplay();
-  
-  // 關閉對話框
-  closeScoreInput();
-  
-  // 分數儲存成功後自動同步到 Google Sheets（如果已登入）
-  if (googleAccessToken) {
-    autoSyncAfterMatch(currentScoreIndex);
-  }
-  
-  // 顯示成功訊息
-  alert(`比分已儲存：${team1Score} - ${team2Score}`);
-}
 
 // 點擊對話框外部關閉
 document.addEventListener('click', function(event) {
@@ -2393,11 +2383,14 @@ let enableSheetsSync = false;
 // 準備比賽紀錄數據格式
 function prepareMatchRecordForSheets(matchIndex) {
   const match = historyMatches[matchIndex];
+  if (!match) {
+    console.error('無法找到比賽記錄，matchIndex:', matchIndex);
+    return null;
+  }
   const timeRecord = historyMatchTimes[matchIndex];
-  const scoreRecord = historyMatchScores[matchIndex];
   const players = match.split(" / ");
   
-  // 建立比賽紀錄物件
+  // 建立比賽紀錄物件（只記錄組合和時間）
   const record = {
     matchNumber: historyMatches.length - matchIndex,
     date: timeRecord ? new Date(timeRecord.startTime).toLocaleDateString('zh-TW') : '',
@@ -2408,11 +2401,7 @@ function prepareMatchRecordForSheets(matchIndex) {
     team1Player1: players[0] || '',
     team1Player2: players[1] || '',
     team2Player1: players[2] || '',
-    team2Player2: players[3] || '',
-    team1Score: scoreRecord ? scoreRecord.team1Score : '',
-    team2Score: scoreRecord ? scoreRecord.team2Score : '',
-    winner: scoreRecord ? (scoreRecord.team1Score > scoreRecord.team2Score ? '第一隊' : '第二隊') : '',
-    scoreInputTime: scoreRecord ? new Date(scoreRecord.inputTime).toLocaleString('zh-TW') : ''
+    team2Player2: players[3] || ''
   };
   
   return record;
@@ -2439,8 +2428,7 @@ async function syncMatchRecordsToSheets() {
     // 準備表頭
     const headers = [
       '比賽編號', '日期', '開始時間', '結束時間', '比賽時長', '場地',
-      '第一隊選手1', '第一隊選手2', '第二隊選手1', '第二隊選手2',
-      '第一隊得分', '第二隊得分', '勝方', '比分記錄時間'
+      '第一隊選手1', '第一隊選手2', '第二隊選手1', '第二隊選手2'
     ];
     
     // 轉換為二維陣列（Google Sheets 格式）
@@ -2456,11 +2444,7 @@ async function syncMatchRecordsToSheets() {
         record.team1Player1,
         record.team1Player2,
         record.team2Player1,
-        record.team2Player2,
-        record.team1Score,
-        record.team2Score,
-        record.winner,
-        record.scoreInputTime
+        record.team2Player2
       ]);
     });
     
@@ -2508,11 +2492,15 @@ async function syncMatchRecordsToSheets() {
 
 // 在比賽結束時自動同步（如果已登入）
 function autoSyncAfterMatch(matchIndex) {
-  if (googleAccessToken) {
+  if (googleAccessToken && enableSheetsSync) {
     const record = prepareMatchRecordForSheets(matchIndex);
-    console.log('自動同步比賽紀錄：', record);
-    // 自動寫入 Google Sheets
-    writeToGoogleSheets([record]);
+    if (record) {
+      console.log('自動同步比賽紀錄：', record);
+      // 自動寫入 Google Sheets
+      writeToGoogleSheets([record]);
+    } else {
+      console.error('無法準備比賽紀錄，跳過同步');
+    }
   }
 }
 
@@ -2673,12 +2661,11 @@ async function writeToGoogleSheets(records) {
     // 準備要寫入的數據
     const headers = [
       '比賽編號', '日期', '開始時間', '結束時間', '比賽時長', '場地',
-      '第一隊選手1', '第一隊選手2', '第二隊選手1', '第二隊選手2',
-      '第一隊得分', '第二隊得分', '勝方', '比分記錄時間'
+      '第一隊選手1', '第一隊選手2', '第二隊選手1', '第二隊選手2'
     ];
     
     // 檢查工作表是否已有標題
-    const checkRange = `${MATCH_RECORD_SHEET_NAME}!A1:N1`;
+    const checkRange = `${MATCH_RECORD_SHEET_NAME}!A1:J1`;
     const checkResponse = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: checkRange,
@@ -2689,7 +2676,7 @@ async function writeToGoogleSheets(records) {
       // 如果沒有標題，先寫入標題
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${MATCH_RECORD_SHEET_NAME}!A1:N1`,
+        range: `${MATCH_RECORD_SHEET_NAME}!A1:J1`,
         valueInputOption: 'USER_ENTERED',
         resource: {
           values: [headers]
@@ -2720,11 +2707,7 @@ async function writeToGoogleSheets(records) {
       record.team1Player1,
       record.team1Player2,
       record.team2Player1,
-      record.team2Player2,
-      record.team1Score,
-      record.team2Score,
-      record.winner,
-      record.scoreInputTime
+      record.team2Player2
     ]);
     
     // 寫入數據
@@ -2774,8 +2757,7 @@ async function syncMatchRecordsToSheets() {
       // 準備表頭
       const headers = [
         '比賽編號', '日期', '開始時間', '結束時間', '比賽時長', '場地',
-        '第一隊選手1', '第一隊選手2', '第二隊選手1', '第二隊選手2',
-        '第一隊得分', '第二隊得分', '勝方', '比分記錄時間'
+        '第一隊選手1', '第一隊選手2', '第二隊選手1', '第二隊選手2'
       ];
       
       // 轉換為二維陣列（Google Sheets 格式）
@@ -2791,11 +2773,7 @@ async function syncMatchRecordsToSheets() {
           record.team1Player1,
           record.team1Player2,
           record.team2Player1,
-          record.team2Player2,
-          record.team1Score,
-          record.team2Score,
-          record.winner,
-          record.scoreInputTime
+          record.team2Player2
         ]);
       });
       
