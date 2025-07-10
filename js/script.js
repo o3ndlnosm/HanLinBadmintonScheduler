@@ -1014,11 +1014,90 @@ function selectPlayersScenarioTwo(readyNonFinished, justFinishedPlayers) {
       console.log(`【情況二-${readyCount}人】警告：有${overThreeRounds.length}位選手等待超過3輪`);
     }
     
-    // 按等待輪次分組
+    // 按等待輪次分組 - 修正：等待3輪的選手獲得絕對優先權
+    const waitingThreeRounds = readyNonFinished.filter(p => (p.waitingTurns || 0) === 3);
     const waitingTwoRounds = readyNonFinished.filter(p => (p.waitingTurns || 0) === 2);
     const waitingOneOrLess = readyNonFinished.filter(p => (p.waitingTurns || 0) <= 1);
     
-    if (waitingTwoRounds.length > 0) {
+    // 檢查是否有違反規則的選手（等待超過3輪）
+    const violatingPlayers = readyNonFinished.filter(p => (p.waitingTurns || 0) > 3);
+    if (violatingPlayers.length > 0) {
+      console.error(`【規則違反】有${violatingPlayers.length}位選手等待超過3輪，這違反了系統規則！`);
+      console.error(`違反規則的選手:`, violatingPlayers.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', '));
+      
+      // 強制讓違反規則的選手獲得最高優先權
+      const sortedViolatingPlayers = violatingPlayers.sort((a, b) => {
+        if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
+          return (b.waitingTurns || 0) - (a.waitingTurns || 0);
+        }
+        return Math.random() - 0.5;
+      });
+      
+      if (violatingPlayers.length >= 4) {
+        // 違反規則的選手超過4人，強制選4人
+        selectedPlayers = sortedViolatingPlayers.slice(0, 4);
+        console.log(`【強制處理】選擇前4位違反規則的選手上場`);
+      } else {
+        // 違反規則的選手不足4人，全部選上並補充其他選手
+        selectedPlayers = [...sortedViolatingPlayers];
+        console.log(`【強制處理】所有違反規則的選手必須上場`);
+        
+        // 補充等待3輪的選手
+        if (waitingThreeRounds.length > 0) {
+          const needed = 4 - selectedPlayers.length;
+          selectedPlayers.push(...waitingThreeRounds.slice(0, needed));
+        }
+        
+        // 補充等待2輪的選手
+        if (selectedPlayers.length < 4 && waitingTwoRounds.length > 0) {
+          const needed = 4 - selectedPlayers.length;
+          selectedPlayers.push(...waitingTwoRounds.slice(0, needed));
+        }
+        
+        // 補充等待1輪以下的選手
+        if (selectedPlayers.length < 4 && waitingOneOrLess.length > 0) {
+          const sortedWaitingOneOrLess = waitingOneOrLess.sort((a, b) => {
+            if (a.matches !== b.matches) {
+              return a.matches - b.matches;
+            }
+            return Math.random() - 0.5;
+          });
+          
+          const needed = 4 - selectedPlayers.length;
+          selectedPlayers.push(...sortedWaitingOneOrLess.slice(0, needed));
+        }
+      }
+    } else if (waitingThreeRounds.length > 0) {
+      // 有等待3輪的選手，絕對優先選擇（防止超過3輪）
+      console.log(`【情況二-${readyCount}人】絕對優先選擇等待3輪的選手: ${waitingThreeRounds.length}人`);
+      
+      if (waitingThreeRounds.length >= 4) {
+        // 等待3輪的選手超過4人，從中選4人
+        selectedPlayers = waitingThreeRounds.slice(0, 4);
+      } else {
+        // 等待3輪的選手不足4人，補充其他選手
+        selectedPlayers = [...waitingThreeRounds];
+        
+        // 優先補充等待2輪的選手
+        if (waitingTwoRounds.length > 0) {
+          const needed = 4 - selectedPlayers.length;
+          selectedPlayers.push(...waitingTwoRounds.slice(0, needed));
+        }
+        
+        // 如果還不足4人，補充等待1輪以下的選手
+        if (selectedPlayers.length < 4 && waitingOneOrLess.length > 0) {
+          const sortedWaitingOneOrLess = waitingOneOrLess.sort((a, b) => {
+            if (a.matches !== b.matches) {
+              return a.matches - b.matches;
+            }
+            return Math.random() - 0.5;
+          });
+          
+          const needed = 4 - selectedPlayers.length;
+          selectedPlayers.push(...sortedWaitingOneOrLess.slice(0, needed));
+        }
+      }
+    } else if (waitingTwoRounds.length > 0) {
       // 有等待2輪的選手，優先選擇
       console.log(`【情況二-${readyCount}人】優先選擇等待2輪的選手: ${waitingTwoRounds.length}人`);
       
@@ -1041,8 +1120,8 @@ function selectPlayersScenarioTwo(readyNonFinished, justFinishedPlayers) {
         selectedPlayers.push(...sortedWaitingOneOrLess.slice(0, needed));
       }
     } else {
-      // 沒有等待2輪的選手，按場次最低優先
-      console.log(`【情況二-${readyCount}人】無等待2輪選手，按場次最低優先`);
+      // 沒有等待2輪以上的選手，按場次最低優先
+      console.log(`【情況二-${readyCount}人】無等待2輪以上選手，按場次最低優先`);
       
       const sortedByMatches = [...readyNonFinished].sort((a, b) => {
         if (a.matches !== b.matches) {
