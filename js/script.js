@@ -443,15 +443,40 @@ function removePlayer(name) {
   updateLists();
 }
 
+// 計算所有活躍選手的平均場次
+function calculateActivePlayersAverageMatches() {
+  let allActivePlayers = [];
+  
+  // 加入場地上的選手
+  courts.forEach(court => {
+    if (court.length > 0) {
+      allActivePlayers.push(...court);
+    }
+  });
+  
+  // 加入預備區的選手
+  allActivePlayers.push(...readyPlayers);
+  
+  if (allActivePlayers.length === 0) {
+    return 0;
+  }
+  
+  const totalMatches = allActivePlayers.reduce((sum, player) => sum + (player.matches || 0), 0);
+  const averageMatches = Math.round(totalMatches / allActivePlayers.length);
+  
+  console.log(`【平均場次計算】總共 ${allActivePlayers.length} 位活躍選手，總場次 ${totalMatches}，平均場次 ${averageMatches}`);
+  return averageMatches;
+}
+
 /* 
   moveToReady：
   將選手從列表或休息區移入預備區時，
-  保留選手的實際場次數，不再覆蓋為「次小場次」
+  場次調整為所有活躍選手的平均場次
 */
 function moveToReady(name) {
   let player =
-    players.find((p) => p.name === name) ||
-    restingPlayers.find((p) => p.name === name);
+    restingPlayers.find((p) => p.name === name) ||
+    players.find((p) => p.name === name);
   if (player) {
     players = players.filter((p) => p.name !== name);
     restingPlayers = restingPlayers.filter((p) => p.name !== name);
@@ -465,12 +490,11 @@ function moveToReady(name) {
       player.justFinished = false;
     }
 
-    // 選手應保持其原有場次數，不再自動調整
-    // 只為完全未定義場次的選手設置初始值0
-    if (player.matches === undefined) {
-      // 新選手初始化為0場，不再使用系統最小場次
-      player.matches = 0;
-    }
+    // 將選手場次調整為所有活躍選手的平均場次
+    const averageMatches = calculateActivePlayersAverageMatches();
+    player.matches = averageMatches;
+    
+    console.log(`【moveToReady】選手 ${name} 場次調整為平均場次：${averageMatches}`);
 
     readyPlayers.push(player);
     updateLists();
@@ -1543,7 +1567,16 @@ function generateMatchForCourtImmediate(courtIndex) {
       }
     }
     
-    console.log("【新排場邏輯】選手選擇失敗，回退到原邏輯");
+    // 【修正】新邏輯失敗後不再回退到舊邏輯，避免重新選擇選手
+    console.log("【新排場邏輯】選手選擇失敗，無法找到合適的組合");
+    alert("無法找到符合等級規則的組合，可能需要調整選手等級或增加選手數量");
+    return null;
+  } // 關閉 if (courts[courtIndex].length === 0 && candidatePool.length >= 4) 的大括號
+    
+    /*
+    // 【已註解】舊邏輯 - 回退到原始選手選擇邏輯
+    // 這個邏輯會重新從所有準備區選手中選擇，可能包含剛下場選手
+    // 與新邏輯的「準備區7人時只從非剛下場選手中選4人」需求衝突
     
     // 【修改後邏輯】檢查是否需要激活交叉選擇 - 考慮非剛下場選手
     // 過濾出非剛下場的選手
@@ -1805,11 +1838,15 @@ function generateMatchForCourtImmediate(courtIndex) {
     }
   }
   return null;
+  */
+  
+  // 舊邏輯註解結束
+  return null;
 }
 
 // 下場按鈕點擊後，更新該場地的新對戰組合
 function endMatch(courtIndex) {
-  if (!confirm("確認 場地" + (courtIndex + 1) + " 下場？\n\n提醒：請記得到比賽紀錄區回填分數")) {
+  if (!confirm("確認 場地" + (courtIndex + 1) + " 下場？")) {
     return;
   }
 
