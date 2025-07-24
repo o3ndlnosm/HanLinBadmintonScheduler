@@ -845,17 +845,13 @@ async function findOptimalCombinationNewRule(playerPool) {
     console.log(`【等級配對失敗】無法找到符合 ±1.5 等級規則的組合`);
     console.log(`【等級配對失敗】問題分析: 從 ${playerPool.length} 位選手中選4人，測試了 ${testedCombinations} 種組合，沒有任何組合符合等級差異 ≤ 1.5 的規則`);
     
-    const confirmed = confirm('即將單次放寬組合標準以利進行組隊');
+    // 根據規則：只顯示通知，只能按OK，立即開始放寬標準配對
+    alert('即將單次放寬組合標準以利進行組隊');
     
-    if (confirmed) {
-      // 放寬標準：隨機選擇4人
-      console.log(`【放寬標準】用戶確認放寬，隨機選擇4人`);
-      const shuffled = [...playerPool].sort(() => Math.random() - 0.5);
-      return shuffled.slice(0, 4);
-    } else {
-      console.log(`【配對終止】用戶取消放寬標準`);
-      return null;
-    }
+    // 放寬標準：隨機選擇4人
+    console.log(`【放寬標準】自動放寬標準，隨機選擇4人`);
+    const shuffled = [...playerPool].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 4);
   }
 }
 
@@ -1020,6 +1016,40 @@ function selectPlayersForMatch() {
   console.log(`【調試】等待選手: ${readyNonFinished.length}人，剛下場選手: ${readyJustFinished.length}人`);
   console.log(`【調試】等待選手:`, readyNonFinished.map(p => `${p.name}(等待${p.waitingTurns||0}輪)`));
   console.log(`【調試】剛下場選手:`, readyJustFinished.map(p => `${p.name}(剛下場)`));
+  
+  // ⭐ 等待保護機制：檢查是否有選手等待≥2輪
+  const urgentPlayers = readyNonFinished.filter(p => (p.waitingTurns || 0) >= 2);
+  if (urgentPlayers.length > 0) {
+    console.log(`【等待保護】發現${urgentPlayers.length}位選手等待≥2輪，啟動保護機制`);
+    console.log(`【等待保護】等待過久選手:`, urgentPlayers.map(p => `${p.name}(等待${p.waitingTurns}輪)`));
+    
+    // 強制選擇等待≥2輪的選手，並補足到4人
+    let protectedSelection = [...urgentPlayers];
+    
+    if (protectedSelection.length >= 4) {
+      // 等待≥2輪的選手超過4人，按等待輪次最高優先選4人
+      protectedSelection.sort((a, b) => {
+        if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
+          return (b.waitingTurns || 0) - (a.waitingTurns || 0); // 等待輪次高的優先
+        }
+        return Math.random() - 0.5; // 相同時隨機
+      });
+      protectedSelection = protectedSelection.slice(0, 4);
+      console.log(`【等待保護】選出等待最久的4人: ${protectedSelection.map(p => `${p.name}(等待${p.waitingTurns}輪)`).join(', ')}`);
+    } else {
+      // 不足4人，從剩餘選手中補足
+      const remainingPlayers = [...readyNonFinished, ...readyJustFinished].filter(p => !urgentPlayers.includes(p));
+      const shuffledRemaining = [...remainingPlayers].sort(() => Math.random() - 0.5);
+      const needed = 4 - protectedSelection.length;
+      protectedSelection.push(...shuffledRemaining.slice(0, needed));
+      console.log(`【等待保護】等待過久${urgentPlayers.length}人 + 補充${needed}人: ${protectedSelection.map(p => `${p.name}(等待${p.waitingTurns||0}輪)`).join(', ')}`);
+    }
+    
+    console.log(`【等待保護】強制配對組合: ${protectedSelection.map(p => `${p.name}(等級${p.level},等待${p.waitingTurns||0}輪)`).join(', ')}`);
+    
+    // 嘗試等級配對，如果失敗會自動觸發規則(2)的放寬機制
+    return protectedSelection;
+  }
   
   const readyCount = readyNonFinished.length;
   
