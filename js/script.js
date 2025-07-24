@@ -1183,44 +1183,79 @@ function selectPlayersScenarioTwo(readyNonFinished, justFinishedPlayers) {
     
   } else if (readyCount >= 6) {
     // 準備區6人以上取4人，剛下場全下
-    // 按新規則：等待2輪(含)以上隨機取2，剩餘隨機補滿4人
+    // 🎯 新版動態選人機制：臨界值8人啟動動態保護
     
-    // 按等待輪次分組
     const waitingTwoOrMore = readyNonFinished.filter(p => (p.waitingTurns || 0) >= 2);
     const waitingLess = readyNonFinished.filter(p => (p.waitingTurns || 0) < 2);
     
     console.log(`【情況二-${readyCount}人】等待2輪以上: ${waitingTwoOrMore.length}人，其他: ${waitingLess.length}人`);
     
-    if (waitingTwoOrMore.length >= 2) {
-      // 從等待2輪以上的選手中隨機取2人
-      const shuffledWaitingTwo = [...waitingTwoOrMore].sort(() => Math.random() - 0.5);
-      selectedPlayers.push(...shuffledWaitingTwo.slice(0, 2));
+    // 🎯 臨界值判斷：準備區≥8人且有等待≥2輪選手時，啟動動態選人機制
+    if (readyCount >= 8 && waitingTwoOrMore.length > 0) {
+      console.log(`【🎯動態保護】準備區${readyCount}人≥8，啟動動態選人機制！`);
       
-      // 從剩餘選手中隨機補滿4人
+      // 動態決定優先選擇數量
+      let priorityCount;
+      if (waitingTwoOrMore.length >= 6) {
+        priorityCount = 3;  // 6人以上選3人
+      } else if (waitingTwoOrMore.length >= 4) {
+        priorityCount = 3;  // 4-5人選3人  
+      } else if (waitingTwoOrMore.length >= 2) {
+        priorityCount = 2;  // 2-3人選2人
+      } else {
+        priorityCount = 1;  // 1人選1人
+      }
+      
+      console.log(`【動態選擇】等待≥2輪${waitingTwoOrMore.length}人 → 動態選擇${priorityCount}人`);
+      
+      // 按等待輪次排序，優先選擇等待最久的
+      const sortedWaiting = [...waitingTwoOrMore].sort((a, b) => {
+        if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
+          return (b.waitingTurns || 0) - (a.waitingTurns || 0); // 等待輪次高的優先
+        }
+        return Math.random() - 0.5; // 相同輪次時隨機
+      });
+      
+      selectedPlayers.push(...sortedWaiting.slice(0, priorityCount));
+      
+      // 從剩餘選手中補充
       const remainingPlayers = readyNonFinished.filter(p => !selectedPlayers.includes(p));
       const shuffledRemaining = [...remainingPlayers].sort(() => Math.random() - 0.5);
       const needed = 4 - selectedPlayers.length;
       selectedPlayers.push(...shuffledRemaining.slice(0, needed));
       
-      console.log(`【情況二-${readyCount}人】選出: 等待2輪以上隨機2人 + 剩餘隨機${needed}人`);
-      
-    } else if (waitingTwoOrMore.length === 1) {
-      // 只有1人等待2輪以上，先選這1人
-      selectedPlayers.push(...waitingTwoOrMore);
-      
-      // 從剩餘選手中隨機補滿4人
-      const remainingPlayers = readyNonFinished.filter(p => !selectedPlayers.includes(p));
-      const shuffledRemaining = [...remainingPlayers].sort(() => Math.random() - 0.5);
-      selectedPlayers.push(...shuffledRemaining.slice(0, 3));
-      
-      console.log(`【情況二-${readyCount}人】選出: 等待2輪以上1人 + 剩餘隨機3人`);
+      console.log(`【動態保護】選出: 等待≥2輪優先${priorityCount}人 + 剩餘隨機${needed}人`);
       
     } else {
-      // 沒有等待2輪以上的選手，從所有選手中隨機選4人
-      const readySelected = selectFromReadyPlayers(readyNonFinished, 4);
-      selectedPlayers = readySelected;
+      // 人數<8人或無等待≥2輪選手，使用原始固定邏輯
+      console.log(`【正常選人】準備區${readyCount}人<8或無等待過久選手，維持固定邏輯`);
       
-      console.log(`【情況二-${readyCount}人】選出: 準備區隨機4人`);
+      if (waitingTwoOrMore.length >= 2) {
+        // 固定選2人邏輯
+        const shuffledWaitingTwo = [...waitingTwoOrMore].sort(() => Math.random() - 0.5);
+        selectedPlayers.push(...shuffledWaitingTwo.slice(0, 2));
+        
+        const remainingPlayers = readyNonFinished.filter(p => !selectedPlayers.includes(p));
+        const shuffledRemaining = [...remainingPlayers].sort(() => Math.random() - 0.5);
+        const needed = 4 - selectedPlayers.length;
+        selectedPlayers.push(...shuffledRemaining.slice(0, needed));
+        
+        console.log(`【固定選人】選出: 等待2輪以上固定2人 + 剩餘隨機${needed}人`);
+        
+      } else if (waitingTwoOrMore.length === 1) {
+        selectedPlayers.push(...waitingTwoOrMore);
+        
+        const remainingPlayers = readyNonFinished.filter(p => !selectedPlayers.includes(p));
+        const shuffledRemaining = [...remainingPlayers].sort(() => Math.random() - 0.5);
+        selectedPlayers.push(...shuffledRemaining.slice(0, 3));
+        
+        console.log(`【固定選人】選出: 等待2輪以上1人 + 剩餘隨機3人`);
+        
+      } else {
+        const readySelected = selectFromReadyPlayers(readyNonFinished, 4);
+        selectedPlayers = readySelected;
+        console.log(`【固定選人】選出: 準備區隨機4人`);
+      }
     }
     
     console.log(`【情況二-${readyCount}人】剛下場全下`);
