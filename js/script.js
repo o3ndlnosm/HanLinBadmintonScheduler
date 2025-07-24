@@ -1017,40 +1017,6 @@ function selectPlayersForMatch() {
   console.log(`【調試】等待選手:`, readyNonFinished.map(p => `${p.name}(等待${p.waitingTurns||0}輪)`));
   console.log(`【調試】剛下場選手:`, readyJustFinished.map(p => `${p.name}(剛下場)`));
   
-  // ⭐ 等待保護機制：檢查是否有選手等待≥2輪
-  const urgentPlayers = readyNonFinished.filter(p => (p.waitingTurns || 0) >= 2);
-  if (urgentPlayers.length > 0) {
-    console.log(`【等待保護】發現${urgentPlayers.length}位選手等待≥2輪，啟動保護機制`);
-    console.log(`【等待保護】等待過久選手:`, urgentPlayers.map(p => `${p.name}(等待${p.waitingTurns}輪)`));
-    
-    // 強制選擇等待≥2輪的選手，並補足到4人
-    let protectedSelection = [...urgentPlayers];
-    
-    if (protectedSelection.length >= 4) {
-      // 等待≥2輪的選手超過4人，按等待輪次最高優先選4人
-      protectedSelection.sort((a, b) => {
-        if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
-          return (b.waitingTurns || 0) - (a.waitingTurns || 0); // 等待輪次高的優先
-        }
-        return Math.random() - 0.5; // 相同時隨機
-      });
-      protectedSelection = protectedSelection.slice(0, 4);
-      console.log(`【等待保護】選出等待最久的4人: ${protectedSelection.map(p => `${p.name}(等待${p.waitingTurns}輪)`).join(', ')}`);
-    } else {
-      // 不足4人，從剩餘選手中補足
-      const remainingPlayers = [...readyNonFinished, ...readyJustFinished].filter(p => !urgentPlayers.includes(p));
-      const shuffledRemaining = [...remainingPlayers].sort(() => Math.random() - 0.5);
-      const needed = 4 - protectedSelection.length;
-      protectedSelection.push(...shuffledRemaining.slice(0, needed));
-      console.log(`【等待保護】等待過久${urgentPlayers.length}人 + 補充${needed}人: ${protectedSelection.map(p => `${p.name}(等待${p.waitingTurns||0}輪)`).join(', ')}`);
-    }
-    
-    console.log(`【等待保護】強制配對組合: ${protectedSelection.map(p => `${p.name}(等級${p.level},等待${p.waitingTurns||0}輪)`).join(', ')}`);
-    
-    // 嘗試等級配對，如果失敗會自動觸發規則(2)的放寬機制
-    return protectedSelection;
-  }
-  
   const readyCount = readyNonFinished.length;
   
   // 根據準備區人數決定使用哪種情況
@@ -1070,13 +1036,52 @@ function selectPlayersForMatch() {
 /*
   輔助函數：從準備區選手中選擇指定數量的選手
   按新規則：等待輪次最高優先，相同時隨機選擇
+  整合等待保護機制：等待≥2輪的選手有絕對優先權
 */
 function selectFromReadyPlayers(readyPlayers, count) {
   if (readyPlayers.length <= count) {
     return [...readyPlayers]; // 不足時全部選上
   }
   
-  // 按等待輪次分組
+  // ⭐ 等待保護機制：檢查是否有選手等待≥2輪
+  const urgentPlayers = readyPlayers.filter(p => (p.waitingTurns || 0) >= 2);
+  
+  if (urgentPlayers.length > 0) {
+    console.log(`【等待保護】在準備區選擇中發現${urgentPlayers.length}位選手等待≥2輪`);
+    
+    // 如果等待≥2輪的選手數量 >= 需要的數量，優先選擇他們
+    if (urgentPlayers.length >= count) {
+      // 按等待輪次排序，選出最需要的
+      urgentPlayers.sort((a, b) => {
+        if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
+          return (b.waitingTurns || 0) - (a.waitingTurns || 0); // 等待輪次高的優先
+        }
+        return Math.random() - 0.5; // 相同時隨機
+      });
+      const selected = urgentPlayers.slice(0, count);
+      console.log(`【等待保護】全部選擇等待過久選手: ${selected.map(p => `${p.name}(等待${p.waitingTurns}輪)`).join(', ')}`);
+      return selected;
+    } else {
+      // 等待≥2輪的選手不足，全部選上並補充其他選手
+      let selected = [...urgentPlayers];
+      const remainingPlayers = readyPlayers.filter(p => !urgentPlayers.includes(p));
+      
+      // 按等待輪次對剩餘選手排序
+      remainingPlayers.sort((a, b) => {
+        if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
+          return (b.waitingTurns || 0) - (a.waitingTurns || 0);
+        }
+        return Math.random() - 0.5;
+      });
+      
+      const needed = count - selected.length;
+      selected.push(...remainingPlayers.slice(0, needed));
+      console.log(`【等待保護】混合選擇: 等待≥2輪${urgentPlayers.length}人 + 其他${needed}人`);
+      return selected;
+    }
+  }
+  
+  // 沒有等待≥2輪的選手，按正常邏輯選擇
   const waitingGroups = {};
   readyPlayers.forEach(player => {
     const waiting = player.waitingTurns || 0;
@@ -1086,9 +1091,7 @@ function selectFromReadyPlayers(readyPlayers, count) {
     waitingGroups[waiting].push(player);
   });
   
-  // 獲取所有等待輪次，從高到低排序
   const waitingLevels = Object.keys(waitingGroups).map(Number).sort((a, b) => b - a);
-  
   let selected = [];
   
   for (const level of waitingLevels) {
@@ -1098,10 +1101,8 @@ function selectFromReadyPlayers(readyPlayers, count) {
     if (needed <= 0) break;
     
     if (playersAtLevel.length <= needed) {
-      // 該等待輪次的所有選手都選上
       selected.push(...playersAtLevel);
     } else {
-      // 隨機選擇需要的數量
       const shuffled = [...playersAtLevel].sort(() => Math.random() - 0.5);
       selected.push(...shuffled.slice(0, needed));
     }
