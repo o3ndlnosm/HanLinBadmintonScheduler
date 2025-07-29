@@ -739,25 +739,32 @@ function updatePairingHistory(teamKey) {
   確保絕對不會產生不合法組合
 */
 
-// ABC 等級組合優先級檢查 - 6種配對完全相等權重
-function getABCCombinationPriority(players) {
+// ABC 等級組合優先級檢查 - 分層權重系統
+function getABCCombinationPriority(players, hasUrgentPlayers = false) {
   if (players.length !== 4) return 0;
   
   const levels = players.map(p => p.newLevel || 'B').sort().join('');
   
-  // 所有允許的配對類型，完全相等權重 = 1
-  const allowedCombinations = [
-    'AAAA', // A級4人
-    'BBBB', // B級4人  
-    'CCCC', // C級4人
-    'AABB', // A級2人+B級2人
-    'AACC', // A級2人+C級2人
-    'BBCC'  // B級2人+C級2人
+  // 【正常組合】- 優先使用
+  const normalCombinations = [
+    'AAAA', 'BBBB', 'CCCC',  // 同等級組合
+    'AABB', 'AACC', 'BBCC'   // 2+2組合
   ];
   
-  // 檢查是否為允許的組合
-  if (allowedCombinations.includes(levels)) {
-    return 1; // 所有允許組合權重相等
+  // 【次要組合】- 緊急情況下使用
+  const secondaryCombinations = [
+    'AAAB', 'ABBB',  // A-B混合
+    'BBBC', 'BCCC'   // B-C混合
+  ];
+  
+  // 檢查組合類型並返回優先級
+  if (normalCombinations.includes(levels)) {
+    return 1; // 正常組合優先級最高
+  }
+  
+  if (secondaryCombinations.includes(levels)) {
+    // 次要組合：只有在有緊急選手時才允許
+    return hasUrgentPlayers ? 2 : 0;
   }
   
   // 不允許的組合
@@ -768,6 +775,14 @@ function getABCCombinationPriority(players) {
 function selectPlayersWithABCLogic(availablePlayers) {
   if (availablePlayers.length < 4) {
     return null;
+  }
+  
+  // 🚨 檢查是否有選手等待≥3輪，觸發緊急模式
+  const urgentPlayers = availablePlayers.filter(p => (p.waitingTurns || 0) >= 3);
+  const isEmergencyMode = urgentPlayers.length > 0;
+  
+  if (isEmergencyMode) {
+    console.log(`🚨【緊急模式啟動】發現 ${urgentPlayers.length} 位選手等待≥3輪: ${urgentPlayers.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
   }
   
   // 按等級分組
@@ -802,7 +817,7 @@ function selectPlayersWithABCLogic(availablePlayers) {
   
   // 評估每個組合
   for (const combination of allCombinations) {
-    const priority = getABCCombinationPriority(combination);
+    const priority = getABCCombinationPriority(combination, isEmergencyMode);
     
     if (priority === 0) continue; // 跳過不合法組合
     
@@ -813,34 +828,47 @@ function selectPlayersWithABCLogic(availablePlayers) {
       return sum + (turns * turns) + justFinishedPenalty;
     }, 0);
     
+    // 🚨 緊急模式：權重邏輯切換
+    let effectivePriority, effectiveWaitingScore;
+    
+    if (isEmergencyMode) {
+      // 緊急模式：等待輪次權重 > ABC配對權重
+      effectivePriority = -waitingScore; // 等待分數越高，優先級越高（負數表示更優先）
+      effectiveWaitingScore = priority;   // ABC優先級作為次要因子
+    } else {
+      // 一般模式：ABC配對權重 > 等待輪次權重
+      effectivePriority = priority;       // ABC優先級作為主要因子
+      effectiveWaitingScore = waitingScore; // 等待分數作為次要因子
+    }
+    
     // 選擇更好的組合
-    if (priority < bestPriority) {
+    if (effectivePriority < bestPriority) {
       // 找到更高優先級的組合，重置所有候選
-      bestPriority = priority;
-      bestWaitingScore = waitingScore;
+      bestPriority = effectivePriority;
+      bestWaitingScore = effectiveWaitingScore;
       bestCombination = [...combination];
-      samePriorityCombinations = [{combination: [...combination], waitingScore}];
+      samePriorityCombinations = [{combination: [...combination], waitingScore: effectiveWaitingScore}];
       
       const levels = combination.map(p => p.newLevel || 'B').sort().join('');
       const waitingInfo = combination.map(p => {
         const status = p.justFinished ? '剛下場' : `等待${p.waitingTurns || 0}輪`;
         return `${p.name}(${status})`;
       }).join(', ');
-    } else if (priority === bestPriority) {
-      if (waitingScore > bestWaitingScore) {
-        // 相同優先級但等待分數更高
-        bestWaitingScore = waitingScore;
+    } else if (effectivePriority === bestPriority) {
+      if (effectiveWaitingScore > bestWaitingScore) {
+        // 相同優先級但次要分數更高
+        bestWaitingScore = effectiveWaitingScore;
         bestCombination = [...combination];
-        samePriorityCombinations = [{combination: [...combination], waitingScore}];
+        samePriorityCombinations = [{combination: [...combination], waitingScore: effectiveWaitingScore}];
         
         const levels = combination.map(p => p.newLevel || 'B').sort().join('');
         const waitingInfo = combination.map(p => {
           const status = p.justFinished ? '剛下場' : `等待${p.waitingTurns || 0}輪`;
           return `${p.name}(${status})`;
         }).join(', ');
-      } else if (waitingScore === bestWaitingScore) {
-        // 相同優先級和等待分數，加入候選池
-        samePriorityCombinations.push({combination: [...combination], waitingScore});
+      } else if (effectiveWaitingScore === bestWaitingScore) {
+        // 相同優先級和分數，加入候選池
+        samePriorityCombinations.push({combination: [...combination], waitingScore: effectiveWaitingScore});
       }
     }
   }
@@ -857,6 +885,19 @@ function selectPlayersWithABCLogic(availablePlayers) {
       const status = p.justFinished ? '剛下場' : `等待${p.waitingTurns || 0}輪`;
       return `${p.name}(${status})`;
     }).join(', ');
+    
+    // 添加緊急模式的詳細日誌
+    if (isEmergencyMode) {
+      const urgentInCombination = bestCombination.filter(p => (p.waitingTurns || 0) >= 3);
+      console.log(`🚨【緊急模式結果】成功選中 ${urgentInCombination.length} 位等待≥3輪選手: ${urgentInCombination.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
+      
+      // 檢查是否使用了次要組合
+      const finalPriority = getABCCombinationPriority(bestCombination, isEmergencyMode);
+      if (finalPriority === 2) {
+        console.log(`⚠️【次要組合啟用】因緊急情況使用次要組合: ${levels}`);
+      }
+    }
+    
     console.log(`【ABC配對結果】${levels} 組合：${bestCombination.map(p => p.name).join(', ')}`);
     return bestCombination;
   } else {
