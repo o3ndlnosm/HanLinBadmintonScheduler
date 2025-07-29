@@ -769,17 +769,16 @@ function getABCCombinationPriority(players) {
   
   const levelKeys = Object.keys(levelCount).sort();
   
-  // 優先級1：同等級（AAAA, BBBB, CCCC）
+  // 優先級1：理想組合（AAAA, BBBB, CCCC, AABB, AACC, BBCC）
   if (levelKeys.length === 1) {
-    return 1;
+    return 1; // 同等級：AAAA, BBBB, CCCC
   }
   
-  // 優先級2：各2組合（AABB, BBCC, AACC）
   if (levelKeys.length === 2 && levelCount[levelKeys[0]] === 2 && levelCount[levelKeys[1]] === 2) {
-    return 2;
+    return 1; // 2+2組合：AABB, AACC, BBCC - 與同等級有相同權重
   }
   
-  // 優先級3：特殊組合 3+1
+  // 優先級2：次要組合 3+1（AAAB, BBBA, BBBC, CCCB）
   if (levelKeys.length === 2) {
     const counts = Object.values(levelCount).sort();
     if (counts[0] === 1 && counts[1] === 3) {
@@ -790,7 +789,7 @@ function getABCCombinationPriority(players) {
       if ((majorLevel === 'A' && minorLevel === 'B') ||
           (majorLevel === 'B' && (minorLevel === 'A' || minorLevel === 'C')) ||
           (majorLevel === 'C' && minorLevel === 'B')) {
-        return 3;
+        return 2;
       }
     }
   }
@@ -814,6 +813,7 @@ function selectPlayersWithABCLogic(availablePlayers) {
   };
   
   console.log(`【ABC選擇】可用選手分布 - A級:${levelGroups.A.length}人, B級:${levelGroups.B.length}人, C級:${levelGroups.C.length}人`);
+  console.log(`【ABC優先級】1=理想組合(AAAA/BBBB/CCCC/AABB/AACC/BBCC), 2=次要組合(AAAB/BBBA/BBBC/CCCB)`);
   
   let bestCombination = null;
   let bestPriority = 999;
