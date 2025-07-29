@@ -739,19 +739,19 @@ function updatePairingHistory(teamKey) {
   確保絕對不會產生不合法組合
 */
 
-// ABC 等級組合優先級檢查 - 分層權重系統
-function getABCCombinationPriority(players, hasUrgentPlayers = false) {
+// ABC 等級組合優先級檢查 - 三階段權重系統
+function getABCCombinationPriority(players, isEmergencyMode = false, isForceMode = false) {
   if (players.length !== 4) return 0;
   
   const levels = players.map(p => p.newLevel || 'B').sort().join('');
   
-  // 【正常組合】- 優先使用
+  // 【正常組合】- 基礎6種
   const normalCombinations = [
     'AAAA', 'BBBB', 'CCCC',  // 同等級組合
     'AABB', 'AACC', 'BBCC'   // 2+2組合
   ];
   
-  // 【次要組合】- 緊急情況下使用
+  // 【次要組合】- 緊急/強制模式下開放
   const secondaryCombinations = [
     'AAAB', 'ABBB',  // A-B混合
     'BBBC', 'BCCC'   // B-C混合
@@ -763,8 +763,11 @@ function getABCCombinationPriority(players, hasUrgentPlayers = false) {
   }
   
   if (secondaryCombinations.includes(levels)) {
-    // 次要組合：緊急模式優先級2，一般模式優先級3
-    return hasUrgentPlayers ? 2 : 3;
+    if (isForceMode || isEmergencyMode) {
+      return 2; // 緊急/強制模式下允許次要組合
+    } else {
+      return 3; // 一般模式下次要組合優先級較低
+    }
   }
   
   // 不允許的組合
@@ -777,11 +780,16 @@ function selectPlayersWithABCLogic(availablePlayers) {
     return null;
   }
   
-  // 🚨 檢查是否有選手等待≥3輪，觸發緊急模式
+  // 🚨 檢查選手等待情況，決定模式
+  const forcePlayers = availablePlayers.filter(p => (p.waitingTurns || 0) >= 4);
   const urgentPlayers = availablePlayers.filter(p => (p.waitingTurns || 0) >= 3);
+  
+  const isForceMode = forcePlayers.length > 0;
   const isEmergencyMode = urgentPlayers.length > 0;
   
-  if (isEmergencyMode) {
+  if (isForceMode) {
+    console.log(`💥【強制上場模式】發現 ${forcePlayers.length} 位選手等待≥4輪: ${forcePlayers.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
+  } else if (isEmergencyMode) {
     console.log(`🚨【緊急模式啟動】發現 ${urgentPlayers.length} 位選手等待≥3輪: ${urgentPlayers.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
   }
   
@@ -817,7 +825,7 @@ function selectPlayersWithABCLogic(availablePlayers) {
   
   // 評估每個組合
   for (const combination of allCombinations) {
-    const priority = getABCCombinationPriority(combination, isEmergencyMode);
+    const priority = getABCCombinationPriority(combination, isEmergencyMode, isForceMode);
     
     if (priority === 0) continue; // 跳過不合法組合
     
@@ -828,10 +836,15 @@ function selectPlayersWithABCLogic(availablePlayers) {
       return sum + (turns * turns) + justFinishedPenalty;
     }, 0);
     
-    // 🚨 緊急模式：權重邏輯切換
+    // 🚨 三階段模式：權重邏輯切換
     let effectivePriority, effectiveWaitingScore;
     
-    if (isEmergencyMode) {
+    if (isForceMode) {
+      // 強制模式：絕對優先等待≥4輪的選手
+      const forcePlayersInCombination = combination.filter(p => (p.waitingTurns || 0) >= 4).length;
+      effectivePriority = -(forcePlayersInCombination * 10000 + waitingScore); // 強制選手絕對優先
+      effectiveWaitingScore = priority;
+    } else if (isEmergencyMode) {
       // 緊急模式：等待輪次權重 > ABC配對權重
       effectivePriority = -waitingScore; // 等待分數越高，優先級越高（負數表示更優先）
       effectiveWaitingScore = priority;   // ABC優先級作為次要因子
@@ -887,9 +900,16 @@ function selectPlayersWithABCLogic(availablePlayers) {
     }).join(', ');
     
     // 添加配對模式的詳細日誌
-    const finalPriority = getABCCombinationPriority(bestCombination, isEmergencyMode);
+    const finalPriority = getABCCombinationPriority(bestCombination, isEmergencyMode, isForceMode);
     
-    if (isEmergencyMode) {
+    if (isForceMode) {
+      const forceInCombination = bestCombination.filter(p => (p.waitingTurns || 0) >= 4);
+      console.log(`💥【強制模式結果】成功選中 ${forceInCombination.length} 位等待≥4輪選手: ${forceInCombination.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
+      
+      if (finalPriority === 2) {
+        console.log(`⚠️【次要組合啟用】因強制上場使用次要組合: ${levels}`);
+      }
+    } else if (isEmergencyMode) {
       const urgentInCombination = bestCombination.filter(p => (p.waitingTurns || 0) >= 3);
       console.log(`🚨【緊急模式結果】成功選中 ${urgentInCombination.length} 位等待≥3輪選手: ${urgentInCombination.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
       
