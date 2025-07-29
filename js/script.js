@@ -696,22 +696,37 @@ function restPlayerOnCourt(courtIndex, playerName) {
     // 將替換下場的選手移到休息區
     restingPlayers.push(restingPlayer);
 
-    // 尋找替補選手
+    // 尋找替補選手 - 使用 ABC 等級匹配
     if (readyPlayers.length > 0) {
+      const restingPlayerABC = restingPlayer.newLevel || 'B';
+      
+      // 優先選擇相同 ABC 等級的替補
       let candidateList = readyPlayers.filter(
-        (candidate) => Math.abs(candidate.level - restingPlayer.level) <= 1
+        (candidate) => (candidate.newLevel || 'B') === restingPlayerABC
       );
+      
+      // 如果沒有相同等級，選擇相鄰等級
+      if (candidateList.length === 0) {
+        candidateList = readyPlayers.filter((candidate) => {
+          const candidateABC = candidate.newLevel || 'B';
+          return (restingPlayerABC === 'A' && candidateABC === 'B') ||  
+                 (restingPlayerABC === 'B' && (candidateABC === 'A' || candidateABC === 'C')) ||
+                 (restingPlayerABC === 'C' && candidateABC === 'B');
+        });
+      }
+      
+      // 如果還是沒有，使用所有選手
       if (candidateList.length === 0) {
         candidateList = [...readyPlayers];
       }
+      
       candidateList.sort((a, b) => {
-        if (a.matches === b.matches) {
-          return (
-            Math.abs(a.level - restingPlayer.level) -
-            Math.abs(b.level - restingPlayer.level)
-          );
+        // 優先考慮場次少的選手
+        if (a.matches !== b.matches) {
+          return a.matches - b.matches;
         }
-        return a.matches - b.matches;
+        // 其次考慮等待輪次高的選手
+        return (b.waitingTurns || 0) - (a.waitingTurns || 0);
       });
       let candidateIndex = readyPlayers.findIndex(
         (c) => c.name === candidateList[0].name
@@ -736,11 +751,167 @@ function updatePairingHistory(teamKey) {
   pairingHistory[teamKey] = (pairingHistory[teamKey] || 0) + 1;
 }
 
+/*
+  ============ ABC 嚴格配對系統 ============
+  完全基於 ABC 等級的選手選擇和配對邏輯
+  確保絕對不會產生不合法組合
+*/
+
+// ABC 等級組合優先級檢查
+function getABCCombinationPriority(players) {
+  if (players.length !== 4) return 0;
+  
+  const levels = players.map(p => p.newLevel || 'B').sort();
+  const levelCount = {};
+  levels.forEach(level => {
+    levelCount[level] = (levelCount[level] || 0) + 1;
+  });
+  
+  const levelKeys = Object.keys(levelCount).sort();
+  
+  // 優先級1：同等級（AAAA, BBBB, CCCC）
+  if (levelKeys.length === 1) {
+    return 1;
+  }
+  
+  // 優先級2：各2組合（AABB, BBCC, AACC）
+  if (levelKeys.length === 2 && levelCount[levelKeys[0]] === 2 && levelCount[levelKeys[1]] === 2) {
+    return 2;
+  }
+  
+  // 優先級3：特殊組合 3+1
+  if (levelKeys.length === 2) {
+    const counts = Object.values(levelCount).sort();
+    if (counts[0] === 1 && counts[1] === 3) {
+      const majorLevel = levelCount[levelKeys[0]] === 3 ? levelKeys[0] : levelKeys[1];
+      const minorLevel = levelCount[levelKeys[0]] === 1 ? levelKeys[0] : levelKeys[1];
+      
+      // 檢查是否為相鄰等級的3+1組合
+      if ((majorLevel === 'A' && minorLevel === 'B') ||
+          (majorLevel === 'B' && (minorLevel === 'A' || minorLevel === 'C')) ||
+          (majorLevel === 'C' && minorLevel === 'B')) {
+        return 3;
+      }
+    }
+  }
+  
+  // 不允許的組合
+  return 0;
+}
+
+// ABC 智能選手選擇：在所有可能組合中找出最佳選擇
+function selectPlayersWithABCLogic(availablePlayers) {
+  if (availablePlayers.length < 4) {
+    console.log('【ABC選擇】選手不足4人，無法配對');
+    return null;
+  }
+  
+  // 按等級分組
+  const levelGroups = {
+    A: availablePlayers.filter(p => (p.newLevel || 'B') === 'A'),
+    B: availablePlayers.filter(p => (p.newLevel || 'B') === 'B'),
+    C: availablePlayers.filter(p => (p.newLevel || 'B') === 'C')
+  };
+  
+  console.log(`【ABC選擇】可用選手分布 - A級:${levelGroups.A.length}人, B級:${levelGroups.B.length}人, C級:${levelGroups.C.length}人`);
+  
+  let bestCombination = null;
+  let bestPriority = 999;
+  let bestWaitingScore = -Infinity;
+  let samePriorityCombinations = []; // 儲存相同優先級的組合
+  
+  // 生成所有可能的4人組合
+  const allCombinations = [];
+  function generateCombinations(players, current = [], start = 0) {
+    if (current.length === 4) {
+      allCombinations.push([...current]);
+      return;
+    }
+    
+    for (let i = start; i < players.length; i++) {
+      current.push(players[i]);
+      generateCombinations(players, current, i + 1);
+      current.pop();
+    }
+  }
+  
+  generateCombinations(availablePlayers);
+  console.log(`【ABC選擇】總共生成 ${allCombinations.length} 種可能的4人組合`);
+  
+  // 評估每個組合
+  for (const combination of allCombinations) {
+    const priority = getABCCombinationPriority(combination);
+    
+    if (priority === 0) continue; // 跳過不合法組合
+    
+    // 計算綜合分數（考慮等待輪次和剛下場狀態）
+    const waitingScore = combination.reduce((sum, p) => {
+      const turns = p.waitingTurns || 0;
+      const justFinishedPenalty = p.justFinished ? -20 : 0; // 剛下場選手優先級降低
+      return sum + (turns * turns) + justFinishedPenalty;
+    }, 0);
+    
+    // 選擇更好的組合
+    if (priority < bestPriority) {
+      // 找到更高優先級的組合，重置所有候選
+      bestPriority = priority;
+      bestWaitingScore = waitingScore;
+      bestCombination = [...combination];
+      samePriorityCombinations = [{combination: [...combination], waitingScore}];
+      
+      const levels = combination.map(p => p.newLevel || 'B').sort().join('');
+      const waitingInfo = combination.map(p => {
+        const status = p.justFinished ? '剛下場' : `等待${p.waitingTurns || 0}輪`;
+        return `${p.name}(${status})`;
+      }).join(', ');
+      console.log(`【ABC選擇】發現更高優先級組合 - 優先級:${priority}, 等待分數:${waitingScore}, 組合:${levels}, 選手:${waitingInfo}`);
+    } else if (priority === bestPriority) {
+      if (waitingScore > bestWaitingScore) {
+        // 相同優先級但等待分數更高
+        bestWaitingScore = waitingScore;
+        bestCombination = [...combination];
+        samePriorityCombinations = [{combination: [...combination], waitingScore}];
+        
+        const levels = combination.map(p => p.newLevel || 'B').sort().join('');
+        const waitingInfo = combination.map(p => {
+          const status = p.justFinished ? '剛下場' : `等待${p.waitingTurns || 0}輪`;
+          return `${p.name}(${status})`;
+        }).join(', ');
+        console.log(`【ABC選擇】發現更高等待分數組合 - 優先級:${priority}, 等待分數:${waitingScore}, 組合:${levels}, 選手:${waitingInfo}`);
+      } else if (waitingScore === bestWaitingScore) {
+        // 相同優先級和等待分數，加入候選池
+        samePriorityCombinations.push({combination: [...combination], waitingScore});
+      }
+    }
+  }
+  
+  if (bestCombination) {
+    // 如果有多個相同品質的組合，隨機選擇
+    if (samePriorityCombinations.length > 1) {
+      const randomIndex = Math.floor(Math.random() * samePriorityCombinations.length);
+      bestCombination = samePriorityCombinations[randomIndex].combination;
+      console.log(`【ABC選擇】從 ${samePriorityCombinations.length} 個相同品質組合中隨機選擇第 ${randomIndex + 1} 個`);
+    }
+    
+    const levels = bestCombination.map(p => p.newLevel || 'B').sort().join('');
+    const waitingInfo = bestCombination.map(p => {
+      const status = p.justFinished ? '剛下場' : `等待${p.waitingTurns || 0}輪`;
+      return `${p.name}(${status})`;
+    }).join(', ');
+    console.log(`【ABC選擇成功】最終選擇 - 優先級:${bestPriority}, 等待分數:${bestWaitingScore}, 組合:${levels}, 選手:${waitingInfo}`);
+    return bestCombination;
+  } else {
+    console.log(`【ABC選擇失敗】無法找到任何合法組合`);
+    return null;
+  }
+}
+
 /* 
   新版等級配對函數 - 按照新規則
   1. ±1.5 為絕對規則，無法滿足時返回 null
   2. 加上放寬確認提示
 */
+// 【已廢棄】此函數使用舊的數值等級 ±1.5 規則，已被 ABC 配對系統取代
 async function findOptimalCombinationNewRule(playerPool) {
   if (playerPool.length < 4) {
     console.log('【等級配對】選手不足4人，無法配對');
@@ -859,6 +1030,7 @@ async function findOptimalCombinationNewRule(playerPool) {
   放寬標準的組合尋找函式 - 無視等級差異限制
   僅考慮等待輪數和場次優先級
 */
+// 【已廢棄】此函數使用舊的數值等級規則，已被 ABC 配對系統取代
 function findOptimalCombinationRelaxed(sortedReady, lastCombination) {
   function internalFindOptimalCombination(pool) {
     let bestCombination = null;
@@ -939,6 +1111,7 @@ function findOptimalCombinationRelaxed(sortedReady, lastCombination) {
   純等級配對函數：只考慮等級平衡，完全忽略等待輪次
   專門用於規則三（場次相同時的等級配對）
 */
+// 【已廢棄】此函數使用舊的數值等級規則，已被 ABC 配對系統取代
 function findOptimalCombinationLevelOnly(pool) {
   function internalFindOptimalCombination(playerPool, threshold = 1.5) {
     let bestCombination = null;
@@ -1007,6 +1180,7 @@ function findOptimalCombinationLevelOnly(pool) {
   新排場邏輯：根據準備區人數選擇選手
   完全按照新規則實作，不保留舊規則邏輯
 */
+// 【已廢棄】此函數使用舊的選手選擇邏輯，已被 ABC 配對系統取代
 function selectPlayersForMatch() {
   // 分離準備區中的非剛下場和剛下場選手
   const readyNonFinished = readyPlayers.filter(p => !p.justFinished);
@@ -1115,6 +1289,7 @@ function selectFromReadyPlayers(readyPlayers, count) {
 /*
   情況一：準備區 1-4 人的選手選擇邏輯（按新規則）
 */
+// 【已廢棄】此函數使用舊的選手選擇邏輯，已被 ABC 配對系統取代
 function selectPlayersScenarioOne(readyNonFinished, justFinishedPlayers) {
   const readyCount = readyNonFinished.length;
   let selectedPlayers = [];
@@ -1165,6 +1340,7 @@ function selectPlayersScenarioOne(readyNonFinished, justFinishedPlayers) {
 /*
   情況二：準備區 5 人以上的選手選擇邏輯（按新規則）
 */
+// 【已廢棄】此函數使用舊的選手選擇邏輯，已被 ABC 配對系統取代
 function selectPlayersScenarioTwo(readyNonFinished, justFinishedPlayers) {
   const readyCount = readyNonFinished.length;
   let selectedPlayers = [];
@@ -1637,8 +1813,14 @@ async function generateMatchForCourtImmediate(courtIndex) {
     // 3. 場次數差異大於1時，場次少的優先
     if (a.matches !== b.matches) return a.matches - b.matches;
     
-    // 4. 其他情況考慮等級
-    if (a.level !== b.level) return a.level - b.level;
+    // 4. 其他情況考慮 ABC 等級 (A=1, B=2, C=3 for sorting)
+    const getLevelOrder = (player) => {
+      const level = player.newLevel || 'B';
+      return level === 'A' ? 1 : level === 'B' ? 2 : 3;
+    };
+    if (getLevelOrder(a) !== getLevelOrder(b)) {
+      return getLevelOrder(a) - getLevelOrder(b);
+    }
     
     // 5. 最後隨機
     return Math.random() - 0.5;
@@ -1677,327 +1859,60 @@ async function generateMatchForCourtImmediate(courtIndex) {
   let lastCombination = lastCombinationByCourt[courtIndex] || [];
   if (courts[courtIndex].length === 0 && candidatePool.length >= 4) {
     
-    // 【新排場邏輯】優先使用新的選手選擇邏輯
-    console.log("【新排場邏輯】開始使用新的選手選擇邏輯");
-    const newSelectedPlayers = selectPlayersForMatch();
+    // 【ABC 嚴格配對系統】完全基於 ABC 等級的選手選擇
+    console.log("【ABC系統】開始使用 ABC 嚴格配對系統");
     
-    if (newSelectedPlayers && newSelectedPlayers.length === 4) {
-      console.log("【新排場邏輯】成功選出4位選手，開始組隊配對");
+    // 所有可用選手（準備區選手）
+    const allAvailablePlayers = [...readyPlayers];
+    console.log(`【ABC系統】可用選手總數: ${allAvailablePlayers.length}人`);
+    
+    // 使用 ABC 智能選擇
+    let candidate = selectPlayersWithABCLogic(allAvailablePlayers);
+    
+    if (candidate && candidate.length === 4) {
+      console.log("【ABC系統】成功選出合法組合");
       
-      // 使用新的等級配對函數
-      console.log(`【排場調適】準備進行等級配對，選出的4位選手: ${newSelectedPlayers.map(p => `${p.name}(等級${p.level})`).join(', ')}`);
-      let candidate = await findOptimalCombinationNewRule(newSelectedPlayers);
-      
-      if (candidate) {
-        // 成功找到組合（可能經過用戶確認放寬）
-        candidate.forEach((player) => {
-          player.justFinished = false;
-          player.justJoinedReady = false;
-          player.waitingTurns = 0;
-          readyPlayers = readyPlayers.filter((p) => p.name !== player.name);
-          players = players.filter((p) => p.name !== player.name);
-          restingPlayers = restingPlayers.filter((p) => p.name !== player.name);
-        });
-        
-        let team1Key = getPairKey(candidate[0].name, candidate[1].name);
-        let team2Key = getPairKey(candidate[2].name, candidate[3].name);
-        lastPairings = new Set([team1Key, team2Key]);
-        
-        const startTime = new Date();
-        candidate.forEach((player) => {
-          player.currentMatchStartTime = startTime;
-        });
-        
-        courts[courtIndex] = candidate;
-        lastCombinationByCourt[courtIndex] = candidate;
-        courts[courtIndex].startTime = startTime;
-        courts[courtIndex].formattedStartTime = formatTime(startTime);
-        
-        updateLists();
-        updateCourtsDisplay();
-        
-        console.log("【新排場邏輯】成功建立比賽組合:", candidate.map(p => p.name).join(", "));
-        return candidate;
-      } else {
-        // 用戶取消放寬標準
-        console.log("【新排場邏輯】用戶取消配對，無法建立比賽");
-        return null;
-      }
-    }
-    
-    // 【修正】新邏輯失敗後不再回退到舊邏輯，避免重新選擇選手
-    console.log("【新排場邏輯】選手選擇失敗，無法找到合適的組合");
-    alert("無法找到符合等級規則的組合，可能需要調整選手等級或增加選手數量");
-    return null;
-  } // 關閉 if (courts[courtIndex].length === 0 && candidatePool.length >= 4) 的大括號
-    
-    /*
-    // 【已註解】舊邏輯 - 回退到原始選手選擇邏輯
-    // 這個邏輯會重新從所有準備區選手中選擇，可能包含剛下場選手
-    // 與新邏輯的「準備區7人時只從非剛下場選手中選4人」需求衝突
-    
-    // 【修改後邏輯】檢查是否需要激活交叉選擇 - 考慮非剛下場選手
-    // 過濾出非剛下場的選手
-    const nonJustFinishedCount = readyPlayers.filter(
-      (p) => !p.justFinished
-    ).length;
-
-    console.log("【交叉組隊】開始檢查是否需要啟動交叉組隊機制");
-    console.log(`【交叉組隊】非剛下場選手人數: ${nonJustFinishedCount}, 循環計數: ${readyPlayersCycleCount}`);
-
-    // 原來的判斷條件：當非剛下場選手數量<=4且>0，且循環計數>=2時觸發
-    // 問題在於readyPlayersCycleCount值一直為0，無法累加，導致條件永遠不成立
-    
-    // 檢查當前預備區的4人選手是否與上次排場時的4人選手相同
-    // 為了直接檢測排場固定循環，我們使用一個全局變數存儲最近4次排場中使用的選手
-    if (!window.recentlyUsedPlayers) {
-      window.recentlyUsedPlayers = [];
-    }
-    
-    // 將當前候選池中的選手名稱提取出來進行比較
-    const currentPoolNames = candidatePool.slice(0, 8).map(p => p.name).sort().join(',');
-    console.log(`【交叉組隊】當前候選池前8名選手: ${currentPoolNames}`);
-    
-    // 檢查是否在最近的排場記錄中出現過相同的選手組合
-    let cycleDetected = false;
-    if (window.recentlyUsedPlayers.length > 0) {
-      // 檢查與最近使用的選手組合是否有相似性
-      for (let i = 0; i < window.recentlyUsedPlayers.length; i++) {
-        const pastRecord = window.recentlyUsedPlayers[i];
-        console.log(`【交叉組隊】比較過去記錄 #${i+1}: ${pastRecord}`);
-        
-        if (pastRecord.includes(currentPoolNames) || currentPoolNames.includes(pastRecord)) {
-          cycleDetected = true;
-          console.log(`【交叉組隊】檢測到選手循環！與過去記錄 #${i+1} 相似`);
-          break;
-        }
-      }
-    }
-    
-    // 將當前候選池添加到歷史記錄
-    window.recentlyUsedPlayers.unshift(currentPoolNames);
-    // 只保留最近4次的記錄
-    if (window.recentlyUsedPlayers.length > 4) {
-      window.recentlyUsedPlayers.pop();
-    }
-    
-    // 更改邏輯，使用直接的循環檢測
-    const useCrossSelectionLogic =
-      nonJustFinishedCount <= 4 &&
-      nonJustFinishedCount > 0 &&
-      cycleDetected;
-    
-    console.log(`【交叉組隊】是否符合交叉組隊條件: ${useCrossSelectionLogic}`);
-    console.log(`【交叉組隊】詳細檢查: 非剛下場選手數量<=${nonJustFinishedCount<=4}, 非剛下場選手數量>0=${nonJustFinishedCount>0}, 檢測到選手循環=${cycleDetected}`);
-
-    let candidate = null;
-
-    if (useCrossSelectionLogic) {
-      console.log("【交叉組隊】條件符合！開始執行交叉組隊選擇邏輯...");
-      // 1. 檢查預備區是否有剛下場選手
-      const readyFinished = readyPlayers.filter((p) => p.justFinished);
-      // 2. 檢查休息區是否有剛下場選手
-      const restingFinished = restingPlayers.filter((p) => p.justFinished);
-      // 3. 檢查選手列表是否有剛下場選手
-      const listFinished = players.filter((p) => p.justFinished);
-
-      // 合併所有剛下場選手 - 以預備區為主要來源
-      let recentlyFinishedPlayers = [...readyFinished];
-
-      // 只有在預備區找不到足夠的剛下場選手時，才考慮其他區域
-      if (recentlyFinishedPlayers.length < 2) {
-        recentlyFinishedPlayers = [
-          ...recentlyFinishedPlayers,
-          ...restingFinished,
-          ...listFinished,
-        ];
-      }
-
-      if (recentlyFinishedPlayers.length >= 2 && readyPlayers.length >= 2) {
-        // 交叉選擇邏輯：從預備區和剛下場選手中各選選手
-
-        // 先過濾掉預備區中剛下場的選手，確保不重複選擇
-        const readyNonFinished = readyPlayers.filter((p) => !p.justFinished);
-
-        // 如果過濾後的預備區選手不足，回退使用全部預備區選手
-        const readyPool =
-          readyNonFinished.length >= 2 ? readyNonFinished : readyPlayers;
-
-        // 從預備區選擇選手
-        const readyTop2 = [...readyPool]
-          .sort((a, b) => {
-            // 優先選擇等待輪數高的選手
-            if (a.waitingTurns !== b.waitingTurns)
-              return b.waitingTurns - a.waitingTurns;
-            // 次優先級：場次少的選手
-            return a.matches - b.matches;
-          })
-          .slice(0, 2);
-
-        // 從剛下場選手中選擇
-        const finishedTop2 = [...recentlyFinishedPlayers]
-          .sort((a, b) => {
-            // 優先選擇場次少的選手
-            return a.matches - b.matches;
-          })
-          .slice(0, 2);
-
-        // 組合這些選手並確保沒有重複
-        // 建立一個 Set 來追蹤已選擇的選手名稱
-        const selectedNames = new Set();
-        const candidateList = [];
-
-        // 添加選手到候選組合，確保沒有重複
-        const addToCandidate = (player) => {
-          if (!selectedNames.has(player.name)) {
-            selectedNames.add(player.name);
-            candidateList.push(player);
-          }
-        };
-
-        // 依序添加不同來源的選手直到湊滿4人
-        readyTop2.forEach(addToCandidate);
-        finishedTop2.forEach(addToCandidate);
-
-        // 如果還不足4人，從預備區補充
-        if (candidateList.length < 4) {
-          // 選擇尚未被選中的預備區選手
-          const additionalPlayers = readyPlayers
-            .filter((p) => !selectedNames.has(p.name))
-            .sort((a, b) => {
-              if (a.waitingTurns !== b.waitingTurns)
-                return b.waitingTurns - a.waitingTurns;
-              return a.matches - b.matches;
-            })
-            .slice(0, 4 - candidateList.length);
-
-          additionalPlayers.forEach(addToCandidate);
-        }
-
-        if (candidateList.length < 4) {
-          // 如果組合中的選手少於4人，使用正常邏輯
-          candidate = findOptimalCombination(candidatePool, lastCombination);
-        } else {
-          // 使用交叉選擇的結果
-          candidate = candidateList;
-
-          // 重置循環檢測計數器
-          readyPlayersCycleCount = 0;
-
-          // 添加調適訊息
-          console.log("【交叉組隊】成功建立交叉選擇組合，即將顯示警告訊息");
-          console.log("【交叉組隊】選出的選手:", candidateList.map(p => p.name).join(", "));
-          
-          // 添加UI標識
-          alert("已啟動交叉選擇機制，打破固定組合循環！");
-        }
-      } else {
-        // 若無法使用交叉選擇，仍然使用正常邏輯
-        candidate = findOptimalCombination(candidatePool, lastCombination);
-      }
-    } else {
-      // 正常邏輯：使用優化排序後的候選池進行組合選取
-      candidate = findOptimalCombination(candidatePool, lastCombination);
-    }
-
-    if (candidate) {
+      // 移除選中的選手
       candidate.forEach((player) => {
-        // 清除所有標記
         player.justFinished = false;
         player.justJoinedReady = false;
-        player.waitingTurns = 0; // 選手被選中上場，等待輪數重置為0
-
-        // 把被選中的選手從相應區域移除
+        player.waitingTurns = 0;
         readyPlayers = readyPlayers.filter((p) => p.name !== player.name);
-        restingPlayers = restingPlayers.filter((p) => p.name !== player.name);
         players = players.filter((p) => p.name !== player.name);
+        restingPlayers = restingPlayers.filter((p) => p.name !== player.name);
       });
-
+      
       // 更新配對記錄
       let team1Key = getPairKey(candidate[0].name, candidate[1].name);
       let team2Key = getPairKey(candidate[2].name, candidate[3].name);
       lastPairings = new Set([team1Key, team2Key]);
-
-      // 添加比賽開始時間記錄
+      
+      // 設置比賽開始時間
       const startTime = new Date();
       candidate.forEach((player) => {
         player.currentMatchStartTime = startTime;
       });
-
-      // 更新場地
+      
+      // 更新場地資訊
       courts[courtIndex] = candidate;
       lastCombinationByCourt[courtIndex] = candidate;
-
-      // 記錄在場地屬性中
       courts[courtIndex].startTime = startTime;
       courts[courtIndex].formattedStartTime = formatTime(startTime);
-
-      // 更新介面顯示
+      
+      // 更新介面
       updateLists();
       updateCourtsDisplay();
-
-      // 如果選中的組合包含等待多輪的選手，在控制台記錄
-      const waitingPlayersSelected = candidate.filter(
-        (p) => (p.waitingTurns || 0) >= 2
-      );
-
+      
+      const levels = candidate.map(p => p.newLevel || 'B').sort().join('');
+      console.log(`【ABC系統】成功建立比賽組合(${levels}):`, candidate.map(p => p.name).join(", "));
       return candidate;
     } else {
-      // 當無法找到符合 ±1.5 等級差異的組合時，進行放寬標準配對
-      alert("即將單次放寬組合標準以利進行組隊");
-      
-      // 使用放寬標準（無視等級差異）重新尋找組合
-      const relaxedCandidate = findOptimalCombinationRelaxed(candidatePool, lastCombination);
-      
-      if (relaxedCandidate) {
-        relaxedCandidate.forEach((player) => {
-          // 清除所有標記
-          player.justFinished = false;
-          player.justJoinedReady = false;
-          player.waitingTurns = 0; // 選手被選中上場，等待輪數重置為0
-
-          // 把被選中的選手從預備區移除（如果在預備區中）
-          readyPlayers = readyPlayers.filter((p) => p.name !== player.name);
-          // 同時從其他區域移除（如果選手是剛下場的）
-          players = players.filter((p) => p.name !== player.name);
-          restingPlayers = restingPlayers.filter((p) => p.name !== player.name);
-        });
-
-        // 更新配對記錄
-        let team1Key = getPairKey(relaxedCandidate[0].name, relaxedCandidate[1].name);
-        let team2Key = getPairKey(relaxedCandidate[2].name, relaxedCandidate[3].name);
-        lastPairings = new Set([team1Key, team2Key]);
-
-        // 添加比賽開始時間記錄
-        const startTime = new Date();
-        relaxedCandidate.forEach((player) => {
-          player.currentMatchStartTime = startTime;
-        });
-
-        // 更新場地
-        courts[courtIndex] = relaxedCandidate;
-        lastCombinationByCourt[courtIndex] = relaxedCandidate;
-
-        // 記錄在場地屬性中
-        courts[courtIndex].startTime = startTime;
-        courts[courtIndex].formattedStartTime = formatTime(startTime);
-
-        // 更新介面顯示
-        updateLists();
-        updateCourtsDisplay();
-
-        console.log("【放寬標準】成功建立放寬等級標準的組合:", relaxedCandidate.map(p => p.name).join(", "));
-        return relaxedCandidate;
-      } else {
-        alert("無法找到任何可用的候選組合！可能需要更多選手。");
-        return null;
-      }
+      console.log("【ABC系統】無法找到合法組合");
+      return null;
     }
-  }
-  return null;
-  */
+  } // 關閉場地檢查的大括號
   
-  // 舊邏輯註解結束
+  // 如果 ABC 系統無法找到合法組合，直接返回 null
   return null;
 }
 
@@ -2339,7 +2254,7 @@ async function loadGoogleSheetsData() {
     statusElement.textContent = "正在從 Google Sheets 載入資料...";
 
     // 構建 API 請求 URL
-    const range = `${SHEET_NAME}!A2:D1000`; // A列=姓名, B列=等級, C列=出席狀態, D列=分數(如果有)
+    const range = `${SHEET_NAME}!A2:E1000`; // A列=姓名, B列=等級, C列=出席狀態, D列=分數, E列=ABC等級
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?key=${GOOGLE_API_KEY}`;
 
     // 發送 API 請求
@@ -2384,9 +2299,11 @@ async function loadGoogleSheetsData() {
           const level = parseFloat(levelStr);
           if (!isNaN(level)) {
             if (isPresent) {
-              // 檢查是否有更多欄位（例如：D欄可能是分數）
+              // 檢查是否有更多欄位（例如：D欄可能是分數，E欄是ABC等級）
               const score = row[3] ? parseFloat(row[3]?.trim()) : undefined;
-              const playerData = { name, level, matches: 0 };
+              const newLevel = row[4]?.trim() || 'B'; // E欄位的ABC等級，預設為B
+              
+              const playerData = { name, level, matches: 0, newLevel };
               
               // 如果有分數欄位且是有效數字，加入分數
               if (score !== undefined && !isNaN(score)) {
@@ -2397,7 +2314,7 @@ async function loadGoogleSheetsData() {
               playerCount++;
               
               // 印出匯入的選手資料
-              console.log(`【匯入選手】${name}: 等級=${level}, 出席=${status}${score !== undefined && !isNaN(score) ? `, 分數=${score}` : ''}`);
+              console.log(`【匯入選手】${name}: 等級=${level}, ABC等級=${newLevel}, 出席=${status}${score !== undefined && !isNaN(score) ? `, 分數=${score}` : ''}`);
             } else {
               skippedCount++;
               console.log(`【跳過選手】${name}: 等級=${level}, 出席=${status || '未標記'}`);
