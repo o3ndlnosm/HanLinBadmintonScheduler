@@ -739,41 +739,25 @@ function updatePairingHistory(teamKey) {
   確保絕對不會產生不合法組合
 */
 
-// ABC 等級組合優先級檢查
+// ABC 等級組合優先級檢查 - 6種配對完全相等權重
 function getABCCombinationPriority(players) {
   if (players.length !== 4) return 0;
   
-  const levels = players.map(p => p.newLevel || 'B').sort();
-  const levelCount = {};
-  levels.forEach(level => {
-    levelCount[level] = (levelCount[level] || 0) + 1;
-  });
+  const levels = players.map(p => p.newLevel || 'B').sort().join('');
   
-  const levelKeys = Object.keys(levelCount).sort();
+  // 所有允許的配對類型，完全相等權重 = 1
+  const allowedCombinations = [
+    'AAAA', // A級4人
+    'BBBB', // B級4人  
+    'CCCC', // C級4人
+    'AABB', // A級2人+B級2人
+    'AACC', // A級2人+C級2人
+    'BBCC'  // B級2人+C級2人
+  ];
   
-  // 優先級1：理想組合（AAAA, BBBB, CCCC, AABB, AACC, BBCC）
-  if (levelKeys.length === 1) {
-    return 1; // 同等級：AAAA, BBBB, CCCC
-  }
-  
-  if (levelKeys.length === 2 && levelCount[levelKeys[0]] === 2 && levelCount[levelKeys[1]] === 2) {
-    return 1; // 2+2組合：AABB, AACC, BBCC - 與同等級有相同權重
-  }
-  
-  // 優先級2：次要組合 3+1（AAAB, BBBA, BBBC, CCCB）
-  if (levelKeys.length === 2) {
-    const counts = Object.values(levelCount).sort();
-    if (counts[0] === 1 && counts[1] === 3) {
-      const majorLevel = levelCount[levelKeys[0]] === 3 ? levelKeys[0] : levelKeys[1];
-      const minorLevel = levelCount[levelKeys[0]] === 1 ? levelKeys[0] : levelKeys[1];
-      
-      // 檢查是否為相鄰等級的3+1組合
-      if ((majorLevel === 'A' && minorLevel === 'B') ||
-          (majorLevel === 'B' && (minorLevel === 'A' || minorLevel === 'C')) ||
-          (majorLevel === 'C' && minorLevel === 'B')) {
-        return 2;
-      }
-    }
+  // 檢查是否為允許的組合
+  if (allowedCombinations.includes(levels)) {
+    return 1; // 所有允許組合權重相等
   }
   
   // 不允許的組合
