@@ -763,8 +763,8 @@ function getABCCombinationPriority(players, hasUrgentPlayers = false) {
   }
   
   if (secondaryCombinations.includes(levels)) {
-    // 次要組合：只有在有緊急選手時才允許
-    return hasUrgentPlayers ? 2 : 0;
+    // 次要組合：緊急模式優先級2，一般模式優先級3
+    return hasUrgentPlayers ? 2 : 3;
   }
   
   // 不允許的組合
@@ -886,16 +886,19 @@ function selectPlayersWithABCLogic(availablePlayers) {
       return `${p.name}(${status})`;
     }).join(', ');
     
-    // 添加緊急模式的詳細日誌
+    // 添加配對模式的詳細日誌
+    const finalPriority = getABCCombinationPriority(bestCombination, isEmergencyMode);
+    
     if (isEmergencyMode) {
       const urgentInCombination = bestCombination.filter(p => (p.waitingTurns || 0) >= 3);
       console.log(`🚨【緊急模式結果】成功選中 ${urgentInCombination.length} 位等待≥3輪選手: ${urgentInCombination.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
       
-      // 檢查是否使用了次要組合
-      const finalPriority = getABCCombinationPriority(bestCombination, isEmergencyMode);
       if (finalPriority === 2) {
         console.log(`⚠️【次要組合啟用】因緊急情況使用次要組合: ${levels}`);
       }
+    } else if (finalPriority === 3) {
+      // 一般模式下使用了次要組合
+      console.log(`💡【次要組合啟用】一般模式下使用次要組合: ${levels} (無法形成正常組合)`);
     }
     
     console.log(`【ABC配對結果】${levels} 組合：${bestCombination.map(p => p.name).join(', ')}`);
