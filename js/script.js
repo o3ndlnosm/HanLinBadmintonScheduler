@@ -18,6 +18,8 @@ let readyPlayersCycleCount = 0;
 let lastReadyPlayersNames = [];
 // 手動排場模式
 let isManualMode = false;
+// 儲存下一場已決定的配對
+let nextMatchDecision = null;
 
 
 // 時間格式化函數
@@ -407,6 +409,7 @@ function updateLists() {
       )
       .join("");
   }
+  
 }
 
 function addBatchPlayers() {
@@ -619,7 +622,6 @@ function updateCourtsDisplay(updateTimesOnly = false) {
           </div>
           <div class="court-players">
             ${team1Html}
-            <div class="team-divider"><span>VS</span></div>
             ${team2Html}
           </div>
         </div>
@@ -774,6 +776,96 @@ function getABCCombinationPriority(players, isEmergencyMode = false, isForceMode
   return 0;
 }
 
+// 決定下一輪配對（提前決定並儲存）
+function decideNextMatch() {
+  if (readyPlayers.length < 4) {
+    nextMatchDecision = null;
+    return null;
+  }
+  
+  // 使用與實際配對完全相同的邏輯（包含隨機性）
+  let sortedReady = [...readyPlayers].sort((a, b) => {
+    const getWaitingScore = (player) => {
+      if (player.justFinished) return 0;
+      const waiting = player.waitingTurns || 0;
+      if (waiting <= 1) return 0;
+      return -(waiting - 1) * 10;
+    };
+    
+    const aScore = getWaitingScore(a);
+    const bScore = getWaitingScore(b);
+    
+    if (aScore !== bScore) return aScore - bScore;
+    
+    // 場次數差異在1以內時，用隨機決定
+    if (Math.abs(a.matches - b.matches) <= 1) {
+      return Math.random() - 0.5;
+    }
+    
+    if (a.matches !== b.matches) return a.matches - b.matches;
+    
+    const getLevelOrder = (player) => {
+      const level = player.newLevel || 'B';
+      return level === 'A' ? 1 : level === 'B' ? 2 : 3;
+    };
+    if (getLevelOrder(a) !== getLevelOrder(b)) {
+      return getLevelOrder(a) - getLevelOrder(b);
+    }
+    
+    return Math.random() - 0.5;
+  });
+  
+  // 使用 ABC 邏輯選擇最佳組合
+  nextMatchDecision = selectPlayersWithABCLogic(sortedReady);
+  return nextMatchDecision;
+}
+
+// 顯示臨時通知
+function showToastNotification(message) {
+  const toast = document.getElementById('toastNotification');
+  const content = document.getElementById('toastContent');
+  
+  if (!toast || !content) return;
+  
+  content.innerHTML = message;
+  
+  // 移除之前的動畫類別
+  toast.classList.remove('slide-out');
+  
+  // 顯示通知
+  toast.style.display = 'block';
+  
+  // 4秒後自動隱藏
+  setTimeout(() => {
+    toast.classList.add('slide-out');
+    
+    // 動畫結束後真正隱藏
+    setTimeout(() => {
+      toast.style.display = 'none';
+      toast.classList.remove('slide-out');
+    }, 300);
+  }, 4000);
+}
+
+// 更新下輪預測（只在關鍵時刻呼叫）
+function updateNextMatchPrediction() {
+  if (readyPlayers.length >= 4) {
+    // 決定下一場配對
+    decideNextMatch();
+    
+    if (nextMatchDecision) {
+      const predictionNames = nextMatchDecision.map(p => p.name).join(', ');
+      console.log(`📋【下輪預告】已決定選手：${predictionNames}`);
+      
+      // 顯示臨時通知
+      showToastNotification(`預測選手：${predictionNames}`);
+    }
+  } else {
+    // 人數不足時清除決定
+    nextMatchDecision = null;
+  }
+}
+
 // ABC 智能選手選擇：在所有可能組合中找出最佳選擇
 function selectPlayersWithABCLogic(availablePlayers) {
   if (availablePlayers.length < 4) {
@@ -922,6 +1014,8 @@ function selectPlayersWithABCLogic(availablePlayers) {
     }
     
     console.log(`【ABC配對結果】${levels} 組合：${bestCombination.map(p => p.name).join(', ')}`);
+    
+    
     return bestCombination;
   } else {
     return null;
@@ -1521,6 +1615,9 @@ async function generateMatches() {
     setTimeout(() => {
       announceAllCourts();
     }, 1000);
+    
+    // 更新下輪預告
+    updateNextMatchPrediction();
   } else {
     // 沒有新的比賽被安排，但預備區選手等待輪數已增加
   }
@@ -1772,11 +1869,29 @@ async function generateMatchForCourtImmediate(courtIndex) {
     
     // 【ABC 嚴格配對系統】完全基於 ABC 等級的選手選擇
     
-    // 所有可用選手（準備區選手）
-    const allAvailablePlayers = [...readyPlayers];
+    let candidate;
     
-    // 使用 ABC 智能選擇
-    let candidate = selectPlayersWithABCLogic(allAvailablePlayers);
+    // 如果有已決定的配對，使用它
+    if (nextMatchDecision && nextMatchDecision.length === 4) {
+      // 確認所有選手都還在準備區
+      const allInReady = nextMatchDecision.every(p => 
+        readyPlayers.some(rp => rp.name === p.name)
+      );
+      
+      if (allInReady) {
+        candidate = nextMatchDecision;
+        nextMatchDecision = null; // 使用後清除
+      }
+    }
+    
+    // 如果沒有已決定的配對，或已決定的配對無效，則重新選擇
+    if (!candidate) {
+      // 所有可用選手（準備區選手）
+      const allAvailablePlayers = [...readyPlayers];
+      
+      // 使用 ABC 智能選擇
+      candidate = selectPlayersWithABCLogic(allAvailablePlayers);
+    }
     
     if (candidate && candidate.length === 4) {
       
@@ -2016,6 +2131,9 @@ async function endMatch(courtIndex) {
     setTimeout(() => {
       announceCourt(courtIndex);
     }, 1000);
+    
+    // 在配對完成後更新預測
+    updateNextMatchPrediction();
   }
 }
 
@@ -2123,7 +2241,6 @@ function updateHistoryDisplay() {
                   return `<span class="history-player">${nameOnly}</span>`;
                 })
                 .join("")}
-              <span class="badge badge-primary">VS</span>
               ${players
                 .slice(2, 4)
                 .map((p) => {

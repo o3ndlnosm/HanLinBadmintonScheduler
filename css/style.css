@@ -982,3 +982,70 @@ textarea.form-control {
     justify-content: center;
   }
 }
+
+/* 臨時通知樣式 */
+.toast-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  border-left: 4px solid var(--info);
+  z-index: 9999;
+  display: none;
+  min-width: 320px;
+  max-width: 400px;
+  animation: slideIn 0.3s ease-out;
+}
+
+.toast-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1rem 0.5rem 1rem;
+  color: var(--info);
+  font-weight: 600;
+  font-size: 1rem;
+  border-bottom: 1px solid var(--info-light);
+  margin-bottom: 0.5rem;
+}
+
+.toast-header i {
+  color: var(--info);
+  font-size: 1.1rem;
+}
+
+.toast-content {
+  padding: 0 1rem 1rem 1rem;
+  color: var(--text-dark);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* 臨時通知動畫 */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.toast-notification.slide-out {
+  animation: slideOut 0.3s ease-in forwards;
+}
