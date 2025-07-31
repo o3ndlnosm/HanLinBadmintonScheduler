@@ -21,6 +21,108 @@ let isManualMode = false;
 // 儲存下一場已決定的配對
 let nextMatchDecision = null;
 
+// 狀態保存與恢復功能
+const GAME_STATE_KEY = 'hanlin_badminton_game_state';
+const SAVE_VERSION = '1.0'; // 用於版本控制，避免格式不相容
+
+// 保存遊戲狀態到localStorage
+function saveGameState() {
+  try {
+    const gameState = {
+      version: SAVE_VERSION,
+      timestamp: new Date().toISOString(),
+      players: players,
+      readyPlayers: readyPlayers,
+      restingPlayers: restingPlayers,
+      courts: courts,
+      historyMatches: historyMatches,
+      historyMatchesArr: historyMatchesArr,
+      historyMatchTimes: historyMatchTimes,
+      pairingHistory: pairingHistory,
+      lastCombinationByCourt: lastCombinationByCourt,
+      isManualMode: isManualMode,
+      nextMatchDecision: nextMatchDecision,
+      readyPlayersCycleCount: readyPlayersCycleCount,
+      lastReadyPlayersNames: lastReadyPlayersNames
+    };
+    
+    localStorage.setItem(GAME_STATE_KEY, JSON.stringify(gameState));
+    console.log('🔄【狀態保存】遊戲狀態已自動保存');
+  } catch (error) {
+    console.error('❌【狀態保存失敗】', error);
+  }
+}
+
+// 從localStorage載入遊戲狀態
+function loadGameState() {
+  try {
+    const savedState = localStorage.getItem(GAME_STATE_KEY);
+    if (!savedState) return null;
+    
+    const gameState = JSON.parse(savedState);
+    
+    // 版本檢查
+    if (gameState.version !== SAVE_VERSION) {
+      console.warn('⚠️【版本不符】清除舊版本保存狀態');
+      localStorage.removeItem(GAME_STATE_KEY);
+      return null;
+    }
+    
+    return gameState;
+  } catch (error) {
+    console.error('❌【狀態載入失敗】', error);
+    localStorage.removeItem(GAME_STATE_KEY);
+    return null;
+  }
+}
+
+// 恢復遊戲狀態
+function restoreGameState(gameState) {
+  try {
+    players = gameState.players || [];
+    readyPlayers = gameState.readyPlayers || [];
+    restingPlayers = gameState.restingPlayers || [];
+    courts = gameState.courts || [[], [], []];
+    historyMatches = gameState.historyMatches || [];
+    historyMatchesArr = gameState.historyMatchesArr || [];
+    historyMatchTimes = gameState.historyMatchTimes || [];
+    pairingHistory = gameState.pairingHistory || {};
+    lastCombinationByCourt = gameState.lastCombinationByCourt || {};
+    isManualMode = gameState.isManualMode || false;
+    nextMatchDecision = gameState.nextMatchDecision || null;
+    readyPlayersCycleCount = gameState.readyPlayersCycleCount || 0;
+    lastReadyPlayersNames = gameState.lastReadyPlayersNames || [];
+    
+    // 更新界面
+    updateLists();
+    updateCourtsDisplay();
+    
+    // 更新手動模式狀態
+    if (isManualMode) {
+      document.getElementById('manualMode').checked = true;
+    }
+    
+    console.log('✅【狀態恢復】遊戲狀態已成功恢復');
+    console.log(`📊【恢復詳情】選手:${players.length}人, 預備:${readyPlayers.length}人, 進行場地:${courts.filter(c => c.length > 0).length}個`);
+    
+    return true;
+  } catch (error) {
+    console.error('❌【狀態恢復失敗】', error);
+    return false;
+  }
+}
+
+// 清除保存的遊戲狀態
+function clearGameState() {
+  localStorage.removeItem(GAME_STATE_KEY);
+  console.log('🗑️【狀態清除】保存的遊戲狀態已清除');
+}
+
+// 檢查是否有保存的遊戲狀態
+function hasSavedGameState() {
+  return localStorage.getItem(GAME_STATE_KEY) !== null;
+}
+
 
 // 時間格式化函數
 function formatTime(date) {
@@ -455,6 +557,11 @@ function addBatchPlayers() {
   updateLists();
   updateHistoryDisplay();
   updateCourtsDisplay();
+  
+  // 自動保存遊戲狀態
+  if (addedCount > 0) {
+    saveGameState();
+  }
 }
 
 function removePlayer(name) {
@@ -522,6 +629,9 @@ function moveToReady(name) {
     readyPlayers.push(player);
     
     updateLists();
+    
+    // 自動保存遊戲狀態
+    saveGameState();
   } else {
     console.warn(`【moveToReady】警告：找不到選手 ${name}`);
   }
@@ -533,6 +643,9 @@ function moveToRest(name) {
     readyPlayers = readyPlayers.filter((p) => p.name !== name);
     restingPlayers.push(player);
     updateLists();
+    
+    // 自動保存遊戲狀態
+    saveGameState();
   }
 }
 
@@ -1711,6 +1824,11 @@ async function generateMatches() {
   } else {
     // 沒有新的比賽被安排，但預備區選手等待輪數已增加
   }
+  
+  // 自動保存遊戲狀態
+  if (hasNewMatches) {
+    saveGameState();
+  }
 }
 
 // 獨立的等待輪次更新函數
@@ -2225,6 +2343,9 @@ async function endMatch(courtIndex) {
     // 在配對完成後更新預測
     updateNextMatchPrediction();
   }
+  
+  // 自動保存遊戲狀態
+  saveGameState();
 }
 
 function updateHistoryDisplay() {
@@ -2438,6 +2559,9 @@ async function loadGoogleSheetsData() {
     // 更新載入狀態
     statusElement.textContent = `成功導入 ${newPlayers.length} 位出席選手`;
     alert(`已成功導入 ${newPlayers.length} 位出席選手`);
+    
+    // 自動保存遊戲狀態
+    saveGameState();
 
     return { players: newPlayers };
   } catch (error) {
@@ -2555,10 +2679,11 @@ document.addEventListener("DOMContentLoaded", function () {
   document.getElementById('manualMode').addEventListener('change', toggleManualMode);
 });
 
-window.addEventListener("beforeunload", function (e) {
-  e.preventDefault();
-  e.returnValue = "警告：關閉此網頁將會清空所有資料，是否確認關閉？";
-});
+// 移除beforeunload警告，因為現在有自動保存和恢復功能
+// window.addEventListener("beforeunload", function (e) {
+//   e.preventDefault();
+//   e.returnValue = "警告：關閉此網頁將會清空所有資料，是否確認關閉？";
+// });
 
 // 比分輸入相關功能
 
@@ -3013,8 +3138,124 @@ async function syncMatchRecordsToSheets() {
   }
 }
 
-// 在頁面載入時初始化 Google API
+// 顯示狀態恢復對話框
+function showRestoreDialog() {
+  const modal = document.getElementById('restoreStateModal');
+  const savedState = loadGameState();
+  
+  if (!savedState) return;
+  
+  // 填入保存狀態詳情
+  const saveTime = new Date(savedState.timestamp);
+  const activeCourts = savedState.courts.filter(c => c.length > 0).length;
+  const readyCount = savedState.readyPlayers.length;
+  const totalPlayers = savedState.players.length;
+  
+  document.getElementById('savedStateDetails').innerHTML = `
+    <div><strong>保存時間：</strong>${saveTime.toLocaleString('zh-TW')}</div>
+    <div><strong>進行場地：</strong>${activeCourts} 個</div>
+    <div><strong>預備選手：</strong>${readyCount} 人</div>
+    <div><strong>總選手數：</strong>${totalPlayers} 人</div>
+    <div><strong>歷史比賽：</strong>${savedState.historyMatches.length} 場</div>
+  `;
+  
+  modal.style.display = 'flex';
+}
+
+// 確認恢復狀態
+function confirmRestoreState() {
+  const savedState = loadGameState();
+  if (savedState && restoreGameState(savedState)) {
+    document.getElementById('restoreStateModal').style.display = 'none';
+    
+    // 恢復場地計時器
+    courts.forEach((court, index) => {
+      if (court.length > 0 && court.startTime) {
+        // 將ISO字符串轉換回Date對象
+        court.startTime = new Date(court.startTime);
+      }
+    });
+    
+    // 更新所有界面
+    updateCourtsDisplay();
+    updateNextMatchPrediction();
+    
+    // 顯示成功訊息
+    showSuccessToast('✅ 比賽狀態已成功恢復！');
+  } else {
+    alert('恢復狀態失敗，將重新開始');
+    startFresh();
+  }
+}
+
+// 重新開始（清除保存狀態）
+function startFresh() {
+  clearGameState();
+  document.getElementById('restoreStateModal').style.display = 'none';
+  
+  // 重置所有狀態
+  players = [];
+  readyPlayers = [];
+  restingPlayers = [];
+  courts = [[], [], []];
+  historyMatches = [];
+  historyMatchesArr = [];
+  historyMatchTimes = [];
+  pairingHistory = {};
+  lastCombinationByCourt = {};
+  isManualMode = false;
+  nextMatchDecision = null;
+  readyPlayersCycleCount = 0;
+  lastReadyPlayersNames = [];
+  
+  // 更新界面
+  updateLists();
+  updateCourtsDisplay();
+  
+  // 重置手動模式狀態
+  document.getElementById('manualMode').checked = false;
+  
+  console.log('🔄【重新開始】所有狀態已重置');
+}
+
+// 顯示成功提示
+function showSuccessToast(message) {
+  // 創建臨時提示元素
+  const toast = document.createElement('div');
+  toast.className = 'alert alert-info';
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    min-width: 300px;
+    animation: slideIn 0.3s ease-out;
+  `;
+  toast.innerHTML = `
+    <i class="fas fa-check-circle"></i>
+    <span>${message}</span>
+  `;
+  
+  document.body.appendChild(toast);
+  
+  // 3秒後自動移除
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease-in forwards';
+    setTimeout(() => {
+      if (toast.parentNode) {
+        document.body.removeChild(toast);
+      }
+    }, 300);
+  }, 3000);
+}
+
+// 在頁面載入時初始化 Google API 和檢查保存狀態
 window.addEventListener('load', () => {
+  // 檢查是否有保存的遊戲狀態
+  if (hasSavedGameState()) {
+    showRestoreDialog();
+  }
+  
   // 初始化 Google API
   if (typeof gapi !== 'undefined') {
     initGoogleAPI();
