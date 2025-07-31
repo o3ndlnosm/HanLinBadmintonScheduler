@@ -918,17 +918,18 @@ function selectPlayersWithABCLogic(availablePlayers) {
     return null;
   }
   
-  // 🚨 檢查選手等待情況，決定模式
-  const forcePlayers = availablePlayers.filter(p => (p.waitingTurns || 0) >= 4);
-  const urgentPlayers = availablePlayers.filter(p => (p.waitingTurns || 0) >= 3);
+  // 🚨 檢查選手等待情況，決定模式（階段性策略）
+  const forcePlayers = availablePlayers.filter(p => (p.waitingTurns || 0) >= 5); // 改為5輪才強制
+  const urgentPlayers = availablePlayers.filter(p => (p.waitingTurns || 0) >= 4); // 改為4輪才緊急
+  const maxWaitingTurns = Math.max(...availablePlayers.map(p => p.waitingTurns || 0));
   
   const isForceMode = forcePlayers.length > 0;
   const isEmergencyMode = urgentPlayers.length > 0;
   
   if (isForceMode) {
-    console.log(`💥【強制上場模式】發現 ${forcePlayers.length} 位選手等待≥4輪: ${forcePlayers.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
+    console.log(`💥【強制上場模式】發現 ${forcePlayers.length} 位選手等待≥5輪: ${forcePlayers.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
   } else if (isEmergencyMode) {
-    console.log(`🚨【緊急模式啟動】發現 ${urgentPlayers.length} 位選手等待≥3輪: ${urgentPlayers.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
+    console.log(`🚨【緊急模式啟動】發現 ${urgentPlayers.length} 位選手等待≥4輪: ${urgentPlayers.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
   }
   
   // 按等級分組
@@ -978,14 +979,43 @@ function selectPlayersWithABCLogic(availablePlayers) {
     let effectivePriority, effectiveWaitingScore;
     
     if (isForceMode) {
-      // 強制模式：絕對優先等待≥4輪的選手
-      const forcePlayersInCombination = combination.filter(p => (p.waitingTurns || 0) >= 4).length;
+      // 強制模式：絕對優先等待≥5輪的選手
+      const forcePlayersInCombination = combination.filter(p => (p.waitingTurns || 0) >= 5).length;
       effectivePriority = -(forcePlayersInCombination * 10000 + waitingScore); // 強制選手絕對優先
       effectiveWaitingScore = priority;
     } else if (isEmergencyMode) {
-      // 緊急模式：等待輪次權重 > ABC配對權重
-      effectivePriority = -waitingScore; // 等待分數越高，優先級越高（負數表示更優先）
-      effectiveWaitingScore = priority;   // ABC優先級作為次要因子
+      // 緊急模式（4輪）：階段性混合策略
+      let abcProbability;
+      if (maxWaitingTurns <= 4) {
+        abcProbability = 0.5; // 4輪：50% ABC優先
+      } else {
+        abcProbability = 0.3; // 5輪以上：30% ABC優先
+      }
+      
+      const useABCPriority = Math.random() < abcProbability;
+      
+      if (useABCPriority) {
+        effectivePriority = priority;       // ABC優先級作為主要因子
+        effectiveWaitingScore = waitingScore; // 等待分數作為次要因子
+        console.log(`🎯【階段性策略-緊急】${maxWaitingTurns}輪最高，選擇ABC優先模式(${Math.round(abcProbability*100)}%機率)`);
+      } else {
+        effectivePriority = -waitingScore; // 等待分數越高，優先級越高
+        effectiveWaitingScore = priority;   // ABC優先級作為次要因子
+        console.log(`⏰【階段性策略-緊急】${maxWaitingTurns}輪最高，選擇等待優先模式(${Math.round((1-abcProbability)*100)}%機率)`);
+      }
+    } else if (maxWaitingTurns >= 3) {
+      // 3輪等待階段：80% ABC優先（有利純同等級組合AAAA, BBBB, CCCC出現）
+      const useABCPriority = Math.random() < 0.8;
+      
+      if (useABCPriority) {
+        effectivePriority = priority;
+        effectiveWaitingScore = waitingScore;
+        console.log(`✨【階段性策略-預警】3輪等待，選擇ABC優先模式(80%機率)`);
+      } else {
+        effectivePriority = -waitingScore;
+        effectiveWaitingScore = priority;
+        console.log(`⚠️【階段性策略-預警】3輪等待，選擇等待優先模式(20%機率)`);
+      }
     } else {
       // 一般模式：ABC配對權重 > 等待輪次權重
       effectivePriority = priority;       // ABC優先級作為主要因子
@@ -1049,10 +1079,12 @@ function selectPlayersWithABCLogic(availablePlayers) {
       }
     } else if (isEmergencyMode) {
       const urgentInCombination = bestCombination.filter(p => (p.waitingTurns || 0) >= 3);
-      console.log(`🚨【緊急模式結果】成功選中 ${urgentInCombination.length} 位等待≥3輪選手: ${urgentInCombination.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
+      console.log(`🚨【緊急模式結果-混合策略】成功選中 ${urgentInCombination.length} 位等待≥3輪選手: ${urgentInCombination.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
       
       if (finalPriority === 2) {
         console.log(`⚠️【次要組合啟用】因緊急情況使用次要組合: ${levels}`);
+      } else if (finalPriority === 1) {
+        console.log(`✅【正常組合保持】混合策略下仍使用正常組合: ${levels}`);
       }
     } else if (finalPriority === 3) {
       // 一般模式下使用了次要組合
