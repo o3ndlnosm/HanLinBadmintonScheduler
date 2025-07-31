@@ -778,7 +778,7 @@ function getABCCombinationPriority(players, isEmergencyMode = false, isForceMode
 
 // 決定下一輪配對（提前決定並儲存）
 function decideNextMatch() {
-  if (readyPlayers.length < 4) {
+  if (readyPlayers.length < 6) {
     nextMatchDecision = null;
     return null;
   }
@@ -847,9 +847,53 @@ function showToastNotification(message) {
   }, 4000);
 }
 
+// 更新永久預告區域
+function updatePermanentPrediction(message) {
+  const permanentPrediction = document.getElementById('permanentPrediction');
+  const permanentContent = document.getElementById('permanentPredictionContent');
+  
+  if (!permanentPrediction || !permanentContent) return;
+  
+  if (message) {
+    // 如果message包含選手名稱，格式化為標籤樣式
+    if (message.includes(',')) {
+      const players = message.split(', ').map(player => player.trim());
+      
+      // 將4個選手分成2x2排列
+      if (players.length === 4) {
+        const row1 = players.slice(0, 2).map(player => 
+          `<span style="display: inline-block; background: var(--primary-light); color: white; padding: 0.15rem 0.4rem; border-radius: 10px; font-size: 0.75rem; font-weight: 500; margin: 0 0.1rem;">${player}</span>`
+        ).join('');
+        
+        const row2 = players.slice(2, 4).map(player => 
+          `<span style="display: inline-block; background: var(--primary-light); color: white; padding: 0.15rem 0.4rem; border-radius: 10px; font-size: 0.75rem; font-weight: 500; margin: 0 0.1rem;">${player}</span>`
+        ).join('');
+        
+        permanentContent.innerHTML = `<div>${row1}</div><div style="margin-top: 0.2rem;">${row2}</div>`;
+      } else {
+        // 非4人時的原始處理
+        const formattedPlayers = players.map(player => 
+          `<span style="display: inline-block; background: var(--primary-light); color: white; padding: 0.15rem 0.4rem; border-radius: 10px; font-size: 0.75rem; font-weight: 500;">${player}</span>`
+        ).join('');
+        permanentContent.innerHTML = formattedPlayers;
+      }
+    } else {
+      permanentContent.innerHTML = message;
+    }
+    
+    // 只有在開始排場按鈕隱藏後才顯示永久預告
+    const startButton = document.querySelector('button[onclick="generateMatches()"]');
+    if (startButton && startButton.style.display === 'none') {
+      permanentPrediction.style.display = 'flex';
+    }
+  } else {
+    permanentPrediction.style.display = 'none';
+  }
+}
+
 // 更新下輪預測（只在關鍵時刻呼叫）
 function updateNextMatchPrediction() {
-  if (readyPlayers.length >= 4) {
+  if (readyPlayers.length >= 6) {
     // 決定下一場配對
     decideNextMatch();
     
@@ -857,12 +901,14 @@ function updateNextMatchPrediction() {
       const predictionNames = nextMatchDecision.map(p => p.name).join(', ');
       console.log(`📋【下輪預告】已決定選手：${predictionNames}`);
       
-      // 顯示臨時通知
-      showToastNotification(`預測選手：${predictionNames}`);
+      // 更新永久預告區域（如果顯示中）
+      updatePermanentPrediction(predictionNames);
     }
   } else {
     // 人數不足時清除決定
     nextMatchDecision = null;
+    // 清除永久預告
+    updatePermanentPrediction(null);
   }
 }
 
@@ -1618,6 +1664,18 @@ async function generateMatches() {
     
     // 更新下輪預告
     updateNextMatchPrediction();
+    
+    // 隱藏開始排場按鈕（只在第一次使用）並顯示永久預告
+    const startButton = document.querySelector('button[onclick="generateMatches()"]');
+    if (startButton) {
+      startButton.style.display = 'none';
+      
+      // 顯示永久預告區域（如果有預測內容）
+      if (nextMatchDecision) {
+        const predictionNames = nextMatchDecision.map(p => p.name).join(', ');
+        updatePermanentPrediction(predictionNames);
+      }
+    }
   } else {
     // 沒有新的比賽被安排，但預備區選手等待輪數已增加
   }

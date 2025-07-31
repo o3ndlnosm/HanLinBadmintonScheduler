@@ -53,6 +53,14 @@
         <div class="main-content">
             <div class="card">
                 <div class="card-header">
+                    <i class="fas fa-list"></i>
+                    <h2>選手列表</h2>
+                </div>
+                <div class="player-list" id="playerList">
+                    <!-- 選手列表將在這裡動態生成 -->
+                </div>
+                <div class="divider"></div>
+                <div class="card-header">
                     <i class="fas fa-users"></i>
                     <h2>選手管理</h2>
                 </div>
@@ -100,22 +108,24 @@
                         </button>
                     </div>
                 </div>
-                <div class="divider"></div>
-                <div class="card-header">
-                    <i class="fas fa-list"></i>
-                    <h2>選手列表</h2>
-                </div>
-                <div class="player-list" id="playerList">
-                    <!-- 選手列表將在這裡動態生成 -->
-                </div>
             </div>
 
             <div class="card">
                 <div class="card-header">
-                    <i class="fas fa-hourglass-half"></i>
-                    <h2>預備區</h2>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; width: 100%;">
+                        <i class="fas fa-hourglass-half"></i>
+                        <h2>預備區</h2>
+                        <!-- 永久預告區域（初始隱藏） -->
+                        <div id="permanentPrediction" style="display: none; margin-left: auto; background: rgba(131, 120, 216, 0.1); border: 1px solid var(--info-light); border-radius: 16px; padding: 0.3rem 0.8rem;">
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <i class="fas fa-crystal-ball" style="color: var(--info); font-size: 0.8rem;"></i>
+                                <span style="color: var(--info); font-weight: 600; font-size: 0.8rem;">下輪預告：</span>
+                                <div id="permanentPredictionContent" style="color: var(--text-dark); font-size: 0.75rem; font-weight: 500; display: inline-block; text-align: center;"></div>
+                            </div>
+                        </div>
+                    </div>
                     <button class="btn btn-success" onclick="generateMatches()"
-                        style="margin-left: auto; min-width: 220px; padding: 0.5rem 1rem; font-size: 1rem;">
+                        style="margin-left: auto; padding: 0.75rem 1.5rem; width: 160px; font-size: 1.05rem;">
                         <i class="fas fa-play-circle"></i> 開始排場
                     </button>
                 </div>
@@ -126,8 +136,8 @@
                 <div class="card-header">
                     <i class="fas fa-history"></i>
                     <h2>歷史比賽</h2>
-                    <button class="btn btn-sm btn-success" onclick="syncMatchRecordsToSheets()"
-                        style="margin-left: auto;">
+                    <button class="btn btn-success" onclick="syncMatchRecordsToSheets()"
+                        style="margin-left: auto; padding: 0.75rem 1.5rem; width: 160px; font-size: 1.05rem;">
                         <i class="fas fa-sync"></i> 同步到 Sheets
                     </button>
                 </div>
