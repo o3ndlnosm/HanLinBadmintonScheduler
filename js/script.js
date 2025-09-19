@@ -3,6 +3,7 @@ let players = [];
 let readyPlayers = [];
 let restingPlayers = [];
 let courts = [[], [], []];
+let courtEnabled = [true, true, true]; // 各場地的啟用狀態
 let historyMatches = [];
 let lastPairings = new Set();
 let pairingHistory = {};
@@ -656,6 +657,10 @@ function updateCourtsDisplay(updateTimesOnly = false) {
   if (!updateTimesOnly) {
     document.getElementById("courts").innerHTML = courts
       .map((court, i) => {
+        // 如果場地被禁用，不顯示
+        if (!courtEnabled[i]) {
+          return '';
+        }
         if (court.length === 0) {
           // 清除計時器如果該場地沒有比賽
           if (courtTimers[i]) {
@@ -1788,9 +1793,12 @@ async function generateMatches() {
   if (justFinishedCount > 0 || longWaitingCount > 0) {
   }
 
-  // 為每個空場地生成比賽
+  // 為每個空場地生成比賽（只處理啟用的場地）
   let hasNewMatches = false;
   for (let i = 0; i < courts.length; i++) {
+    // 跳過被禁用的場地
+    if (!courtEnabled[i]) continue;
+
     let result = await generateMatchForCourtImmediate(i);
     if (result) hasNewMatches = true;
   }
@@ -1956,6 +1964,12 @@ function updateWaitingTurnsAfterMatch(readyPlayersBeforeMatch, hasNewMatches) {
 
 // 修改 generateMatchForCourtImmediate 函數 - 使用新規則
 async function generateMatchForCourtImmediate(courtIndex) {
+  // 檢查場地是否啟用
+  if (!courtEnabled[courtIndex]) {
+    alert(`場地 ${courtIndex + 1} 目前已關閉`);
+    return null;
+  }
+
   // 使用所有預備區的選手（包含剛下場的）
   let pool = readyPlayers;
   let candidatePool;
@@ -2490,7 +2504,7 @@ function togglePrivateMode() {
   const password = prompt("請輸入密碼以切換到私人模式：");
 
   // 設定密碼（您可以更改這個密碼）
-  const correctPassword = "831106"; // 請更改為您想要的密碼
+  const correctPassword = "1111"; // 請更改為您想要的密碼
 
   if (password === correctPassword) {
     isPrivateMode = true;
@@ -2503,7 +2517,10 @@ function togglePrivateMode() {
       loadBtn.style.backgroundColor = '#6c757d';
     }
 
-    alert("已切換到私人模式！\n請點擊「從 Google Sheets 載入選手資料」按鈕來載入資料。");
+    // 顯示場地控制選項
+    showCourtControls();
+
+    alert("已切換到私人模式！\n請點擊「從 Google Sheets 載入選手資料」按鈕來載入資料。\n您可以在場地上方選擇要啟用的場地。");
   } else {
     alert("密碼錯誤！");
   }
@@ -2520,7 +2537,128 @@ function switchToClubMode() {
     loadBtn.style.backgroundColor = '';
   }
 
+  // 重新啟用所有場地
+  courtEnabled = [true, true, true];
+  hideCourtControls();
+  updateCourtsDisplay();
+
   alert("已切換回社團模式");
+}
+
+// 顯示場地控制選項
+function showCourtControls() {
+  const courtsContainer = document.getElementById("courts");
+  if (courtsContainer) {
+    // 如果控制面板不存在，創建它
+    let controlPanel = document.getElementById("courtControls");
+    if (!controlPanel) {
+      controlPanel = document.createElement("div");
+      controlPanel.id = "courtControls";
+      controlPanel.style.cssText = `
+        padding: 15px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        animation: fadeIn 0.3s ease-in;
+      `;
+
+      controlPanel.innerHTML = `
+        <div style="
+          display: flex;
+          gap: 20px;
+          align-items: center;
+          justify-content: center;
+          flex-wrap: wrap;
+        ">
+          <div style="
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+          ">
+            場地設定
+          </div>
+          ${[1, 2, 3].map(num => `
+            <label style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              cursor: pointer;
+              padding: 8px 16px;
+              background: rgba(255, 255, 255, 0.9);
+              border-radius: 20px;
+              transition: all 0.3s ease;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            "
+            onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 8px rgba(0, 0, 0, 0.15)';"
+            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)';">
+              <input type="checkbox"
+                id="court${num}-toggle"
+                checked
+                onchange="toggleCourt(${num - 1})"
+                style="
+                  width: 20px;
+                  height: 20px;
+                  cursor: pointer;
+                  accent-color: #667eea;
+                ">
+              <span style="
+                font-weight: 500;
+                color: #333;
+                font-size: 14px;
+              ">
+                <i class="fas fa-shuttlecock" style="color: #667eea;"></i> 場地 ${num}
+              </span>
+            </label>
+          `).join('')}
+        </div>
+      `;
+
+      // 添加淡入動畫
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `;
+      if (!document.head.querySelector('style[data-court-controls]')) {
+        style.setAttribute('data-court-controls', 'true');
+        document.head.appendChild(style);
+      }
+
+      courtsContainer.parentNode.insertBefore(controlPanel, courtsContainer);
+    }
+    controlPanel.style.display = 'block';
+  }
+}
+
+// 隱藏場地控制選項
+function hideCourtControls() {
+  const controlPanel = document.getElementById("courtControls");
+  if (controlPanel) {
+    controlPanel.style.display = 'none';
+  }
+}
+
+// 切換場地啟用狀態
+function toggleCourt(courtIndex) {
+  courtEnabled[courtIndex] = !courtEnabled[courtIndex];
+
+  // 如果場地被禁用且有比賽，結束該場地的比賽
+  if (!courtEnabled[courtIndex] && courts[courtIndex].length > 0) {
+    if (confirm(`場地 ${courtIndex + 1} 目前有比賽進行中，確定要關閉嗎？\n這將結束該場地的比賽。`)) {
+      endMatch(courtIndex);
+    } else {
+      // 如果用戶取消，重新勾選
+      document.getElementById(`court${courtIndex + 1}-toggle`).checked = true;
+      courtEnabled[courtIndex] = true;
+      return;
+    }
+  }
+
+  updateCourtsDisplay();
 }
 
 // 載入 Google Sheets 資料 - 修改為直接匯入不顯示模態視窗
