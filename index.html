@@ -194,6 +194,19 @@
         <div id="toastContent" class="toast-content"></div>
     </div>
 
+    <!-- 隱藏的私人模式切換按鈕 -->
+    <div id="secretButton" style="
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        width: 20px;
+        height: 20px;
+        background-color: rgba(128, 128, 128, 0.2);
+        border-radius: 50%;
+        cursor: pointer;
+        z-index: 1000;
+    " onclick="togglePrivateMode()" title="切換模式"></div>
+
     <!-- Google API -->
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>

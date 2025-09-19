@@ -2472,24 +2472,71 @@ function updateHistoryDisplay() {
 const GOOGLE_API_KEY = "AIzaSyCyoLexsIwzSg6tMLVhchfMjTgmYNn6S4U"; // 您的 API 金鑰
 const GOOGLE_CLIENT_ID = "186072660354-833c6b74da3t6jgk9ace7ig2mgvcht0u.apps.googleusercontent.com"; // 您的 OAuth Client ID
 // 將這些值直接設為常量
-const SPREADSHEET_ID = "1961u7uge-1AHRLrIS1kEG8GNuMNHrf-WdjGVw-pClE0";
+const SPREADSHEET_ID = "1961u7uge-1AHRLrIS1kEG8GNuMNHrf-WdjGVw-pClE0"; // 社團用
+const PRIVATE_SPREADSHEET_ID = "1LLC0sMwfvoTDMCHNCD2LpaKcKI-yJUYriROgA3OM3u0"; // 私人用
 const SHEET_NAME = "人員名單";
 const MATCH_RECORD_SHEET_NAME = "比賽紀錄"; // 新增比賽紀錄工作表名稱
+
+// 記錄當前使用的試算表
+let currentSpreadsheetId = SPREADSHEET_ID;
+let isPrivateMode = false;
 
 // Google OAuth 相關變數
 let googleAccessToken = null;
 let googleUser = null;
 
+// 私人模式切換功能
+function togglePrivateMode() {
+  const password = prompt("請輸入密碼以切換到私人模式：");
+
+  // 設定密碼（您可以更改這個密碼）
+  const correctPassword = "831106"; // 請更改為您想要的密碼
+
+  if (password === correctPassword) {
+    isPrivateMode = true;
+    currentSpreadsheetId = PRIVATE_SPREADSHEET_ID;
+
+    // 更新按鈕文字以顯示當前模式
+    const loadBtn = document.getElementById("loadSheetsDataBtn");
+    if (loadBtn) {
+      loadBtn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> 從 Google Sheets 載入選手資料 (私人模式)';
+      loadBtn.style.backgroundColor = '#6c757d';
+    }
+
+    alert("已切換到私人模式！\n請點擊「從 Google Sheets 載入選手資料」按鈕來載入資料。");
+  } else {
+    alert("密碼錯誤！");
+  }
+}
+
+// 切換回社團模式
+function switchToClubMode() {
+  isPrivateMode = false;
+  currentSpreadsheetId = SPREADSHEET_ID;
+
+  const loadBtn = document.getElementById("loadSheetsDataBtn");
+  if (loadBtn) {
+    loadBtn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> 從 Google Sheets 載入選手資料';
+    loadBtn.style.backgroundColor = '';
+  }
+
+  alert("已切換回社團模式");
+}
+
 // 載入 Google Sheets 資料 - 修改為直接匯入不顯示模態視窗
 async function loadGoogleSheetsData() {
   try {
+    // 使用當前模式的試算表 ID
+    const spreadsheetId = isPrivateMode ? PRIVATE_SPREADSHEET_ID : SPREADSHEET_ID;
+
     // 顯示載入狀態
     const statusElement = document.getElementById("loadStatus");
-    statusElement.textContent = "正在從 Google Sheets 載入資料...";
+    const modeText = isPrivateMode ? "(私人模式)" : "";
+    statusElement.textContent = `正在從 Google Sheets ${modeText} 載入資料...`;
 
     // 構建 API 請求 URL
     const range = `${SHEET_NAME}!A2:E1000`; // A列=姓名, B列=等級, C列=出席狀態, D列=分數, E列=ABC等級
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?key=${GOOGLE_API_KEY}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?key=${GOOGLE_API_KEY}`;
 
     // 發送 API 請求
     const response = await fetch(url);
@@ -2988,7 +3035,7 @@ async function writeToGoogleSheets(records) {
     // 檢查工作表是否已有標題
     const checkRange = `${MATCH_RECORD_SHEET_NAME}!A1:J1`;
     const checkResponse = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: currentSpreadsheetId,
       range: checkRange,
     });
     
@@ -2996,7 +3043,7 @@ async function writeToGoogleSheets(records) {
     if (!checkResponse.result.values || checkResponse.result.values.length === 0) {
       // 如果沒有標題，先寫入標題
       await gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEET_ID,
+        spreadsheetId: currentSpreadsheetId,
         range: `${MATCH_RECORD_SHEET_NAME}!A1:J1`,
         valueInputOption: 'USER_ENTERED',
         resource: {
@@ -3008,7 +3055,7 @@ async function writeToGoogleSheets(records) {
       // 如果已有數據，找到最後一行
       const dataRange = `${MATCH_RECORD_SHEET_NAME}!A:A`;
       const dataResponse = await gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
+        spreadsheetId: currentSpreadsheetId,
         range: dataRange,
       });
       
@@ -3033,7 +3080,7 @@ async function writeToGoogleSheets(records) {
     
     // 寫入數據
     const response = await gapi.client.sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: currentSpreadsheetId,
       range: `${MATCH_RECORD_SHEET_NAME}!A${startRow}`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
