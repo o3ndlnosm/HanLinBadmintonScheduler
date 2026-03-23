@@ -601,18 +601,20 @@ function calculateActivePlayersAverageMatches() {
   場次調整為所有活躍選手的平均場次
 */
 function moveToReady(name) {
-  
-  let player =
-    restingPlayers.find((p) => p.name === name) ||
-    players.find((p) => p.name === name);
-    
+
+  let fromRest = restingPlayers.find((p) => p.name === name);
+  let fromPlayers = players.find((p) => p.name === name);
+  let player = fromRest || fromPlayers;
+
   if (player) {
-    
+
     players = players.filter((p) => p.name !== name);
     restingPlayers = restingPlayers.filter((p) => p.name !== name);
 
-    // 初始化等待輪數和標記為剛加入
-    player.waitingTurns = 0;
+    // 從休息區回來：保留等待輪次；從選手列表初次加入：歸零
+    if (!fromRest) {
+      player.waitingTurns = 0;
+    }
     player.justJoinedReady = true;
     
 
@@ -854,39 +856,18 @@ function updatePairingHistory(teamKey) {
   確保絕對不會產生不合法組合
 */
 
-// ABC 等級組合優先級檢查 - 三階段權重系統
-function getABCCombinationPriority(players, isEmergencyMode = false, isForceMode = false) {
+// ABC 等級組合合法性檢查 - 10 種合法組合平等對待
+function getABCCombinationPriority(players) {
   if (players.length !== 4) return 0;
-  
+
   const levels = players.map(p => p.newLevel || 'B').sort().join('');
-  
-  // 【正常組合】- 基礎6種
-  const normalCombinations = [
-    'AAAA', 'BBBB', 'CCCC',  // 同等級組合
-    'AABB', 'AACC', 'BBCC'   // 2+2組合
+
+  // 禁止的 5 種跨級組合（A 和 C 直接搭配）
+  const forbiddenCombinations = [
+    'AAAC', 'ACCC', 'AABC', 'ABBC', 'ABCC'
   ];
-  
-  // 【次要組合】- 緊急/強制模式下開放
-  const secondaryCombinations = [
-    'AAAB', 'ABBB',  // A-B混合
-    'BBBC', 'BCCC'   // B-C混合
-  ];
-  
-  // 檢查組合類型並返回優先級
-  if (normalCombinations.includes(levels)) {
-    return 1; // 正常組合優先級最高
-  }
-  
-  if (secondaryCombinations.includes(levels)) {
-    if (isForceMode || isEmergencyMode) {
-      return 2; // 緊急/強制模式下允許次要組合
-    } else {
-      return 3; // 一般模式下次要組合優先級較低
-    }
-  }
-  
-  // 不允許的組合
-  return 0;
+
+  return forbiddenCombinations.includes(levels) ? 0 : 1;
 }
 
 // 決定下一輪配對（提前決定並儲存）
@@ -1025,681 +1006,110 @@ function updateNextMatchPrediction() {
   }
 }
 
-// ABC 智能選手選擇：在所有可能組合中找出最佳選擇
+// ABC 智能選手選擇：簡化版 — 等待≥2輪必上 + 合法組合 + 搭檔歷史去重
 function selectPlayersWithABCLogic(availablePlayers) {
   if (availablePlayers.length < 4) {
     return null;
   }
-  
-  // 🚨 檢查選手等待情況，決定模式（階段性策略）
-  const forcePlayers = availablePlayers.filter(p => (p.waitingTurns || 0) >= 5); // 改為5輪才強制
-  const urgentPlayers = availablePlayers.filter(p => (p.waitingTurns || 0) >= 4); // 改為4輪才緊急
-  const maxWaitingTurns = Math.max(...availablePlayers.map(p => p.waitingTurns || 0));
-  
-  const isForceMode = forcePlayers.length > 0;
-  const isEmergencyMode = urgentPlayers.length > 0;
-  
-  if (isForceMode) {
-    console.log(`💥【強制上場模式】發現 ${forcePlayers.length} 位選手等待≥5輪: ${forcePlayers.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
-  } else if (isEmergencyMode) {
-    console.log(`🚨【緊急模式啟動】發現 ${urgentPlayers.length} 位選手等待≥4輪: ${urgentPlayers.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
+
+  // 1. 找出等待 ≥ 2 輪的必選選手
+  const mustPlay = availablePlayers.filter(p => (p.waitingTurns || 0) >= 2);
+  if (mustPlay.length > 0) {
+    console.log(`【必選選手】${mustPlay.map(p => `${p.name}(等待${p.waitingTurns}輪)`).join(', ')}`);
   }
-  
-  // 按等級分組
-  const levelGroups = {
-    A: availablePlayers.filter(p => (p.newLevel || 'B') === 'A'),
-    B: availablePlayers.filter(p => (p.newLevel || 'B') === 'B'),
-    C: availablePlayers.filter(p => (p.newLevel || 'B') === 'C')
-  };
-  
-  
-  let bestCombination = null;
-  let bestPriority = 999;
-  let bestWaitingScore = -Infinity;
-  let samePriorityCombinations = []; // 儲存相同優先級的組合
-  
-  // 生成所有可能的4人組合
+
+  // 2. 生成所有可能的 4 人組合
   const allCombinations = [];
-  function generateCombinations(players, current = [], start = 0) {
+  function generateCombinations(players, current, start) {
     if (current.length === 4) {
       allCombinations.push([...current]);
       return;
     }
-    
     for (let i = start; i < players.length; i++) {
       current.push(players[i]);
       generateCombinations(players, current, i + 1);
       current.pop();
     }
   }
-  
-  generateCombinations(availablePlayers);
-  
-  // 評估每個組合
-  for (const combination of allCombinations) {
-    const priority = getABCCombinationPriority(combination, isEmergencyMode, isForceMode);
-    
-    if (priority === 0) continue; // 跳過不合法組合
-    
-    // 計算綜合分數（考慮等待輪次和剛下場狀態）
-    const waitingScore = combination.reduce((sum, p) => {
-      const turns = p.waitingTurns || 0;
-      const justFinishedPenalty = p.justFinished ? -20 : 0; // 剛下場選手優先級降低
-      return sum + (turns * turns) + justFinishedPenalty;
-    }, 0);
-    
-    // 🚨 三階段模式：權重邏輯切換
-    let effectivePriority, effectiveWaitingScore;
-    
-    if (isForceMode) {
-      // 強制模式：絕對優先等待≥5輪的選手
-      const forcePlayersInCombination = combination.filter(p => (p.waitingTurns || 0) >= 5).length;
-      effectivePriority = -(forcePlayersInCombination * 10000 + waitingScore); // 強制選手絕對優先
-      effectiveWaitingScore = priority;
-    } else if (isEmergencyMode) {
-      // 緊急模式（4輪）：階段性混合策略
-      let abcProbability;
-      if (maxWaitingTurns <= 4) {
-        abcProbability = 0.5; // 4輪：50% ABC優先
-      } else {
-        abcProbability = 0.3; // 5輪以上：30% ABC優先
-      }
-      
-      const useABCPriority = Math.random() < abcProbability;
-      
-      if (useABCPriority) {
-        effectivePriority = priority;       // ABC優先級作為主要因子
-        effectiveWaitingScore = waitingScore; // 等待分數作為次要因子
-        console.log(`🎯【階段性策略-緊急】${maxWaitingTurns}輪最高，選擇ABC優先模式(${Math.round(abcProbability*100)}%機率)`);
-      } else {
-        effectivePriority = -waitingScore; // 等待分數越高，優先級越高
-        effectiveWaitingScore = priority;   // ABC優先級作為次要因子
-        console.log(`⏰【階段性策略-緊急】${maxWaitingTurns}輪最高，選擇等待優先模式(${Math.round((1-abcProbability)*100)}%機率)`);
-      }
-    } else if (maxWaitingTurns >= 3) {
-      // 3輪等待階段：80% ABC優先（有利純同等級組合AAAA, BBBB, CCCC出現）
-      const useABCPriority = Math.random() < 0.8;
-      
-      if (useABCPriority) {
-        effectivePriority = priority;
-        effectiveWaitingScore = waitingScore;
-        console.log(`✨【階段性策略-預警】3輪等待，選擇ABC優先模式(80%機率)`);
-      } else {
-        effectivePriority = -waitingScore;
-        effectiveWaitingScore = priority;
-        console.log(`⚠️【階段性策略-預警】3輪等待，選擇等待優先模式(20%機率)`);
-      }
-    } else {
-      // 一般模式：ABC配對權重 > 等待輪次權重
-      effectivePriority = priority;       // ABC優先級作為主要因子
-      effectiveWaitingScore = waitingScore; // 等待分數作為次要因子
-    }
-    
-    // 選擇更好的組合
-    if (effectivePriority < bestPriority) {
-      // 找到更高優先級的組合，重置所有候選
-      bestPriority = effectivePriority;
-      bestWaitingScore = effectiveWaitingScore;
-      bestCombination = [...combination];
-      samePriorityCombinations = [{combination: [...combination], waitingScore: effectiveWaitingScore}];
-      
-      const levels = combination.map(p => p.newLevel || 'B').sort().join('');
-      const waitingInfo = combination.map(p => {
-        const status = p.justFinished ? '剛下場' : `等待${p.waitingTurns || 0}輪`;
-        return `${p.name}(${status})`;
-      }).join(', ');
-    } else if (effectivePriority === bestPriority) {
-      if (effectiveWaitingScore > bestWaitingScore) {
-        // 相同優先級但次要分數更高
-        bestWaitingScore = effectiveWaitingScore;
-        bestCombination = [...combination];
-        samePriorityCombinations = [{combination: [...combination], waitingScore: effectiveWaitingScore}];
-        
-        const levels = combination.map(p => p.newLevel || 'B').sort().join('');
-        const waitingInfo = combination.map(p => {
-          const status = p.justFinished ? '剛下場' : `等待${p.waitingTurns || 0}輪`;
-          return `${p.name}(${status})`;
-        }).join(', ');
-      } else if (effectiveWaitingScore === bestWaitingScore) {
-        // 相同優先級和分數，加入候選池
-        samePriorityCombinations.push({combination: [...combination], waitingScore: effectiveWaitingScore});
-      }
-    }
-  }
-  
-  if (bestCombination) {
-    // 如果有多個相同品質的組合，隨機選擇
-    if (samePriorityCombinations.length > 1) {
-      const randomIndex = Math.floor(Math.random() * samePriorityCombinations.length);
-      bestCombination = samePriorityCombinations[randomIndex].combination;
-    }
-    
-    const levels = bestCombination.map(p => p.newLevel || 'B').sort().join('');
-    const waitingInfo = bestCombination.map(p => {
-      const status = p.justFinished ? '剛下場' : `等待${p.waitingTurns || 0}輪`;
-      return `${p.name}(${status})`;
-    }).join(', ');
-    
-    // 添加配對模式的詳細日誌
-    const finalPriority = getABCCombinationPriority(bestCombination, isEmergencyMode, isForceMode);
-    
-    if (isForceMode) {
-      const forceInCombination = bestCombination.filter(p => (p.waitingTurns || 0) >= 4);
-      console.log(`💥【強制模式結果】成功選中 ${forceInCombination.length} 位等待≥4輪選手: ${forceInCombination.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
-      
-      if (finalPriority === 2) {
-        console.log(`⚠️【次要組合啟用】因強制上場使用次要組合: ${levels}`);
-      }
-    } else if (isEmergencyMode) {
-      const urgentInCombination = bestCombination.filter(p => (p.waitingTurns || 0) >= 3);
-      console.log(`🚨【緊急模式結果-混合策略】成功選中 ${urgentInCombination.length} 位等待≥3輪選手: ${urgentInCombination.map(p => `${p.name}(${p.waitingTurns}輪)`).join(', ')}`);
-      
-      if (finalPriority === 2) {
-        console.log(`⚠️【次要組合啟用】因緊急情況使用次要組合: ${levels}`);
-      } else if (finalPriority === 1) {
-        console.log(`✅【正常組合保持】混合策略下仍使用正常組合: ${levels}`);
-      }
-    } else if (finalPriority === 3) {
-      // 一般模式下使用了次要組合
-      console.log(`💡【次要組合啟用】一般模式下使用次要組合: ${levels} (無法形成正常組合)`);
-    }
-    
-    console.log(`【ABC配對結果】${levels} 組合：${bestCombination.map(p => p.name).join(', ')}`);
-    
-    
-    return bestCombination;
-  } else {
-    return null;
-  }
-}
+  generateCombinations(availablePlayers, [], 0);
 
-/* 
-  新版等級配對函數 - 按照新規則
-  1. ±1.5 為絕對規則，無法滿足時返回 null
-  2. 加上放寬確認提示
-*/
-// 【已廢棄】此函數使用舊的數值等級 ±1.5 規則，已被 ABC 配對系統取代
-async function findOptimalCombinationNewRule(playerPool) {
-  if (playerPool.length < 4) {
-    return null;
-  }
+  // 3. 過濾合法組合，並計算包含多少必選選手
+  const mustPlayNames = new Set(mustPlay.map(p => p.name));
+  const mustPlayTarget = Math.min(mustPlay.length, 4);
 
-  
-  let bestCombination = null;
-  let bestScore = Infinity;
-  let currentCombination = [];
-  let testedCombinations = 0;
+  let validCombinations = allCombinations
+    .filter(combo => getABCCombinationPriority(combo) > 0)
+    .map(combo => {
+      const mustPlayCount = combo.filter(p => mustPlayNames.has(p.name)).length;
+      return { combo, mustPlayCount };
+    });
 
-  function evaluateCombination(comb) {
-    testedCombinations++;
-    let bestLocalScore = Infinity;
-    let bestPairing = null;
-    let pairings = [
-      [[0, 1], [2, 3]],  // AB vs CD
-      [[0, 2], [1, 3]],  // AC vs BD  
-      [[0, 3], [1, 2]]   // AD vs BC
-    ];
+  // 4. 盡量包含最多必選選手
+  if (validCombinations.length > 0 && mustPlayTarget > 0) {
+    const maxMustPlay = Math.max(...validCombinations.map(c => c.mustPlayCount));
+    validCombinations = validCombinations.filter(c => c.mustPlayCount === maxMustPlay);
 
-    // 只顯示前幾個組合的詳細資訊，避免過多日誌
-    const showDetails = testedCombinations <= 3;
-    
-    if (showDetails) {
-    }
-
-    for (let pairing of pairings) {
-      let team1 = [comb[pairing[0][0]], comb[pairing[0][1]]];
-      let team2 = [comb[pairing[1][0]], comb[pairing[1][1]]];
-      let team1Sum = team1[0].level + team1[1].level;
-      let team2Sum = team2[0].level + team2[1].level;
-      let levelDiff = Math.abs(team1Sum - team2Sum);
-
-      if (showDetails) {
-      }
-
-      // 絕對規則：兩隊等級相加差異必須 ≤ 1.5
-      if (levelDiff <= 1.5) {
-        if (showDetails) {
-        }
-        
-        // 計算等待輪數優先分數
-        let waitingScore = 0;
-        for (let player of comb) {
-          waitingScore -= (player.waitingTurns || 0) * (player.waitingTurns || 0);
-        }
-        
-        let score = waitingScore * 100 + levelDiff; // 等待輪次權重更高
-
-        if (score < bestLocalScore) {
-          bestLocalScore = score;
-          bestPairing = [team1[0], team1[1], team2[0], team2[1]];
-        }
-      } else if (showDetails) {
-      }
-    }
-    
-    return { score: bestLocalScore, pairing: bestPairing, hasValidPairing: bestPairing !== null };
-  }
-
-  function backtrack(start) {
-    if (currentCombination.length === 4) {
-      let result = evaluateCombination(currentCombination);
-      if (result.hasValidPairing && result.score < bestScore) {
-        bestScore = result.score;
-        bestCombination = result.pairing.slice();
-      }
-      return;
-    }
-    
-    for (let i = start; i < playerPool.length; i++) {
-      currentCombination.push(playerPool[i]);
-      backtrack(i + 1);
-      currentCombination.pop();
+    if (maxMustPlay < mustPlayTarget) {
+      console.log(`【等級限制】只能納入 ${maxMustPlay}/${mustPlayTarget} 位必選選手（無法湊出合法組合）`);
     }
   }
 
-  backtrack(0);
-
-
-  if (bestCombination) {
-    return bestCombination;
-  } else {
-    // 無法滿足等級規則，詢問是否放寬標準
-    
-    // 根據規則：只顯示通知，只能按OK，立即開始放寬標準配對
+  // 5. 如果沒有任何合法組合，放寬等級限制
+  if (validCombinations.length === 0) {
     alert('即將單次放寬組合標準以利進行組隊');
-    
-    // 放寬標準：隨機選擇4人
-    const shuffled = [...playerPool].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 4);
+    validCombinations = allCombinations.map(combo => {
+      const mustPlayCount = combo.filter(p => mustPlayNames.has(p.name)).length;
+      return { combo, mustPlayCount };
+    });
+    // 仍優先包含最多必選選手
+    const maxMustPlay = Math.max(...validCombinations.map(c => c.mustPlayCount));
+    validCombinations = validCombinations.filter(c => c.mustPlayCount === maxMustPlay);
   }
-}
 
-/* 
-  放寬標準的組合尋找函式 - 無視等級差異限制
-  僅考慮等待輪數和場次優先級
-*/
-// 【已廢棄】此函數使用舊的數值等級規則，已被 ABC 配對系統取代
-function findOptimalCombinationRelaxed(sortedReady, lastCombination) {
-  function internalFindOptimalCombination(pool) {
-    let bestCombination = null;
-    let bestScore = Infinity;
-    let currentCombination = [];
-
-    function evaluateCombination(comb) {
-      // 放寬標準：無視等級差異，僅考慮等待輪數
-      let bestLocalScore = Infinity;
-      let bestPairing = null;
-      let pairings = [
-        [
-          [0, 1],
-          [2, 3],
-        ],
-        [
-          [0, 2],
-          [1, 3],
-        ],
-        [
-          [0, 3],
-          [1, 2],
-        ],
-      ];
-      
-      for (let pairing of pairings) {
-        let team1 = [comb[pairing[0][0]], comb[pairing[0][1]]];
-        let team2 = [comb[pairing[1][0]], comb[pairing[1][1]]];
-
-        // 計算等待輪數分數：等待輪數越高的選手優先度越高
-        let waitingScoreTeam1 = team1.reduce((sum, p) => {
-          const turns = p.waitingTurns || 0;
-          return sum - turns * turns; // 等待輪數越高，分數越低（優先度越高）
-        }, 0);
-
-        let waitingScoreTeam2 = team2.reduce((sum, p) => {
-          const turns = p.waitingTurns || 0;
-          return sum - turns * turns;
-        }, 0);
-
-        let waitingTurnsSum = waitingScoreTeam1 + waitingScoreTeam2;
-
-        // 放寬標準評分：主要考慮等待輪數，無等級差異限制
-        let score = waitingTurnsSum * 10;
-
-        if (score < bestLocalScore) {
-          bestLocalScore = score;
-          bestPairing = [team1[0], team1[1], team2[0], team2[1]];
-        }
-      }
-      return { score: bestLocalScore, pairing: bestPairing };
-    }
-
-    function backtrack(start) {
-      if (currentCombination.length === 4) {
-        let result = evaluateCombination(currentCombination);
-        if (result.pairing && result.score < bestScore) {
-          bestScore = result.score;
-          bestCombination = result.pairing.slice();
-        }
-        return;
-      }
-      for (let i = start; i < pool.length; i++) {
-        currentCombination.push(pool[i]);
-        backtrack(i + 1);
-        currentCombination.pop();
+  // 6. 評分：搭檔歷史去重 + 等待輪次
+  const scored = validCombinations.map(({ combo, mustPlayCount }) => {
+    // 搭檔歷史分數（越低越好 = 越少重複）
+    let historyScore = 0;
+    for (let i = 0; i < combo.length; i++) {
+      for (let j = i + 1; j < combo.length; j++) {
+        const key = getPairKey(combo[i].name, combo[j].name);
+        historyScore += (pairingHistory[key] || 0);
       }
     }
-    backtrack(0);
-    return bestCombination;
-  }
 
-  // 放寬標準：直接尋找最佳組合，無等級差異限制
-  return internalFindOptimalCombination(sortedReady);
-}
+    // 等待輪次分數（越高越好 = 越急需上場）
+    const waitingScore = combo.reduce((sum, p) => {
+      const turns = p.waitingTurns || 0;
+      const justFinishedPenalty = p.justFinished ? -2 : 0;
+      return sum + turns + justFinishedPenalty;
+    }, 0);
 
-/*
-  純等級配對函數：只考慮等級平衡，完全忽略等待輪次
-  專門用於規則三（場次相同時的等級配對）
-*/
-// 【已廢棄】此函數使用舊的數值等級規則，已被 ABC 配對系統取代
-function findOptimalCombinationLevelOnly(pool) {
-  function internalFindOptimalCombination(playerPool, threshold = 1.5) {
-    let bestCombination = null;
-    let bestScore = Infinity;
-    let currentCombination = [];
-
-    function evaluateCombination(comb) {
-      let bestLocalScore = Infinity;
-      let bestPairing = null;
-      let pairings = [
-        [[0, 1], [2, 3]],
-        [[0, 2], [1, 3]], 
-        [[0, 3], [1, 2]]
-      ];
-      
-      for (let pairing of pairings) {
-        let team1 = [comb[pairing[0][0]], comb[pairing[0][1]]];
-        let team2 = [comb[pairing[1][0]], comb[pairing[1][1]]];
-        let team1Sum = team1[0].level + team1[1].level;
-        let team2Sum = team2[0].level + team2[1].level;
-        let levelDiff = Math.abs(team1Sum - team2Sum);
-
-        // 只考慮等級差異，完全忽略等待輪次
-        if (levelDiff <= threshold) {
-          // 分數只基於等級差異，數值越小越好
-          let score = levelDiff;
-
-          if (score < bestLocalScore) {
-            bestLocalScore = score;
-            bestPairing = [team1[0], team1[1], team2[0], team2[1]];
-          }
-        }
-      }
-      return { score: bestLocalScore, pairing: bestPairing };
-    }
-
-    function backtrack(start) {
-      if (currentCombination.length === 4) {
-        let result = evaluateCombination(currentCombination);
-        if (result.pairing && result.score < bestScore) {
-          bestScore = result.score;
-          bestCombination = result.pairing.slice();
-        }
-        return;
-      }
-      for (let i = start; i < playerPool.length; i++) {
-        currentCombination.push(playerPool[i]);
-        backtrack(i + 1);
-        currentCombination.pop();
-      }
-    }
-    
-    backtrack(0);
-    return bestCombination;
-  }
-
-  // 先嘗試嚴格規則（±1.5），失敗則放寬到（±3.0）
-  let result = internalFindOptimalCombination(pool, 1.5);
-  if (!result) {
-    result = internalFindOptimalCombination(pool, 3.0);
-  }
-  return result;
-}
-
-/*
-  新排場邏輯：根據準備區人數選擇選手
-  完全按照新規則實作，不保留舊規則邏輯
-*/
-// 【已廢棄】此函數使用舊的選手選擇邏輯，已被 ABC 配對系統取代
-function selectPlayersForMatch() {
-  // 分離準備區中的非剛下場和剛下場選手
-  const readyNonFinished = readyPlayers.filter(p => !p.justFinished);
-  const readyJustFinished = readyPlayers.filter(p => p.justFinished);
-  
-  
-  const readyCount = readyNonFinished.length;
-  
-  // 根據準備區人數決定使用哪種情況
-  if (readyCount >= 1 && readyCount <= 4) {
-    // 情況一：準備區 1-4 人
-    return selectPlayersScenarioOne(readyNonFinished, readyJustFinished);
-  } else if (readyCount >= 5) {
-    // 情況二：準備區 5 人以上
-    return selectPlayersScenarioTwo(readyNonFinished, readyJustFinished);
-  } else {
-    // 準備區無選手（只有剛下場），返回null
-    return null;
-  }
-}
-
-/*
-  輔助函數：從準備區選手中選擇指定數量的選手
-  按新規則：等待輪次最高優先，相同時隨機選擇
-  整合等待保護機制：等待≥2輪的選手有絕對優先權
-*/
-function selectFromReadyPlayers(readyPlayers, count) {
-  if (readyPlayers.length <= count) {
-    return [...readyPlayers]; // 不足時全部選上
-  }
-  
-  // ⭐ 等待保護機制：檢查是否有選手等待≥2輪
-  const urgentPlayers = readyPlayers.filter(p => (p.waitingTurns || 0) >= 2);
-  
-  if (urgentPlayers.length > 0) {
-    
-    // 如果等待≥2輪的選手數量 >= 需要的數量，優先選擇他們
-    if (urgentPlayers.length >= count) {
-      // 按等待輪次排序，選出最需要的
-      urgentPlayers.sort((a, b) => {
-        if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
-          return (b.waitingTurns || 0) - (a.waitingTurns || 0); // 等待輪次高的優先
-        }
-        return Math.random() - 0.5; // 相同時隨機
-      });
-      const selected = urgentPlayers.slice(0, count);
-      return selected;
-    } else {
-      // 等待≥2輪的選手不足，全部選上並補充其他選手
-      let selected = [...urgentPlayers];
-      const remainingPlayers = readyPlayers.filter(p => !urgentPlayers.includes(p));
-      
-      // 按等待輪次對剩餘選手排序
-      remainingPlayers.sort((a, b) => {
-        if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
-          return (b.waitingTurns || 0) - (a.waitingTurns || 0);
-        }
-        return Math.random() - 0.5;
-      });
-      
-      const needed = count - selected.length;
-      selected.push(...remainingPlayers.slice(0, needed));
-      return selected;
-    }
-  }
-  
-  // 沒有等待≥2輪的選手，按正常邏輯選擇
-  const waitingGroups = {};
-  readyPlayers.forEach(player => {
-    const waiting = player.waitingTurns || 0;
-    if (!waitingGroups[waiting]) {
-      waitingGroups[waiting] = [];
-    }
-    waitingGroups[waiting].push(player);
+    return { combo, mustPlayCount, historyScore, waitingScore };
   });
-  
-  const waitingLevels = Object.keys(waitingGroups).map(Number).sort((a, b) => b - a);
-  let selected = [];
-  
-  for (const level of waitingLevels) {
-    const playersAtLevel = waitingGroups[level];
-    const needed = count - selected.length;
-    
-    if (needed <= 0) break;
-    
-    if (playersAtLevel.length <= needed) {
-      selected.push(...playersAtLevel);
-    } else {
-      const shuffled = [...playersAtLevel].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, needed));
-    }
-  }
-  
-  return selected;
-}
 
-/*
-  情況一：準備區 1-4 人的選手選擇邏輯（按新規則）
-*/
-// 【已廢棄】此函數使用舊的選手選擇邏輯，已被 ABC 配對系統取代
-function selectPlayersScenarioOne(readyNonFinished, justFinishedPlayers) {
-  const readyCount = readyNonFinished.length;
-  let selectedPlayers = [];
-  
-  
-  // 剛下場選手隨機排序
-  const shuffledJustFinished = [...justFinishedPlayers].sort(() => Math.random() - 0.5);
-  
-  switch (readyCount) {
-    case 1:
-      // 準備區1人 + 剛下場4人取3人 = 總共4人
-      selectedPlayers = [...readyNonFinished]; // 1人全上
-      selectedPlayers.push(...shuffledJustFinished.slice(0, 3)); // 剛下場隨機取3人
-      break;
-      
-    case 2:
-      // 準備區2人 + 剛下場4人取2人 = 總共4人
-      selectedPlayers = [...readyNonFinished]; // 2人全上
-      selectedPlayers.push(...shuffledJustFinished.slice(0, 2)); // 剛下場隨機取2人
-      break;
-      
-    case 3:
-      // 準備區3人取2人 + 剛下場4人取2人 = 總共4人
-      // 準備區選擇：等待輪次最高或隨機
-      const readySelected = selectFromReadyPlayers(readyNonFinished, 2);
-      selectedPlayers = readySelected;
-      selectedPlayers.push(...shuffledJustFinished.slice(0, 2)); // 剛下場隨機取2人
-      break;
-      
-    case 4:
-      // 準備區4人取3人 + 剛下場4人取1人 = 總共4人
-      // 準備區選擇：等待輪次最高或隨機
-      const readySelected4 = selectFromReadyPlayers(readyNonFinished, 3);
-      selectedPlayers = readySelected4;
-      selectedPlayers.push(...shuffledJustFinished.slice(0, 1)); // 剛下場隨機取1人
-      break;
-  }
-  
-  return selectedPlayers;
-}
+  // 7. 排序：必選人數 desc > 等待分數 desc > 歷史分數 asc
+  scored.sort((a, b) => {
+    if (a.mustPlayCount !== b.mustPlayCount) return b.mustPlayCount - a.mustPlayCount;
+    if (a.waitingScore !== b.waitingScore) return b.waitingScore - a.waitingScore;
+    if (a.historyScore !== b.historyScore) return a.historyScore - b.historyScore;
+    return 0;
+  });
 
-/*
-  情況二：準備區 5 人以上的選手選擇邏輯（按新規則）
-*/
-// 【已廢棄】此函數使用舊的選手選擇邏輯，已被 ABC 配對系統取代
-function selectPlayersScenarioTwo(readyNonFinished, justFinishedPlayers) {
-  const readyCount = readyNonFinished.length;
-  let selectedPlayers = [];
-  
-  
-  // 剛下場選手隨機排序
-  const shuffledJustFinished = [...justFinishedPlayers].sort(() => Math.random() - 0.5);
-  
-  if (readyCount === 5) {
-    // 準備區5人取3人 + 剛下場4人取1人 = 總共4人
-    const readySelected = selectFromReadyPlayers(readyNonFinished, 3);
-    selectedPlayers = readySelected;
-    selectedPlayers.push(...shuffledJustFinished.slice(0, 1)); // 剛下場隨機取1人
-    
-  } else if (readyCount >= 6) {
-    // 準備區6人以上取4人，剛下場全下
-    // 🎯 新版動態選人機制：臨界值8人啟動動態保護
-    
-    const waitingTwoOrMore = readyNonFinished.filter(p => (p.waitingTurns || 0) >= 2);
-    const waitingLess = readyNonFinished.filter(p => (p.waitingTurns || 0) < 2);
-    
-    
-    // 🎯 臨界值判斷：準備區≥8人且有等待≥2輪選手時，啟動動態選人機制
-    if (readyCount >= 8 && waitingTwoOrMore.length > 0) {
-      
-      // 動態決定優先選擇數量
-      let priorityCount;
-      if (waitingTwoOrMore.length >= 6) {
-        priorityCount = 3;  // 6人以上選3人
-      } else if (waitingTwoOrMore.length >= 4) {
-        priorityCount = 3;  // 4-5人選3人  
-      } else if (waitingTwoOrMore.length >= 2) {
-        priorityCount = 2;  // 2-3人選2人
-      } else {
-        priorityCount = 1;  // 1人選1人
-      }
-      
-      
-      // 按等待輪次排序，優先選擇等待最久的
-      const sortedWaiting = [...waitingTwoOrMore].sort((a, b) => {
-        if ((a.waitingTurns || 0) !== (b.waitingTurns || 0)) {
-          return (b.waitingTurns || 0) - (a.waitingTurns || 0); // 等待輪次高的優先
-        }
-        return Math.random() - 0.5; // 相同輪次時隨機
-      });
-      
-      selectedPlayers.push(...sortedWaiting.slice(0, priorityCount));
-      
-      // 從剩餘選手中補充
-      const remainingPlayers = readyNonFinished.filter(p => !selectedPlayers.includes(p));
-      const shuffledRemaining = [...remainingPlayers].sort(() => Math.random() - 0.5);
-      const needed = 4 - selectedPlayers.length;
-      selectedPlayers.push(...shuffledRemaining.slice(0, needed));
-      
-      
-    } else {
-      // 人數<8人或無等待≥2輪選手，使用原始固定邏輯
-      
-      if (waitingTwoOrMore.length >= 2) {
-        // 固定選2人邏輯
-        const shuffledWaitingTwo = [...waitingTwoOrMore].sort(() => Math.random() - 0.5);
-        selectedPlayers.push(...shuffledWaitingTwo.slice(0, 2));
-        
-        const remainingPlayers = readyNonFinished.filter(p => !selectedPlayers.includes(p));
-        const shuffledRemaining = [...remainingPlayers].sort(() => Math.random() - 0.5);
-        const needed = 4 - selectedPlayers.length;
-        selectedPlayers.push(...shuffledRemaining.slice(0, needed));
-        
-        
-      } else if (waitingTwoOrMore.length === 1) {
-        selectedPlayers.push(...waitingTwoOrMore);
-        
-        const remainingPlayers = readyNonFinished.filter(p => !selectedPlayers.includes(p));
-        const shuffledRemaining = [...remainingPlayers].sort(() => Math.random() - 0.5);
-        selectedPlayers.push(...shuffledRemaining.slice(0, 3));
-        
-        
-      } else {
-        const readySelected = selectFromReadyPlayers(readyNonFinished, 4);
-        selectedPlayers = readySelected;
-      }
-    }
-    
-  }
-  
-  return selectedPlayers;
+  if (scored.length === 0) return null;
+
+  // 8. 同分候選隨機選一個
+  const best = scored[0];
+  const topCandidates = scored.filter(s =>
+    s.mustPlayCount === best.mustPlayCount &&
+    s.waitingScore === best.waitingScore &&
+    s.historyScore === best.historyScore
+  );
+  const chosen = topCandidates[Math.floor(Math.random() * topCandidates.length)];
+
+  const levels = chosen.combo.map(p => p.newLevel || 'B').sort().join('');
+  console.log(`【配對結果】${levels} 組合：${chosen.combo.map(p => p.name).join(', ')}（歷史分數:${chosen.historyScore}, 等待分數:${chosen.waitingScore}）`);
+
+  return chosen.combo;
 }
 
 // 添加特殊標記清除和修正函數
@@ -2204,10 +1614,12 @@ async function endMatch(courtIndex) {
   });
 
   if (playersToReady.length >= 4) {
-    let team1Key = getPairKey(playersToReady[0].name, playersToReady[1].name);
-    let team2Key = getPairKey(playersToReady[2].name, playersToReady[3].name);
-    updatePairingHistory(team1Key);
-    updatePairingHistory(team2Key);
+    // 記錄所有 C(4,2)=6 種兩人配對，供搭檔歷史去重使用
+    for (let i = 0; i < playersToReady.length; i++) {
+      for (let j = i + 1; j < playersToReady.length; j++) {
+        updatePairingHistory(getPairKey(playersToReady[i].name, playersToReady[j].name));
+      }
+    }
   }
 
   // 創建時間記錄對象
