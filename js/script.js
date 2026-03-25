@@ -632,9 +632,10 @@ function moveToReady(name) {
     
 
     readyPlayers.push(player);
-    
+
     updateLists();
-    
+    updateNextMatchPrediction();
+
     // 自動保存遊戲狀態
     saveGameState();
   } else {
@@ -648,7 +649,8 @@ function moveToRest(name) {
     readyPlayers = readyPlayers.filter((p) => p.name !== name);
     restingPlayers.push(player);
     updateLists();
-    
+    updateNextMatchPrediction();
+
     // 自動保存遊戲狀態
     saveGameState();
   }
@@ -669,6 +671,7 @@ function adjustWaitingTurns(name, delta) {
   player.justJoinedReady = false;
 
   updateLists();
+  updateNextMatchPrediction();
   saveGameState();
 }
 
@@ -860,6 +863,7 @@ function restPlayerOnCourt(courtIndex, playerName) {
     }
     updateLists();
     updateCourtsDisplay();
+    updateNextMatchPrediction();
   }
 }
 
