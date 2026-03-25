@@ -615,8 +615,8 @@ function moveToReady(name) {
     if (!fromRest) {
       player.waitingTurns = 0;
     }
-    player.justJoinedReady = true;
-    
+    // 只有從選手列表初次加入才標記「剛加入」，休息區回來直接顯示等待輪次
+    player.justJoinedReady = !fromRest;
 
     // 清除剛下場標記（如果有）
     if (player.justFinished) {
