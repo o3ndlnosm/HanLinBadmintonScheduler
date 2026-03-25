@@ -466,7 +466,11 @@ function updateLists() {
       <div class="list-item ${waitingClass}">
         <div class="player-info">
           <div class="player-name">${p.name}</div>
-          ${waitingText}
+          <div class="waiting-control">
+            ${waitingText}
+            <button class="btn-adjust btn-adjust-minus" onclick="adjustWaitingTurns('${p.name}', -1)" title="減少等待輪次">−</button>
+            <button class="btn-adjust btn-adjust-plus" onclick="adjustWaitingTurns('${p.name}', 1)" title="增加等待輪次">+</button>
+          </div>
         </div>
         <div class="player-actions">
           <button class="btn btn-neutral" onclick="moveToRest('${p.name}')" title="休息">
@@ -615,8 +619,7 @@ function moveToReady(name) {
     if (!fromRest) {
       player.waitingTurns = 0;
     }
-    // 只有從選手列表初次加入才標記「剛加入」，休息區回來直接顯示等待輪次
-    player.justJoinedReady = !fromRest;
+    player.justJoinedReady = true;
 
     // 清除剛下場標記（如果有）
     if (player.justFinished) {
@@ -649,6 +652,24 @@ function moveToRest(name) {
     // 自動保存遊戲狀態
     saveGameState();
   }
+}
+
+// 手動調整選手等待輪次
+function adjustWaitingTurns(name, delta) {
+  const player = readyPlayers.find((p) => p.name === name);
+  if (!player) return;
+
+  const newValue = (player.waitingTurns || 0) + delta;
+  if (newValue < 0) return;
+
+  player.waitingTurns = newValue;
+
+  // 調整後清除特殊狀態標記，直接顯示輪次
+  player.justFinished = false;
+  player.justJoinedReady = false;
+
+  updateLists();
+  saveGameState();
 }
 
 // 更新場地顯示，添加即時計時功能

@@ -290,6 +290,47 @@ body {
   font-style: italic;
 }
 
+/* 等待輪次調整控制 */
+.waiting-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-adjust {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--neutral-light);
+  border-radius: 50%;
+  background: white;
+  color: var(--neutral-dark);
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.btn-adjust:active {
+  transform: scale(0.9);
+}
+
+.btn-adjust-plus:hover {
+  background: var(--info);
+  color: white;
+  border-color: var(--info);
+}
+
+.btn-adjust-minus:hover {
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+}
+
 /* 等待輪數徽章 */
 .waiting-badge {
   display: inline-flex;

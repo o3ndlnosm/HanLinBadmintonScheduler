@@ -1,6 +1,7 @@
 const {
   moveToReadyLogic,
   moveToRestLogic,
+  adjustWaitingTurnsLogic,
   calculateActivePlayersAverageMatches
 } = require('../js/player-state');
 
@@ -173,20 +174,12 @@ describe('moveToReadyLogic 其他行為', () => {
     expect(result).toBeNull();
   });
 
-  test('從選手列表加入：justJoinedReady 為 true', () => {
+  test('移入準備區後設置 justJoinedReady 為 true', () => {
     const player = makePlayer('小明');
-    const state = makeState({ players: [player] });
-
-    const result = moveToReadyLogic('小明', state);
-    expect(result.movedPlayer.justJoinedReady).toBe(true);
-  });
-
-  test('從休息區回來：justJoinedReady 為 false（直接顯示等待輪次）', () => {
-    const player = makePlayer('小明', { waitingTurns: 3 });
     const state = makeState({ restingPlayers: [player] });
 
     const result = moveToReadyLogic('小明', state);
-    expect(result.movedPlayer.justJoinedReady).toBe(false);
+    expect(result.movedPlayer.justJoinedReady).toBe(true);
   });
 
   test('移入準備區後清除 justFinished 標記', () => {
@@ -262,5 +255,64 @@ describe('calculateActivePlayersAverageMatches', () => {
     ];
     // 平均 = 3.5 → 四捨五入 = 4
     expect(calculateActivePlayersAverageMatches(players, [[], [], []])).toBe(4);
+  });
+});
+
+// ============================================================
+// 手動調整等待輪次
+// ============================================================
+describe('adjustWaitingTurnsLogic', () => {
+
+  test('增加等待輪次', () => {
+    const player = makePlayer('甲', { waitingTurns: 0 });
+    const result = adjustWaitingTurnsLogic('甲', 1, [player]);
+
+    expect(result.adjustedPlayer.waitingTurns).toBe(1);
+  });
+
+  test('減少等待輪次', () => {
+    const player = makePlayer('甲', { waitingTurns: 3 });
+    const result = adjustWaitingTurnsLogic('甲', -1, [player]);
+
+    expect(result.adjustedPlayer.waitingTurns).toBe(2);
+  });
+
+  test('不能減到負數，回傳 null', () => {
+    const player = makePlayer('甲', { waitingTurns: 0 });
+    const result = adjustWaitingTurnsLogic('甲', -1, [player]);
+
+    expect(result).toBeNull();
+  });
+
+  test('找不到選手回傳 null', () => {
+    const result = adjustWaitingTurnsLogic('不存在', 1, []);
+    expect(result).toBeNull();
+  });
+
+  test('調整後清除 justFinished 標記', () => {
+    const player = makePlayer('甲', { waitingTurns: 0, justFinished: true });
+    const result = adjustWaitingTurnsLogic('甲', 2, [player]);
+
+    expect(result.adjustedPlayer.justFinished).toBe(false);
+  });
+
+  test('調整後清除 justJoinedReady 標記，直接顯示輪次', () => {
+    const player = makePlayer('甲', { waitingTurns: 0, justJoinedReady: true });
+    const result = adjustWaitingTurnsLogic('甲', 2, [player]);
+
+    expect(result.adjustedPlayer.justJoinedReady).toBe(false);
+  });
+
+  test('情境：場上選手臨時不在，手動調回等待輪次', () => {
+    // 甲原本等待2輪，上場後 waitingTurns 被歸0
+    // 操作者把甲從場上移到休息區再回準備區，waitingTurns=0, justJoinedReady=true
+    const player = makePlayer('甲', { waitingTurns: 0, justJoinedReady: true });
+
+    // 操作者手動按 + 兩次，調回等待2輪
+    const after1 = adjustWaitingTurnsLogic('甲', 1, [player]);
+    const after2 = adjustWaitingTurnsLogic('甲', 1, [after1.adjustedPlayer]);
+
+    expect(after2.adjustedPlayer.waitingTurns).toBe(2);
+    expect(after2.adjustedPlayer.justJoinedReady).toBe(false);
   });
 });

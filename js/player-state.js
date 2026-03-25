@@ -31,8 +31,7 @@ function moveToReadyLogic(name, state) {
   if (!fromRest) {
     player.waitingTurns = 0;
   }
-  // 只有從選手列表初次加入才標記「剛加入」，休息區回來直接顯示等待輪次
-  player.justJoinedReady = !fromRest;
+  player.justJoinedReady = true;
 
   // 清除剛下場標記（如果有）
   if (player.justFinished) {
@@ -104,11 +103,37 @@ function calculateActivePlayersAverageMatches(readyPlayers, courts) {
   return Math.round(totalMatches / allActivePlayers.length);
 }
 
+/**
+ * adjustWaitingTurns 核心邏輯：手動調整選手等待輪次
+ *
+ * @param {string} name - 選手名稱
+ * @param {number} delta - 調整量 (+1 或 -1)
+ * @param {Array} readyPlayers - 準備區選手
+ * @returns {Object} { readyPlayers, adjustedPlayer } 或 null
+ */
+function adjustWaitingTurnsLogic(name, delta, readyPlayers) {
+  const player = readyPlayers.find((p) => p.name === name);
+  if (!player) return null;
+
+  const newValue = (player.waitingTurns || 0) + delta;
+  if (newValue < 0) return null;
+
+  player.waitingTurns = newValue;
+  player.justFinished = false;
+  player.justJoinedReady = false;
+
+  return {
+    readyPlayers: [...readyPlayers],
+    adjustedPlayer: player
+  };
+}
+
 // CommonJS export for testing
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     moveToReadyLogic,
     moveToRestLogic,
+    adjustWaitingTurnsLogic,
     calculateActivePlayersAverageMatches
   };
 }
