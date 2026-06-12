@@ -336,11 +336,14 @@ describe('真實社課出席資料模擬（第145-153次）', () => {
     const fs = require('fs');
     const path = require('path');
     const fullReport = allOutputs.join('\n\n') + '\n\n' + summaryStr;
-    fs.writeFileSync(
-      path.join(__dirname, '真實社課模擬結果.txt'),
-      fullReport,
-      'utf-8'
-    );
-    console.log(`\n📄 完整報告已寫入 tests/真實社課模擬結果.txt`);
+    // 報告檔僅在 WRITE_SIM_REPORTS=1 時輸出，避免每次 npm test 重生檔案
+    if (process.env.WRITE_SIM_REPORTS) {
+      fs.writeFileSync(
+        path.join(__dirname, '真實社課模擬結果.txt'),
+        fullReport,
+        'utf-8'
+      );
+      console.log(`\n📄 完整報告已寫入 tests/真實社課模擬結果.txt`);
+    }
   });
 });

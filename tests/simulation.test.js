@@ -349,11 +349,14 @@ describe('模擬測試：各種人數與等級分布', () => {
   afterAll(() => {
     const fs = require('fs');
     const fullReport = allOutputs.join('\n\n');
-    fs.writeFileSync(
-      require('path').join(__dirname, '模擬測試結果.txt'),
-      fullReport,
-      'utf-8'
-    );
-    console.log(`\n\n📄 完整報告已寫入 tests/模擬測試結果.txt`);
+    // 報告檔僅在 WRITE_SIM_REPORTS=1 時輸出，避免每次 npm test 重生檔案
+    if (process.env.WRITE_SIM_REPORTS) {
+      fs.writeFileSync(
+        require('path').join(__dirname, '模擬測試結果.txt'),
+        fullReport,
+        'utf-8'
+      );
+      console.log(`\n\n📄 完整報告已寫入 tests/模擬測試結果.txt`);
+    }
   });
 });
