@@ -74,17 +74,23 @@ function swapPlayerOnCourtLogic(courts, readyPlayers, courtIndex, playerName, ex
 
   const replacement = pool[Math.floor(rng() * pool.length)];
 
-  // 補上者：移出預備區、等待歸零、清除標記、放入原位置
+  // 補上者：移出預備區、記下上場前等待快照、等待歸零、清除標記、放入原位置
   const readyIdx = readyPlayers.findIndex((p) => p.name === replacement.name);
   readyPlayers.splice(readyIdx, 1);
+  replacement.waitingTurnsBeforeMatch = replacement.waitingTurns || 0;
   replacement.waitingTurns = 0;
   replacement.justFinished = false;
   replacement.justJoinedReady = false;
   const swappedOut = court[courtIdx];
   court[courtIdx] = replacement;
 
-  // 被換下者：這場沒上，等待 +1、清除標記、回預備區（不計場次）
-  swappedOut.waitingTurns = (swappedOut.waitingTurns || 0) + 1;
+  // 被換下者：這場沒上，等待 = 上場前的值 +1、清除標記、回預備區（不計場次）
+  // （排場流程會把上場選手 waitingTurns 歸零，故優先使用上場時記下的快照）
+  const baseWaiting = (typeof swappedOut.waitingTurnsBeforeMatch === 'number')
+    ? swappedOut.waitingTurnsBeforeMatch
+    : (swappedOut.waitingTurns || 0);
+  delete swappedOut.waitingTurnsBeforeMatch;
+  swappedOut.waitingTurns = baseWaiting + 1;
   swappedOut.justFinished = false;
   swappedOut.justJoinedReady = false;
   readyPlayers.push(swappedOut);

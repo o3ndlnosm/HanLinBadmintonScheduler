@@ -234,3 +234,51 @@ describe('swapCourtCombinationLogic：整組隨機替換 2 人', () => {
     expect(readyPlayers.length).toBe(1);
   });
 });
+
+// ============================================================
+// waitingTurnsBeforeMatch 快照：排上場歸零後替換仍顯示「原值 +1」
+// （排場流程會把上場選手 waitingTurns 歸零，替換需還原上場前的等待）
+// ============================================================
+describe('替換與上場前等待快照 waitingTurnsBeforeMatch', () => {
+
+  test('被換下者有快照（排上場時被歸零）：等待 = 快照 +1，快照清除', () => {
+    // 模擬孟娜情境：C 原本等待 2 場，排上場時 waitingTurns 被歸零、快照記 2
+    const c = makePlayer('C', { waitingTurns: 0 });
+    c.waitingTurnsBeforeMatch = 2;
+    const courts = [[makePlayer('A'), makePlayer('B'), c, makePlayer('D')]];
+    const readyPlayers = [makePlayer('E')];
+
+    const result = swapPlayerOnCourtLogic(courts, readyPlayers, 0, 'C', ['C'], () => 0);
+
+    expect(result.swappedOut.waitingTurns).toBe(3); // 2 + 1，而非 0 + 1
+    expect(result.swappedOut.waitingTurnsBeforeMatch).toBeUndefined();
+  });
+
+  test('被換下者無快照（手動上場保留等待值）：等待 = 現值 +1', () => {
+    const c = makePlayer('C', { waitingTurns: 2 });
+    const courts = [[makePlayer('A'), makePlayer('B'), c, makePlayer('D')]];
+    const readyPlayers = [makePlayer('E')];
+
+    const result = swapPlayerOnCourtLogic(courts, readyPlayers, 0, 'C', ['C'], () => 0);
+
+    expect(result.swappedOut.waitingTurns).toBe(3); // 2 + 1
+  });
+
+  test('補上者：上場時記下快照，之後再被換下顯示正確等待', () => {
+    const e = makePlayer('E', { waitingTurns: 4 });
+    const courts = [[makePlayer('A'), makePlayer('B'), makePlayer('C'), makePlayer('D')]];
+    const readyPlayers = [e, makePlayer('F')];
+
+    // E 補上場：等待歸零、快照記 4
+    const first = swapPlayerOnCourtLogic(courts, readyPlayers, 0, 'C', ['C'], () => 0);
+    expect(first.swappedIn.name).toBe('E');
+    expect(first.swappedIn.waitingTurns).toBe(0);
+    expect(first.swappedIn.waitingTurnsBeforeMatch).toBe(4);
+
+    // E 又被換下：等待 = 4 + 1
+    const second = swapPlayerOnCourtLogic(courts, readyPlayers, 0, 'E', ['E'], () => 0);
+    expect(second.swappedOut.name).toBe('E');
+    expect(second.swappedOut.waitingTurns).toBe(5);
+    expect(second.swappedOut.waitingTurnsBeforeMatch).toBeUndefined();
+  });
+});

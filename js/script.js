@@ -871,6 +871,9 @@ function restPlayerOnCourt(courtIndex, playerName) {
       // 為新上場選手設置開始時間
       candidate.substituteStartTime = now;
 
+      // 記下上場前的等待輪次（被「替換」下場時還原用）
+      candidate.waitingTurnsBeforeMatch = candidate.waitingTurns || 0;
+
       court.push(candidate);
     }
     updateLists();
@@ -1554,6 +1557,8 @@ async function generateMatchForCourtImmediate(courtIndex) {
       candidate.forEach((player) => {
         player.justFinished = false;
         player.justJoinedReady = false;
+        // 記下上場前的等待輪次（被「替換」下場時還原用）
+        player.waitingTurnsBeforeMatch = player.waitingTurns || 0;
         player.waitingTurns = 0;
         readyPlayers = readyPlayers.filter((p) => p.name !== player.name);
         players = players.filter((p) => p.name !== player.name);
@@ -2147,6 +2152,8 @@ function manualJoinCourt(playerName) {
 
   // 移動選手到場地
   const player = readyPlayers.splice(playerIndex, 1)[0];
+  // 記下上場前的等待輪次（被「替換」下場時還原用）
+  player.waitingTurnsBeforeMatch = player.waitingTurns || 0;
   courts[availableCourtIndex].push(player);
 
   // 如果場地滿了，設定開始時間
