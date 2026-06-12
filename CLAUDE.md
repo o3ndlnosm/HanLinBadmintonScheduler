@@ -66,6 +66,12 @@ npx http-server
 - `generateMatchForCourtImmediate` (1322 行)：特定場地生成
 - 驗證防止選手同時在多個場地
 
+### 6. 場地數量與選手替換
+- 場地數量可手動調整 1-6 面（場地區上方 − / ＋ 控制）
+- 手動模式下可「替換」單一場上選手或「替換組合」隨機換 2 人
+- 被換下者回預備區且等待輪次 +1（不計場次），補位從預備區完全隨機抽出
+- 邏輯位於 `js/court-actions.js`，測試位於 `tests/court-actions.test.js`
+
 ## 重要實作細節
 
 ### 狀態管理 (1-22 行)
@@ -120,7 +126,14 @@ historyMatches = []    // 比賽歷史
 ├── css/
 │   └── style.css           # 使用 CSS 變數的樣式
 ├── js/
+│   ├── court-actions.js    # 場地數量調整與選手替換邏輯（純函式，jest 測試）
+│   ├── player-state.js     # 選手狀態轉換邏輯（純函式，jest 測試）
+│   ├── pairing-logic.js    # 配對邏輯（純函式，jest 測試）
 │   └── script.js           # 主要應用程式邏輯 (2841 行)
+├── tests/
+│   ├── court-actions.test.js       # 場地數量與選手替換測試
+│   ├── player-state.test.js        # 選手狀態測試
+│   └── pairing-logic.test.js       # 配對邏輯測試
 ├── index.html              # 單頁應用程式
 ├── CLAUDE.md               # 此檔案
 └── 排場規則說明.md          # 詳細系統規則和實作狀態
