@@ -5,6 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>翰林羽球排場系統</title>
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4a7dbc">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="翰林排場">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
 </head>
@@ -205,5 +213,15 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/court-actions.js"></script>
     <script src="js/script.js"></script>
+    <script>
+        // 註冊 PWA Service Worker（需 HTTPS 或 localhost）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then((reg) => console.log('【PWA】Service Worker 已註冊，範圍：' + reg.scope))
+                    .catch((err) => console.warn('【PWA】Service Worker 註冊失敗：', err));
+            });
+        }
+    </script>
 </body>
 </html>
