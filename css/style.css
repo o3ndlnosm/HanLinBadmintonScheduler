@@ -346,6 +346,17 @@ body {
   font-weight: bold;
 }
 
+/* 場地標題按鈕群組與場上選手操作按鈕 */
+.court-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.court-player-actions {
+  display: flex;
+  gap: 4px;
+}
+
 /* 等待輪數徽章 */
 .waiting-badge {
   display: inline-flex;

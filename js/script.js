@@ -717,9 +717,12 @@ function updateCourtsDisplay(updateTimesOnly = false) {
           <div class="player-info">
             <span class="player-name">${player.name}</span>
           </div>
-          <button class="btn btn-neutral" onclick="restPlayerOnCourt(${i}, '${player.name}')" title="休息">
-            休息
-          </button>
+          <div class="court-player-actions">
+            ${isManualMode ? `<button class="btn btn-secondary" onclick="swapPlayerOnCourt(${i}, '${player.name}')" title="替換：回預備區等待+1，隨機補位">替換</button>` : ""}
+            <button class="btn btn-neutral" onclick="restPlayerOnCourt(${i}, '${player.name}')" title="休息">
+              休息
+            </button>
+          </div>
         </div>
       `
           )
@@ -732,9 +735,12 @@ function updateCourtsDisplay(updateTimesOnly = false) {
           <div class="player-info">
             <span class="player-name">${player.name}</span>
           </div>
-          <button class="btn btn-neutral" onclick="restPlayerOnCourt(${i}, '${player.name}')" title="休息">
-            休息
-          </button>
+          <div class="court-player-actions">
+            ${isManualMode ? `<button class="btn btn-secondary" onclick="swapPlayerOnCourt(${i}, '${player.name}')" title="替換：回預備區等待+1，隨機補位">替換</button>` : ""}
+            <button class="btn btn-neutral" onclick="restPlayerOnCourt(${i}, '${player.name}')" title="休息">
+              休息
+            </button>
+          </div>
         </div>
       `
           )
@@ -757,9 +763,12 @@ function updateCourtsDisplay(updateTimesOnly = false) {
                   ${getElapsedTimeString(court.startTime)}
                 </span>
               </div>
-              <button class="btn btn-warning" onclick="${isManualMode ? `manualEndMatch(${i})` : `endMatch(${i})`}">
-                <i class="fas fa-check-circle"></i> ${isManualMode ? '清空' : '下場'}
-              </button>
+              <div class="court-header-actions">
+                ${isManualMode ? `<button class="btn btn-secondary" onclick="swapCourtCombination(${i})" title="隨機換掉 2 人，從預備區隨機補位"><i class="fas fa-random"></i> 替換組合</button>` : ""}
+                <button class="btn btn-warning" onclick="${isManualMode ? `manualEndMatch(${i})` : `endMatch(${i})`}">
+                  <i class="fas fa-check-circle"></i> ${isManualMode ? '清空' : '下場'}
+                </button>
+              </div>
             </div>
           </div>
           <div class="court-players">
@@ -2055,6 +2064,41 @@ function adjustCourtCount(delta) {
   }
 
   console.log(`【場地數量】調整為 ${result.courtCount} 面`);
+  updateLists();
+  updateCourtsDisplay();
+  updateNextMatchPrediction();
+  saveGameState();
+}
+
+// 手動替換場上單一選手（邏輯在 js/court-actions.js）
+function swapPlayerOnCourt(courtIndex, playerName) {
+  const result = swapPlayerOnCourtLogic(courts, readyPlayers, courtIndex, playerName, [playerName]);
+  if (result.error) {
+    alert(result.error);
+    return;
+  }
+
+  console.log(
+    `【替換】場地 ${courtIndex + 1}：${result.swappedOut.name} 回預備區（等待${result.swappedOut.waitingTurns}場），${result.swappedIn.name} 補上`
+  );
+  updateLists();
+  updateCourtsDisplay();
+  updateNextMatchPrediction();
+  saveGameState();
+}
+
+// 手動替換組合：隨機換掉場上 2 人（邏輯在 js/court-actions.js）
+function swapCourtCombination(courtIndex) {
+  const result = swapCourtCombinationLogic(courts, readyPlayers, courtIndex);
+  if (result.error) {
+    alert(result.error);
+    return;
+  }
+
+  const desc = result.swaps
+    .map((s) => `${s.swappedOut.name} → ${s.swappedIn.name}`)
+    .join("、");
+  console.log(`【替換組合】場地 ${courtIndex + 1}：${desc}`);
   updateLists();
   updateCourtsDisplay();
   updateNextMatchPrediction();
