@@ -120,6 +120,8 @@ function swapCourtCombinationLogic(courts, readyPlayers, courtIndex, rng) {
   const targetNames = [court[firstIdx].name, court[secondIdx].name];
 
   // 補位抽樣排除兩位被換下者（第一位換下後已回預備區，必須排除）
+  // 注意：兩次替換非原子性——開頭的守衛（恰 4 人、預備區 >= 2）保證兩次都會成功；
+  // 若未來放寬守衛，需考慮第二次失敗時的回滾
   const excludeNames = targetNames.slice();
   const swaps = [];
   for (let i = 0; i < targetNames.length; i++) {
