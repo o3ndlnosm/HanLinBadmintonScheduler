@@ -680,6 +680,9 @@ let courtTimers = {};
 
 function updateCourtsDisplay(updateTimesOnly = false) {
   if (!updateTimesOnly) {
+    // 同步場地數量顯示（含從存檔恢復的情況）
+    const countEl = document.getElementById("courtCountDisplay");
+    if (countEl) countEl.textContent = courts.length;
     document.getElementById("courts").innerHTML = courts
       .map((court, i) => {
         if (court.length === 0) {
@@ -2041,6 +2044,21 @@ function toggleManualMode() {
   isManualMode = document.getElementById('manualMode').checked;
   updateCourtsDisplay(); // 更新場地顯示
   updateLists(); // 更新選手列表顯示
+}
+
+// 手動調整場地數量（邏輯在 js/court-actions.js）
+function adjustCourtCount(delta) {
+  const result = changeCourtCountLogic(courts, delta);
+  if (result.error) {
+    alert(result.error);
+    return;
+  }
+
+  console.log(`【場地數量】調整為 ${result.courtCount} 面`);
+  updateLists();
+  updateCourtsDisplay();
+  updateNextMatchPrediction();
+  saveGameState();
 }
 
 // 手動清空場地

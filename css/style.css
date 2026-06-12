@@ -331,6 +331,21 @@ body {
   border-color: var(--danger);
 }
 
+/* 場地數量控制列 */
+.court-count-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.court-count-value {
+  min-width: 1.5em;
+  text-align: center;
+  font-weight: bold;
+}
+
 /* 等待輪數徽章 */
 .waiting-badge {
   display: inline-flex;
