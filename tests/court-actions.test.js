@@ -155,3 +155,82 @@ describe('swapPlayerOnCourtLogic：單人替換', () => {
     expect(result.error).toBeDefined();
   });
 });
+
+// ============================================================
+// swapCourtCombinationLogic：整組隨機替換 2 人
+// ============================================================
+describe('swapCourtCombinationLogic：整組隨機替換 2 人', () => {
+
+  function makeFullCourt() {
+    return [makePlayer('A'), makePlayer('B'), makePlayer('C'), makePlayer('D')];
+  }
+
+  test('恰好替換 2 人，補上 2 位不同的預備區選手', () => {
+    const courts = [makeFullCourt()];
+    const readyPlayers = [makePlayer('E'), makePlayer('F'), makePlayer('G')];
+
+    // rng 依序：抽第 1 目標(0→A)、抽第 2 目標(0→剩餘第一位 B)、補位抽樣、補位抽樣
+    const result = swapCourtCombinationLogic(courts, readyPlayers, 0, makeRng([0, 0, 0, 0]));
+
+    expect(result.error).toBeUndefined();
+    expect(result.swaps.length).toBe(2);
+    const onCourt = courts[0].map((p) => p.name);
+    expect(onCourt.length).toBe(4);
+    // 被換下的 2 人回到預備區
+    expect(readyPlayers.length).toBe(3); // 3 - 2 補上 + 2 換下 = 3
+    const swappedOutNames = result.swaps.map((s) => s.swappedOut.name);
+    swappedOutNames.forEach((name) => {
+      expect(onCourt.includes(name)).toBe(false);
+      expect(readyPlayers.some((p) => p.name === name)).toBe(true);
+    });
+    // 補上的 2 人不同且都在場上
+    const swappedInNames = result.swaps.map((s) => s.swappedIn.name);
+    expect(new Set(swappedInNames).size).toBe(2);
+    swappedInNames.forEach((name) => {
+      expect(onCourt.includes(name)).toBe(true);
+    });
+  });
+
+  test('被換下的人不會被抽回補位（預備區恰 2 人時，補位必為原本那 2 人）', () => {
+    const courts = [makeFullCourt()];
+    const readyPlayers = [makePlayer('E'), makePlayer('F')];
+
+    // rng 全取 0.99：若未排除被換下者，第二次補位會抽到剛換下的人
+    const result = swapCourtCombinationLogic(courts, readyPlayers, 0, makeRng([0.99]));
+
+    expect(result.error).toBeUndefined();
+    const swappedInNames = result.swaps.map((s) => s.swappedIn.name).sort();
+    expect(swappedInNames).toEqual(['E', 'F']);
+  });
+
+  test('被換下的 2 人各自等待輪次 +1', () => {
+    const a = makePlayer('A', { waitingTurns: 1 });
+    const b = makePlayer('B', { waitingTurns: 2 });
+    const courts = [[a, b, makePlayer('C'), makePlayer('D')]];
+    const readyPlayers = [makePlayer('E'), makePlayer('F')];
+
+    // 目標選取 rng=0,0 → A 與 B
+    const result = swapCourtCombinationLogic(courts, readyPlayers, 0, makeRng([0]));
+
+    expect(result.swaps[0].swappedOut.name).toBe('A');
+    expect(result.swaps[1].swappedOut.name).toBe('B');
+    expect(a.waitingTurns).toBe(2);
+    expect(b.waitingTurns).toBe(3);
+  });
+
+  test('場地未滿 4 人：回傳錯誤', () => {
+    const courts = [[makePlayer('A'), makePlayer('B')]];
+    const readyPlayers = [makePlayer('E'), makePlayer('F')];
+    const result = swapCourtCombinationLogic(courts, readyPlayers, 0, makeRng([0]));
+    expect(result.error).toBeDefined();
+  });
+
+  test('預備區不足 2 人：回傳錯誤且狀態不變', () => {
+    const courts = [makeFullCourt()];
+    const readyPlayers = [makePlayer('E')];
+    const result = swapCourtCombinationLogic(courts, readyPlayers, 0, makeRng([0]));
+    expect(result.error).toBeDefined();
+    expect(courts[0].map((p) => p.name)).toEqual(['A', 'B', 'C', 'D']);
+    expect(readyPlayers.length).toBe(1);
+  });
+});
