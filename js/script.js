@@ -1273,6 +1273,10 @@ async function generateMatches() {
     }
   } else {
     // 沒有新的比賽被安排，但預備區選手等待輪數已增加
+    // generateMatchForCourtImmediate 都帶 courtIndex，內部人數不足警告不會觸發，這裡補上
+    if (readyPlayers.length < 4) {
+      showToast("預備區至少需要4人才可開始排場！", "warning");
+    }
   }
   
   // 自動保存遊戲狀態
