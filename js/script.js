@@ -524,7 +524,7 @@ function addBatchPlayers() {
   
   if (!text.trim()) {
     console.warn("【addBatchPlayers】警告：輸入文字為空");
-    alert("請貼上選手資料！");
+    showToast("請貼上選手資料！", "warning");
     return;
   }
   
@@ -1096,7 +1096,7 @@ function selectPlayersWithABCLogic(availablePlayers) {
 
   // 5. 如果沒有任何合法組合，放寬等級限制
   if (validCombinations.length === 0) {
-    alert('即將單次放寬組合標準以利進行組隊');
+    showToast("即將單次放寬組合標準以利進行組隊", "info");
     validCombinations = allCombinations.map(combo => {
       const mustPlayCount = combo.filter(p => mustPlayNames.has(p.name)).length;
       return { combo, mustPlayCount };
@@ -1465,7 +1465,7 @@ async function generateMatchForCourtImmediate(courtIndex) {
     if (courtIndex !== undefined) {
       // 移除 console.log
     } else {
-      alert("預備區至少需要4人才可開始排場！");
+      showToast("預備區至少需要4人才可開始排場！", "warning");
     }
     return null;
   }
@@ -2016,7 +2016,7 @@ async function loadGoogleSheetsData() {
 
     // 更新載入狀態
     statusElement.textContent = `成功導入 ${newPlayers.length} 位出席選手`;
-    alert(`已成功導入 ${newPlayers.length} 位出席選手`);
+    showToast(`已成功導入 ${newPlayers.length} 位出席選手`, "success");
     
     // 自動保存遊戲狀態
     saveGameState();
@@ -2068,7 +2068,7 @@ function toggleManualMode() {
 function adjustCourtCount(delta) {
   const result = changeCourtCountLogic(courts, delta);
   if (result.error) {
-    alert(result.error);
+    showToast(result.error, "warning");
     return;
   }
 
@@ -2083,7 +2083,7 @@ function adjustCourtCount(delta) {
 function swapPlayerOnCourt(courtIndex, playerName) {
   const result = swapPlayerOnCourtLogic(courts, readyPlayers, courtIndex, playerName, [playerName]);
   if (result.error) {
-    alert(result.error);
+    showToast(result.error, "warning");
     return;
   }
 
@@ -2100,7 +2100,7 @@ function swapPlayerOnCourt(courtIndex, playerName) {
 function swapCourtCombination(courtIndex) {
   const result = swapCourtCombinationLogic(courts, readyPlayers, courtIndex);
   if (result.error) {
-    alert(result.error);
+    showToast(result.error, "warning");
     return;
   }
 
@@ -2147,14 +2147,14 @@ function manualJoinCourt(playerName) {
 
   // 檢查是否有可用場地
   if (availableCourtIndex === -1) {
-    alert("所有場地都已滿，無法上場");
+    showToast("所有場地都已滿，無法上場", "warning");
     return;
   }
 
   // 從預備區找到選手
   const playerIndex = readyPlayers.findIndex(p => p.name === playerName);
   if (playerIndex === -1) {
-    alert("找不到選手");
+    showToast("找不到選手", "warning");
     return;
   }
 
@@ -2247,7 +2247,7 @@ async function syncMatchRecordsToSheets() {
   try {
     // 檢查是否有比賽紀錄
     if (historyMatches.length === 0) {
-      alert('目前沒有比賽紀錄可以同步');
+      showToast("目前沒有比賽紀錄可以同步", "warning");
       return;
     }
     
@@ -2432,19 +2432,19 @@ async function handleGoogleSignIn() {
               googleUser = userInfo;
               enableSheetsSync = true; // 登入成功後自動啟用同步
               updateGoogleSignInUI(true);
-              alert(`登入成功！歡迎 ${userInfo.email}\n\n比賽紀錄將自動同步到 Google Sheets。`);
+              showToast(`登入成功！歡迎 ${userInfo.email}`, "success");
             } else {
               // 如果無法獲取用戶資訊，仍然算登入成功
               enableSheetsSync = true; // 登入成功後自動啟用同步
               updateGoogleSignInUI(true);
-              alert('登入成功！比賽紀錄將自動同步到 Google Sheets。');
+              showToast("登入成功！比賽紀錄將自動同步到 Google Sheets。", "success");
             }
           } catch (userError) {
             console.warn('無法獲取用戶資訊：', userError);
             // 但仍然更新 UI 為已登入狀態
             enableSheetsSync = true; // 登入成功後自動啟用同步
             updateGoogleSignInUI(true);
-            alert('登入成功！比賽紀錄將自動同步到 Google Sheets。');
+            showToast("登入成功！比賽紀錄將自動同步到 Google Sheets。", "success");
           }
         }
       },
@@ -2482,7 +2482,7 @@ function handleGoogleSignOut() {
   }
   
   updateGoogleSignInUI(false);
-  alert('已登出 Google 帳號');
+  showToast("已登出 Google 帳號", "info");
 }
 
 // 寫入數據到 Google Sheets
@@ -2571,7 +2571,7 @@ async function syncMatchRecordsToSheets() {
   try {
     // 檢查是否有比賽紀錄
     if (historyMatches.length === 0) {
-      alert('目前沒有比賽紀錄可以同步');
+      showToast("目前沒有比賽紀錄可以同步", "warning");
       return;
     }
     
@@ -2697,7 +2697,7 @@ function confirmRestoreState() {
     // 顯示成功訊息
     showSuccessToast('✅ 比賽狀態已成功恢復！');
   } else {
-    alert('恢復狀態失敗，將重新開始');
+    showToast("恢復狀態失敗，將重新開始", "warning");
     startFresh();
   }
 }
