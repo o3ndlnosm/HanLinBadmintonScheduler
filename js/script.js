@@ -165,7 +165,7 @@ function initVoice() {
   // 檢查瀏覽器是否支援語音合成
   if (!("speechSynthesis" in window)) {
     document.getElementById("enableVoice").disabled = true;
-    alert("您的瀏覽器不支援語音合成功能");
+    showAlertDialog("您的瀏覽器不支援語音合成功能", { type: "error", title: "語音功能" });
     return;
   }
 
@@ -274,7 +274,7 @@ function testVoice() {
   speechSynthesis.cancel(); // 先清除已有語音
 
   if (!selectedVoice) {
-    alert("找不到可用的語音，請確認您的裝置支援語音合成。");
+    showAlertDialog("找不到可用的語音，請確認您的裝置支援語音合成。", { type: "error", title: "語音功能" });
     return;
   }
 
@@ -291,7 +291,7 @@ function testVoice() {
   utterance.onend = function () {};
 
   utterance.onerror = function (event) {
-    alert("語音播放發生錯誤：" + event.error);
+    showAlertDialog("語音播放發生錯誤：" + event.error, { type: "error", title: "語音功能" });
   };
 
   try {
@@ -302,7 +302,7 @@ function testVoice() {
       keepAliveVoice();
     }
   } catch (error) {
-    alert("嘗試播放語音時出現異常: " + error.message);
+    showAlertDialog("嘗試播放語音時出現異常: " + error.message, { type: "error", title: "語音功能" });
   }
 }
 
@@ -2003,7 +2003,7 @@ async function loadGoogleSheetsData() {
     // 直接更新選手列表，不顯示模態視窗
     if (newPlayers.length === 0) {
       statusElement.textContent = "未找到任何標記為出席的選手";
-      alert("未找到任何標記為出席的選手");
+      showAlertDialog("未找到任何標記為出席的選手", { type: "warning", title: "Google Sheets 匯入" });
       return null;
     }
 
@@ -2030,7 +2030,7 @@ async function loadGoogleSheetsData() {
       statusElement.textContent = `載入失敗: ${error.message}`;
     }
 
-    alert(`無法從 Google Sheets 載入資料: ${error.message}`);
+    showAlertDialog(`無法從 Google Sheets 載入資料: ${error.message}`, { type: "error", title: "Google Sheets 匯入" });
     return null;
   }
 }
@@ -2307,10 +2307,10 @@ async function syncMatchRecordsToSheets() {
     
     try {
       document.execCommand('copy');
-      alert(`已複製 ${allRecords.length} 筆比賽紀錄到剪貼簿！\n\n請到 Google Sheets 貼上數據：\n1. 開啟您的 Google Sheets\n2. 選擇「比賽紀錄」工作表\n3. 點擊 A1 儲存格\n4. 按 Ctrl+V (或 Cmd+V) 貼上`);
+      showAlertDialog(`已複製 ${allRecords.length} 筆比賽紀錄到剪貼簿！\n\n請到 Google Sheets 貼上數據：\n1. 開啟您的 Google Sheets\n2. 選擇「比賽紀錄」工作表\n3. 點擊 A1 儲存格\n4. 按 Ctrl+V (或 Cmd+V) 貼上`, { type: "info", title: "已複製到剪貼簿" });
     } catch (err) {
       console.error('複製失敗：', err);
-      alert('自動複製失敗，請手動複製控制台中的 CSV 數據。');
+      showAlertDialog("自動複製失敗，請手動複製控制台中的 CSV 數據。", { type: "error", title: "同步失敗" });
       console.log('CSV 數據：\n', csvContent);
     } finally {
       document.body.removeChild(textarea);
@@ -2321,7 +2321,7 @@ async function syncMatchRecordsToSheets() {
     
   } catch (error) {
     console.error('同步失敗：', error);
-    alert('同步過程中發生錯誤，請查看控制台了解詳情。');
+    showAlertDialog("同步過程中發生錯誤，請查看控制台了解詳情。", { type: "error", title: "同步失敗" });
   }
 }
 
@@ -2454,7 +2454,7 @@ async function handleGoogleSignIn() {
           // 不顯示錯誤訊息，因為使用者可能只是改變主意
         } else {
           console.error('登入失敗：', error);
-          alert('登入失敗，請重試。');
+          showAlertDialog("登入失敗，請重試。", { type: "error", title: "Google 登入" });
         }
       }
     });
@@ -2462,7 +2462,7 @@ async function handleGoogleSignIn() {
     tokenClient.requestAccessToken();
   } catch (error) {
     console.error('初始化登入時發生錯誤：', error);
-    alert('登入功能初始化失敗，請重新整理頁面後再試。');
+    showAlertDialog("登入功能初始化失敗，請重新整理頁面後再試。", { type: "error", title: "Google 登入" });
   }
 }
 
@@ -2488,7 +2488,7 @@ function handleGoogleSignOut() {
 // 寫入數據到 Google Sheets
 async function writeToGoogleSheets(records) {
   if (!googleAccessToken) {
-    alert('請先登入 Google 帳號以啟用寫入功能');
+    showAlertDialog("請先登入 Google 帳號以啟用寫入功能", { type: "info", title: "尚未登入" });
     return;
   }
   
@@ -2562,7 +2562,7 @@ async function writeToGoogleSheets(records) {
     
   } catch (error) {
     console.error('寫入 Google Sheets 失敗：', error);
-    alert('寫入失敗：' + (error.result?.error?.message || error.message));
+    showAlertDialog("寫入失敗：" + (error.result?.error?.message || error.message), { type: "error", title: "同步失敗" });
   }
 }
 
@@ -2636,10 +2636,10 @@ async function syncMatchRecordsToSheets() {
       
       try {
         document.execCommand('copy');
-        alert(`已複製 ${allRecords.length} 筆比賽紀錄到剪貼簿！\n\n請到 Google Sheets 貼上數據：\n1. 開啟您的 Google Sheets\n2. 選擇「比賽紀錄」工作表\n3. 點擊 A1 儲存格\n4. 按 Ctrl+V (或 Cmd+V) 貼上\n\n提示：您也可以登入 Google 帳號以啟用直接寫入功能。`);
+        showAlertDialog(`已複製 ${allRecords.length} 筆比賽紀錄到剪貼簿！\n\n請到 Google Sheets 貼上數據：\n1. 開啟您的 Google Sheets\n2. 選擇「比賽紀錄」工作表\n3. 點擊 A1 儲存格\n4. 按 Ctrl+V (或 Cmd+V) 貼上\n\n提示：您也可以登入 Google 帳號以啟用直接寫入功能。`, { type: "info", title: "已複製到剪貼簿" });
       } catch (err) {
         console.error('複製失敗：', err);
-        alert('自動複製失敗，請手動複製控制台中的 CSV 數據。');
+        showAlertDialog("自動複製失敗，請手動複製控制台中的 CSV 數據。", { type: "error", title: "同步失敗" });
         console.log('CSV 數據：\n', csvContent);
       } finally {
         document.body.removeChild(textarea);
@@ -2648,7 +2648,7 @@ async function syncMatchRecordsToSheets() {
     
   } catch (error) {
     console.error('同步失敗：', error);
-    alert('同步過程中發生錯誤，請查看控制台了解詳情。');
+    showAlertDialog("同步過程中發生錯誤，請查看控制台了解詳情。", { type: "error", title: "同步失敗" });
   }
 }
 
