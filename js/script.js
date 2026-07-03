@@ -1600,7 +1600,11 @@ async function generateMatchForCourtImmediate(courtIndex) {
 
 // 下場按鈕點擊後，更新該場地的新對戰組合
 async function endMatch(courtIndex) {
-  if (!confirm("確認 場地" + (courtIndex + 1) + " 下場？")) {
+  const ok = await showConfirmDialog(
+    "確認 場地" + (courtIndex + 1) + " 下場？",
+    { title: "場地下場", confirmText: "確認下場" }
+  );
+  if (!ok) {
     return;
   }
 
@@ -2111,8 +2115,12 @@ function swapCourtCombination(courtIndex) {
 }
 
 // 手動清空場地
-function manualEndMatch(courtIndex) {
-  if (!confirm("確認清空場地" + (courtIndex + 1) + "？")) {
+async function manualEndMatch(courtIndex) {
+  const ok = await showConfirmDialog(
+    "確認清空場地" + (courtIndex + 1) + "？",
+    { title: "清空場地", confirmText: "確認清空", danger: true }
+  );
+  if (!ok) {
     return;
   }
 
