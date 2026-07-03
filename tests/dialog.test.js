@@ -53,3 +53,35 @@ describe("showToast", () => {
     expect(document.querySelector(".app-toast img")).toBeNull();
   });
 });
+
+describe("showAlertDialog", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  test("顯示標題、訊息與確定鈕，按下後 resolve 並關閉", async () => {
+    const p = showAlertDialog("無法載入資料", { type: "error", title: "發生錯誤" });
+    const dialog = document.getElementById("appDialog");
+    expect(dialog).not.toBeNull();
+    expect(dialog.textContent).toContain("發生錯誤");
+    expect(dialog.textContent).toContain("無法載入資料");
+    const buttons = dialog.querySelectorAll(".modal-footer .btn");
+    expect(buttons.length).toBe(1);
+    expect(buttons[0].textContent).toBe("確定");
+    buttons[0].click();
+    await p;
+    expect(document.getElementById("appDialog")).toBeNull();
+  });
+
+  test("未指定標題時依類型給預設標題", () => {
+    showAlertDialog("訊息", { type: "error" });
+    expect(document.getElementById("appDialog").textContent).toContain("發生錯誤");
+    document.querySelector("#appDialog .modal-footer .btn").click();
+  });
+
+  test("訊息含 HTML 時以純文字呈現（防注入）", () => {
+    showAlertDialog('<img src=x onerror="window.hacked=1">');
+    expect(document.querySelector("#appDialog img")).toBeNull();
+    document.querySelector("#appDialog .modal-footer .btn").click();
+  });
+});
