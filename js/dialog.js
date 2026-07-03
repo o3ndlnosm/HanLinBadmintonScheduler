@@ -149,7 +149,29 @@ function showAlertDialog(message, options = {}) {
   });
 }
 
+function showConfirmDialog(message, options = {}) {
+  return openDialog({
+    title: options.title || "確認",
+    message: message,
+    type: "warning",
+    dismissValue: false,
+    buttons: [
+      {
+        text: options.cancelText || "取消",
+        value: false,
+        className: "btn-secondary",
+      },
+      {
+        text: options.confirmText || "確認",
+        value: true,
+        className: options.danger ? "btn-danger" : "btn-primary",
+        primary: true,
+      },
+    ],
+  });
+}
+
 // CommonJS export for testing
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { showToast, showAlertDialog };
+  module.exports = { showToast, showAlertDialog, showConfirmDialog };
 }

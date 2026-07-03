@@ -85,3 +85,72 @@ describe("showAlertDialog", () => {
     document.querySelector("#appDialog .modal-footer .btn").click();
   });
 });
+
+describe("showConfirmDialog", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  test("按確認 resolve true", async () => {
+    const p = showConfirmDialog("確認 場地1 下場？");
+    const buttons = document.querySelectorAll("#appDialog .modal-footer .btn");
+    expect(buttons.length).toBe(2);
+    expect(buttons[0].textContent).toBe("取消");
+    expect(buttons[1].textContent).toBe("確認");
+    buttons[1].click();
+    await expect(p).resolves.toBe(true);
+    expect(document.getElementById("appDialog")).toBeNull();
+  });
+
+  test("按取消 resolve false", async () => {
+    const p = showConfirmDialog("確認？");
+    document.querySelectorAll("#appDialog .modal-footer .btn")[0].click();
+    await expect(p).resolves.toBe(false);
+  });
+
+  test("ESC 等同取消", async () => {
+    const p = showConfirmDialog("確認？");
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await expect(p).resolves.toBe(false);
+  });
+
+  test("點遮罩等同取消", async () => {
+    const p = showConfirmDialog("確認？");
+    document.getElementById("appDialog").click();
+    await expect(p).resolves.toBe(false);
+  });
+
+  test("可自訂按鈕文字，danger 時確認鈕為紅色", async () => {
+    const p = showConfirmDialog("確認清空場地1？", {
+      title: "清空場地",
+      confirmText: "確認清空",
+      danger: true,
+    });
+    const buttons = document.querySelectorAll("#appDialog .modal-footer .btn");
+    expect(buttons[1].textContent).toBe("確認清空");
+    expect(buttons[1].classList.contains("btn-danger")).toBe(true);
+    buttons[0].click();
+    await p;
+  });
+});
+
+describe("彈窗佇列", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  test("同時只顯示一個，關閉後自動顯示下一個", async () => {
+    const p1 = showAlertDialog("第一個");
+    const p2 = showAlertDialog("第二個");
+    expect(document.querySelectorAll(".app-dialog").length).toBe(1);
+    expect(document.getElementById("appDialog").textContent).toContain("第一個");
+
+    document.querySelector("#appDialog .modal-footer .btn").click();
+    await p1;
+    expect(document.getElementById("appDialog").textContent).toContain("第二個");
+
+    document.querySelector("#appDialog .modal-footer .btn").click();
+    await p2;
+    expect(document.getElementById("appDialog")).toBeNull();
+  });
+});
