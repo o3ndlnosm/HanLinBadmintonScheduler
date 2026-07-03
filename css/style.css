@@ -1116,3 +1116,77 @@ textarea.form-control {
 .toast-notification.slide-out {
   animation: slideOut 0.3s ease-in forwards;
 }
+/* ===== 自訂通知（toast）與彈窗（js/dialog.js） ===== */
+.toast-stack {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.app-toast {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: white;
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  border-left: 4px solid var(--secondary);
+  padding: 0.7rem 1.1rem;
+  max-width: min(90vw, 420px);
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  pointer-events: auto;
+  cursor: pointer;
+  animation: appToastIn 0.25s ease-out;
+}
+
+.app-toast i {
+  font-size: 1rem;
+}
+
+.app-toast-success { border-left-color: var(--secondary); }
+.app-toast-success i { color: var(--secondary); }
+.app-toast-warning { border-left-color: var(--warning); }
+.app-toast-warning i { color: var(--warning); }
+.app-toast-error { border-left-color: var(--danger); }
+.app-toast-error i { color: var(--danger); }
+.app-toast-info { border-left-color: var(--info); }
+.app-toast-info i { color: var(--info); }
+
+.app-toast-hide {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+@keyframes appToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 彈窗補充（重用 .modal 家族） */
+.app-dialog .modal-content {
+  max-width: 420px;
+}
+
+.app-dialog-message {
+  white-space: pre-line;
+}
+
+.dialog-icon-success { color: var(--secondary); }
+.dialog-icon-warning { color: var(--warning); }
+.dialog-icon-error { color: var(--danger); }
+.dialog-icon-info { color: var(--info); }
