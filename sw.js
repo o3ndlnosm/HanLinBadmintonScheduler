@@ -3,7 +3,7 @@
  * 策略：同源資源 stale-while-revalidate（先用快取秒開，背景更新，下次載入生效）
  * CDN / Google API 一律直接走網路，不快取（避免影響 OAuth 與 Sheets API）
  */
-const CACHE_NAME = 'hanlin-badminton-v2';
+const CACHE_NAME = 'hanlin-badminton-v3';
 
 const PRECACHE_URLS = [
   './',

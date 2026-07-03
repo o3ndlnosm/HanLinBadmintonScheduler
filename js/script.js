@@ -696,11 +696,11 @@ function updateCourtsDisplay(updateTimesOnly = false) {
           <div class="court">
             <div class="court-title">
               <div class="court-header">
-                <div><i class="fas fa-shuttlecock"></i> 場地 ${i + 1}</div>
+                <div><i class="fas fa-table-tennis-paddle-ball"></i> 場地 ${i + 1}</div>
               </div>
             </div>
             <div class="empty-state">
-              <i class="fas fa-shuttlecock"></i>
+              <i class="fas fa-table-tennis-paddle-ball"></i>
               <p>目前無比賽</p>
             </div>
           </div>
@@ -758,7 +758,7 @@ function updateCourtsDisplay(updateTimesOnly = false) {
           <div class="court-title">
             <div class="court-header">
               <div>
-                <i class="fas fa-shuttlecock"></i> 場地 ${i + 1}
+                <i class="fas fa-table-tennis-paddle-ball"></i> 場地 ${i + 1}
                 <span id="court-timer-${i}" class="court-timer">
                   ${getElapsedTimeString(court.startTime)}
                 </span>
