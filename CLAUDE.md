@@ -127,11 +127,13 @@ historyMatches = []    // 比賽歷史
 │   └── style.css           # 使用 CSS 變數的樣式
 ├── js/
 │   ├── court-actions.js    # 場地數量調整與選手替換邏輯（純函式，jest 測試）
+│   ├── dialog.js           # 自訂彈窗與 toast 通知（取代原生 alert/confirm，jest+jsdom 測試）
 │   ├── player-state.js     # 選手狀態轉換邏輯（純函式，jest 測試）
 │   ├── pairing-logic.js    # 配對邏輯（純函式，jest 測試）
 │   └── script.js           # 主要應用程式邏輯 (2841 行)
 ├── tests/
 │   ├── court-actions.test.js       # 場地數量與選手替換測試
+│   ├── dialog.test.js              # 彈窗與通知測試
 │   ├── player-state.test.js        # 選手狀態測試
 │   └── pairing-logic.test.js       # 配對邏輯測試
 ├── index.html              # 單頁應用程式
