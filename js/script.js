@@ -1931,7 +1931,7 @@ function updateHistoryDisplay() {
 }
 
 // Google Sheets API 整合
-const GOOGLE_API_KEY = "AIzaSyCyoLexsIwzSg6tMLVhchfMjTgmYNn6S4U"; // 您的 API 金鑰
+const GOOGLE_API_KEY = "AIzaSyBrtqblbqnlS2po6K7xMW41vMbAJTqY4qI"; // 瀏覽器用公開金鑰（已限制：僅 Sheets API＋o3ndlnosm.github.io 來源）
 const GOOGLE_CLIENT_ID = "186072660354-833c6b74da3t6jgk9ace7ig2mgvcht0u.apps.googleusercontent.com"; // 您的 OAuth Client ID
 // 將這些值直接設為常量
 const SPREADSHEET_ID = "1961u7uge-1AHRLrIS1kEG8GNuMNHrf-WdjGVw-pClE0";
