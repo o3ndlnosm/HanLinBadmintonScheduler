@@ -1,3 +1,6 @@
+// 羽球球圖示（白色單色 SVG，隨字級與文字顏色縮放；取代 Font Awesome 桌球拍）
+const SHUTTLE_ICON = '<svg class="icon-shuttle" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><polygon points="5,6.8 19,6.8 14,13.6 10,13.6"/><circle cx="5.1" cy="6.5" r="1.55"/><circle cx="8.55" cy="6.5" r="1.55"/><circle cx="12" cy="6.5" r="1.55"/><circle cx="15.45" cy="6.5" r="1.55"/><circle cx="18.9" cy="6.5" r="1.55"/><rect x="9.6" y="13.2" width="4.8" height="1.5" rx=".35"/><circle cx="12" cy="16.9" r="3.3"/></svg>';
+
 // 全域變數
 let players = [];
 let readyPlayers = [];
@@ -696,11 +699,11 @@ function updateCourtsDisplay(updateTimesOnly = false) {
           <div class="court">
             <div class="court-title">
               <div class="court-header">
-                <div><i class="fas fa-table-tennis-paddle-ball"></i> 場地 ${i + 1}</div>
+                <div>${SHUTTLE_ICON} 場地 ${i + 1}</div>
               </div>
             </div>
             <div class="empty-state">
-              <i class="fas fa-table-tennis-paddle-ball"></i>
+              ${SHUTTLE_ICON}
               <p>目前無比賽</p>
             </div>
           </div>
@@ -758,7 +761,7 @@ function updateCourtsDisplay(updateTimesOnly = false) {
           <div class="court-title">
             <div class="court-header">
               <div>
-                <i class="fas fa-table-tennis-paddle-ball"></i> 場地 ${i + 1}
+                ${SHUTTLE_ICON} 場地 ${i + 1}
                 <span id="court-timer-${i}" class="court-timer">
                   ${getElapsedTimeString(court.startTime)}
                 </span>

@@ -716,10 +716,16 @@ textarea.form-control {
   color: var(--primary);
 }
 
-.empty-state i {
+.empty-state i,
+.empty-state .icon-shuttle {
   font-size: 3rem;
   margin-bottom: 1rem;
   opacity: 0.7;
+}
+
+/* 羽球球 SVG 圖示：與文字基線對齊 */
+.icon-shuttle {
+  vertical-align: -0.15em;
 }
 
 /* 為場地卡片的空狀態設置特殊樣式 */
@@ -728,7 +734,8 @@ textarea.form-control {
   font-weight: 500;
 }
 
-.court .empty-state i {
+.court .empty-state i,
+.court .empty-state .icon-shuttle {
   opacity: 0.9;
 }
 
