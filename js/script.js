@@ -1,5 +1,5 @@
-// 羽球球圖示（白色單色 SVG，隨字級與文字顏色縮放；取代 Font Awesome 桌球拍）
-const SHUTTLE_ICON = '<svg class="icon-shuttle" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><polygon points="5,6.8 19,6.8 14,13.6 10,13.6"/><circle cx="5.1" cy="6.5" r="1.55"/><circle cx="8.55" cy="6.5" r="1.55"/><circle cx="12" cy="6.5" r="1.55"/><circle cx="15.45" cy="6.5" r="1.55"/><circle cx="18.9" cy="6.5" r="1.55"/><rect x="9.6" y="13.2" width="4.8" height="1.5" rx=".35"/><circle cx="12" cy="16.9" r="3.3"/></svg>';
+// 羽球圖示（球拍＋羽毛球，Material Symbols；隨字級與文字顏色縮放；取代 Font Awesome 桌球拍）
+const SHUTTLE_ICON = '<svg class="icon-shuttle" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="m17.1 8.05l-3.175-3.175L20.3 1.85l.45 4.4zm2.213 1.913q-.463-.088-.763-.438l-.35-.375l2.725-1.3l.05.5q.075.475-.137.888t-.638.612t-.887.113M2 7.5q0-1.65.938-2.575T5.575 4q1.775 0 3.475.675t2.975 1.95q.775.775 1.238 1.75t.462 2.075q0 .8-.237 1.55t-.738 1.375l7.225 7.225l-1.4 1.4l-7.225-7.225q-.65.475-1.387.737t-1.538.238q-1.2-.025-2.262-.575T4.3 13.7q-1.125-1.275-1.713-2.875T2 7.5"/></svg>';
 
 // 全域變數
 let players = [];
