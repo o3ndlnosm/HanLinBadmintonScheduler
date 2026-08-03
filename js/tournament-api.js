@@ -2,8 +2,8 @@
  * v2 badminton-scheduler Supabase 後端的薄封裝（比賽模式三個 RPC）
  * anon key 為公開值，安全由 RLS 與 security definer RPC 把關（同 v1 寫死 Google API key 的模式）
  */
-const TOURNAMENT_SUPABASE_URL = '__SUPABASE_URL__'; // 部署前填入：v2 專案的 VITE_SUPABASE_URL
-const TOURNAMENT_SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__'; // 部署前填入：v2 專案的 VITE_SUPABASE_ANON_KEY
+const TOURNAMENT_SUPABASE_URL = 'https://ijevdpufitfgqlbjsxbo.supabase.co'; // 部署前填入：v2 專案的 VITE_SUPABASE_URL
+const TOURNAMENT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZXZkcHVmaXRmZ3FsYmpzeGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5MjM3NjYsImV4cCI6MjA5OTQ5OTc2Nn0.UD4vvdn9ul9jb6UUhxCmM-AXRSYXRsN7sVO2hBm5H1g'; // 部署前填入：v2 專案的 VITE_SUPABASE_ANON_KEY
 
 async function callTournamentRpc(fn, args) {
   const res = await fetch(`${TOURNAMENT_SUPABASE_URL}/rest/v1/rpc/${fn}`, {
