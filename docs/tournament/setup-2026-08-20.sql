@@ -463,9 +463,9 @@ begin
   end if;
 
   if p_score_self is null or p_score_opp is null
-     or p_score_self < 0 or p_score_self > 30
-     or p_score_opp < 0 or p_score_opp > 30 then
-    raise exception '比分需為 0–30 的整數';
+     or p_score_self < 0 or p_score_self > 21
+     or p_score_opp < 0 or p_score_opp > 21 then
+    raise exception '比分需為 0–21 的整數';
   end if;
   if p_score_self = p_score_opp then
     raise exception '羽球比賽不會平手，請確認比分';
@@ -524,13 +524,13 @@ begin
     insert into club_admins (club_id, user_id, role) values (v_club, v_user, 'owner');
   end if;
 
-  if exists (select 1 from tournaments where name = '第三屆羽球社運動會') then
+  if exists (select 1 from tournaments where name = '第三屆翰林匹克羽球運動會') then
     raise notice '比賽已存在，略過建立（避免重複 seed）';
     return;
   end if;
 
   insert into tournaments (club_id, name, held_on, status, created_by)
-  values (v_club, '第三屆羽球社運動會', '2026-08-20', 'active', v_user)
+  values (v_club, '第三屆翰林匹克羽球運動會', '2026-08-20', 'active', v_user)
   returning id into v_t;
 
   -- 先以字母建隊（隊伍 1–5 對應 A–E 由抽籤決定；抽完再跑下方「抽籤後」更新）
@@ -580,6 +580,6 @@ end $$;
 select t.public_token, tm.name as team, tm.captain_token
 from tournaments t
 join tournament_teams tm on tm.tournament_id = t.id
-where t.name = '第三屆羽球社運動會'
+where t.name = '第三屆翰林匹克羽球運動會'
   and t.held_on = '2026-08-20'
 order by tm.name;

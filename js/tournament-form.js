@@ -19,9 +19,9 @@ function validateScores(selfInput, oppInput) {
   if (
     selfStr === '' || oppStr === '' ||
     !Number.isInteger(s) || !Number.isInteger(o) ||
-    s < 0 || s > 30 || o < 0 || o > 30
+    s < 0 || s > 21 || o < 0 || o > 21
   ) {
-    return { ok: false, error: '比分需為 0–30 的整數' };
+    return { ok: false, error: '比分需為 0–21 的整數' };
   }
   if (s === o) return { ok: false, error: '羽球比賽不會平手，請確認比分' };
   return { ok: true, scoreSelf: s, scoreOpp: o };
