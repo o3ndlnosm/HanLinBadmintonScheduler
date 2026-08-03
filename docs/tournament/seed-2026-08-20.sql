@@ -1,67 +1,76 @@
 -- 8/20 第三屆羽球賽 一次性 seed（在 v2 Supabase SQL editor 執行，service role 不受 RLS 限制）
--- 執行前：先跑下面兩個查詢，把查到的值取代 DO 區塊開頭的兩個 '<...>'：
+--
+-- ⚠️ 本檔的 DO 區塊已於 2026-08-03 執行完成，請勿重跑，重跑會建出重複比賽！
+-- 原因：下面的 DO 區塊沒有存在性檢查，重跑會再建一個同名比賽，
+-- 屆時 token 查詢會回 10 列（兩份比賽 × 5 隊），QR code 有一半機率對到沒人用的那份。
+-- 若真的需要重新 seed（例如要整批重來），請改用 `setup-2026-08-20.sql`
+-- 或 `v2-schema-bootstrap.sql` 內建的存在性檢查版本，或先手動刪掉舊比賽再執行。
+--
+-- 執行前（僅供對照，不需再跑）：先跑下面兩個查詢，把查到的值取代 DO 區塊開頭的兩個 '<...>'：
 --   select id, name from clubs;
 --   select id, email from auth.users;
 
-do $$
-declare
-  v_club uuid := '<你的 club_id>';
-  v_user uuid := '<你的 auth.users id>';
-  v_t uuid;
-  v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_e uuid;
-begin
-  insert into tournaments (club_id, name, held_on, status, created_by)
-  values (v_club, '第三屆羽球社運動會', '2026-08-20', 'active', v_user)
-  returning id into v_t;
-
-  -- 先以字母建隊（隊伍 1–5 對應 A–E 由抽籤決定；抽完再跑下方「抽籤後」更新）
-  insert into tournament_teams (tournament_id, name) values (v_t, 'A') returning id into v_a;
-  insert into tournament_teams (tournament_id, name) values (v_t, 'B') returning id into v_b;
-  insert into tournament_teams (tournament_id, name) values (v_t, 'C') returning id into v_c;
-  insert into tournament_teams (tournament_id, name) values (v_t, 'D') returning id into v_d;
-  insert into tournament_teams (tournament_id, name) values (v_t, 'E') returning id into v_e;
-
-  -- 30 場賽程（10 輪 × 3 場地；場地1=女雙、場地2=男雙、場地3=混雙）
-  insert into tournament_matches
-    (tournament_id, round_no, time_slot, court_no, event, team_a_id, team_b_id)
-  values
-    (v_t,  1, '18:10-18:20', 1, '女雙', v_c, v_d),
-    (v_t,  1, '18:10-18:20', 2, '男雙', v_a, v_e),
-    (v_t,  1, '18:10-18:20', 3, '混雙', v_a, v_b),
-    (v_t,  2, '18:20-18:30', 1, '女雙', v_a, v_b),
-    (v_t,  2, '18:20-18:30', 2, '男雙', v_b, v_c),
-    (v_t,  2, '18:20-18:30', 3, '混雙', v_d, v_e),
-    (v_t,  3, '18:30-18:40', 1, '女雙', v_c, v_e),
-    (v_t,  3, '18:30-18:40', 2, '男雙', v_a, v_d),
-    (v_t,  3, '18:30-18:40', 3, '混雙', v_b, v_c),
-    (v_t,  4, '18:40-18:50', 1, '女雙', v_b, v_d),
-    (v_t,  4, '18:40-18:50', 2, '男雙', v_c, v_d),
-    (v_t,  4, '18:40-18:50', 3, '混雙', v_a, v_e),
-    (v_t,  5, '18:50-19:00', 1, '女雙', v_a, v_e),
-    (v_t,  5, '18:50-19:00', 2, '男雙', v_b, v_e),
-    (v_t,  5, '18:50-19:00', 3, '混雙', v_c, v_d),
-    (v_t,  6, '19:00-19:10', 1, '女雙', v_a, v_d),
-    (v_t,  6, '19:00-19:10', 2, '男雙', v_a, v_c),
-    (v_t,  6, '19:00-19:10', 3, '混雙', v_b, v_e),
-    (v_t,  7, '19:10-19:20', 1, '女雙', v_b, v_e),
-    (v_t,  7, '19:10-19:20', 2, '男雙', v_b, v_d),
-    (v_t,  7, '19:10-19:20', 3, '混雙', v_a, v_c),
-    (v_t,  8, '19:20-19:30', 1, '女雙', v_a, v_c),
-    (v_t,  8, '19:20-19:30', 2, '男雙', v_c, v_e),
-    (v_t,  8, '19:20-19:30', 3, '混雙', v_b, v_d),
-    (v_t,  9, '19:30-19:40', 1, '女雙', v_d, v_e),
-    (v_t,  9, '19:30-19:40', 2, '男雙', v_a, v_b),
-    (v_t,  9, '19:30-19:40', 3, '混雙', v_c, v_e),
-    (v_t, 10, '19:40-19:50', 1, '女雙', v_b, v_c),
-    (v_t, 10, '19:40-19:50', 2, '男雙', v_d, v_e),
-    (v_t, 10, '19:40-19:50', 3, '混雙', v_a, v_d);
-end $$;
+-- do $$
+-- declare
+--   v_club uuid := '<你的 club_id>';
+--   v_user uuid := '<你的 auth.users id>';
+--   v_t uuid;
+--   v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_e uuid;
+-- begin
+--   insert into tournaments (club_id, name, held_on, status, created_by)
+--   values (v_club, '第三屆羽球社運動會', '2026-08-20', 'active', v_user)
+--   returning id into v_t;
+--
+--   -- 先以字母建隊（隊伍 1–5 對應 A–E 由抽籤決定；抽完再跑下方「抽籤後」更新）
+--   insert into tournament_teams (tournament_id, name) values (v_t, 'A') returning id into v_a;
+--   insert into tournament_teams (tournament_id, name) values (v_t, 'B') returning id into v_b;
+--   insert into tournament_teams (tournament_id, name) values (v_t, 'C') returning id into v_c;
+--   insert into tournament_teams (tournament_id, name) values (v_t, 'D') returning id into v_d;
+--   insert into tournament_teams (tournament_id, name) values (v_t, 'E') returning id into v_e;
+--
+--   -- 30 場賽程（10 輪 × 3 場地；場地1=女雙、場地2=男雙、場地3=混雙）
+--   insert into tournament_matches
+--     (tournament_id, round_no, time_slot, court_no, event, team_a_id, team_b_id)
+--   values
+--     (v_t,  1, '18:10-18:20', 1, '女雙', v_c, v_d),
+--     (v_t,  1, '18:10-18:20', 2, '男雙', v_a, v_e),
+--     (v_t,  1, '18:10-18:20', 3, '混雙', v_a, v_b),
+--     (v_t,  2, '18:20-18:30', 1, '女雙', v_a, v_b),
+--     (v_t,  2, '18:20-18:30', 2, '男雙', v_b, v_c),
+--     (v_t,  2, '18:20-18:30', 3, '混雙', v_d, v_e),
+--     (v_t,  3, '18:30-18:40', 1, '女雙', v_c, v_e),
+--     (v_t,  3, '18:30-18:40', 2, '男雙', v_a, v_d),
+--     (v_t,  3, '18:30-18:40', 3, '混雙', v_b, v_c),
+--     (v_t,  4, '18:40-18:50', 1, '女雙', v_b, v_d),
+--     (v_t,  4, '18:40-18:50', 2, '男雙', v_c, v_d),
+--     (v_t,  4, '18:40-18:50', 3, '混雙', v_a, v_e),
+--     (v_t,  5, '18:50-19:00', 1, '女雙', v_a, v_e),
+--     (v_t,  5, '18:50-19:00', 2, '男雙', v_b, v_e),
+--     (v_t,  5, '18:50-19:00', 3, '混雙', v_c, v_d),
+--     (v_t,  6, '19:00-19:10', 1, '女雙', v_a, v_d),
+--     (v_t,  6, '19:00-19:10', 2, '男雙', v_a, v_c),
+--     (v_t,  6, '19:00-19:10', 3, '混雙', v_b, v_e),
+--     (v_t,  7, '19:10-19:20', 1, '女雙', v_b, v_e),
+--     (v_t,  7, '19:10-19:20', 2, '男雙', v_b, v_d),
+--     (v_t,  7, '19:10-19:20', 3, '混雙', v_a, v_c),
+--     (v_t,  8, '19:20-19:30', 1, '女雙', v_a, v_c),
+--     (v_t,  8, '19:20-19:30', 2, '男雙', v_c, v_e),
+--     (v_t,  8, '19:20-19:30', 3, '混雙', v_b, v_d),
+--     (v_t,  9, '19:30-19:40', 1, '女雙', v_d, v_e),
+--     (v_t,  9, '19:30-19:40', 2, '男雙', v_a, v_b),
+--     (v_t,  9, '19:30-19:40', 3, '混雙', v_c, v_e),
+--     (v_t, 10, '19:40-19:50', 1, '女雙', v_b, v_c),
+--     (v_t, 10, '19:40-19:50', 2, '男雙', v_d, v_e),
+--     (v_t, 10, '19:40-19:50', 3, '混雙', v_a, v_d);
+-- end $$;
 
 -- seed 完取 token（public_token 給觀賽連結、captain_token 給各隊 QR code）
+-- 可安全重跑（純查詢，不會建資料）；當天核對用
 select t.public_token, tm.name as team, tm.captain_token
 from tournaments t
 join tournament_teams tm on tm.tournament_id = t.id
 where t.name = '第三屆羽球社運動會'
+  and t.held_on = '2026-08-20'
 order by tm.name;
 
 -- ============================================================

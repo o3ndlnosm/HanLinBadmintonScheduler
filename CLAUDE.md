@@ -72,6 +72,12 @@ npx http-server
 - 被換下者回預備區且等待輪次 +1（不計場次），補位從預備區完全隨機抽出
 - 邏輯位於 `js/court-actions.js`，測試位於 `tests/court-actions.test.js`
 
+### 7. 比賽計分頁（tournament.html）
+- 8/20 第三屆比賽用：隊長輸分（雙方一致才確認）、即時排名、公開計分板
+- 後端借用 v2 badminton-scheduler 的 Supabase RPC，設定在 `js/tournament-api.js`
+- 純函式：`js/standings.js`（排名）、`js/tournament-form.js`（驗證/狀態），各有 jest 測試
+- 賽前作業與 seed 見 `docs/tournament/賽前作業.md`
+
 ## 重要實作細節
 
 ### 狀態管理 (1-22 行)
@@ -112,11 +118,13 @@ historyMatches = []    // 比賽歷史
 
 ## 測試方法
 
-未安裝測試框架。測試方法：
-1. 使用瀏覽器控制台進行除錯
-2. 在瀏覽器中手動測試功能
-3. 檢查控制台日誌 - 內建廣泛的除錯輸出
-4. 在行動裝置上測試語音功能
+已安裝 jest（含 jest-environment-jsdom）。測試方法：
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 165 項）
+2. 純函式模組（`court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
+   `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
+   `tests/*.test.js`
+3. `script.js` 本體（無模組匯出）與實際渲染仍靠瀏覽器控制台與手動測試
+4. 在行動裝置上測試語音功能與比賽計分頁
 
 ## 專案結構
 ```
@@ -124,21 +132,31 @@ historyMatches = []    // 比賽歷史
 ├── .vscode/
 │   └── settings.json        # Live Server 設定 (連接埠 5501)
 ├── css/
-│   └── style.css           # 使用 CSS 變數的樣式
+│   ├── style.css           # 使用 CSS 變數的樣式
+│   └── tournament.css      # 比賽計分頁專屬樣式
 ├── js/
 │   ├── court-actions.js    # 場地數量調整與選手替換邏輯（純函式，jest 測試）
 │   ├── dialog.js           # 自訂彈窗與 toast 通知（取代原生 alert/confirm，jest+jsdom 測試）
 │   ├── player-state.js     # 選手狀態轉換邏輯（純函式，jest 測試）
 │   ├── pairing-logic.js    # 配對邏輯（純函式，jest 測試）
-│   └── script.js           # 主要應用程式邏輯 (2841 行)
+│   ├── script.js           # 主要應用程式邏輯 (2841 行)
+│   ├── standings.js        # 比賽排名計算（純函式，jest 測試）
+│   ├── tournament-form.js  # 比賽計分頁表單驗證/狀態機（純函式，jest 測試）
+│   ├── tournament-api.js   # 比賽計分頁 Supabase RPC 薄封裝（jest 測試）
+│   └── tournament.js       # 比賽計分頁初始化、輪詢、渲染
 ├── tests/
 │   ├── court-actions.test.js       # 場地數量與選手替換測試
 │   ├── dialog.test.js              # 彈窗與通知測試
 │   ├── player-state.test.js        # 選手狀態測試
-│   └── pairing-logic.test.js       # 配對邏輯測試
+│   ├── pairing-logic.test.js       # 配對邏輯測試
+│   ├── standings.test.js           # 比賽排名測試
+│   ├── tournament-form.test.js     # 比賽計分頁表單驗證測試
+│   └── tournament-api.test.js      # 比賽計分頁 API 薄封裝測試
+├── docs/tournament/         # 比賽計分頁：賽前作業清單、Supabase seed/bootstrap SQL
+├── scripts/generate-qr.sh   # 產生各隊隊長 QR code
 ├── index.html              # 單頁應用程式
-├── CLAUDE.md               # 此檔案
-└── 排場規則說明.md          # 詳細系統規則和實作狀態
+├── tournament.html         # 比賽計分頁（觀賽 + 隊長輸分）
+└── CLAUDE.md               # 此檔案
 ```
 
 ## 排場規則摘要
@@ -148,4 +166,4 @@ historyMatches = []    // 比賽歷史
 **情況一 (1-4 人)**：優先使用剛下場的選手
 **情況二 (5-8+ 人)**：優先從準備區選擇，考慮等待輪次和場次
 
-詳細規則請參考 `排場規則說明.md`。
+詳細規則見上方「核心功能與實作」與「場地排程演算法」各節。

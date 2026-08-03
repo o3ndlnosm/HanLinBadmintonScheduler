@@ -277,6 +277,12 @@ function bindReportForm() {
   });
 }
 
+// 輪詢的 callback：分頁隱藏時略過，避免背景分頁持續打請求（回前景時 visibilitychange 會補刷新）
+function pollTick() {
+  if (document.hidden) return;
+  refresh();
+}
+
 function init() {
   auth = parseTokenFromUrl(location.search);
   if (!auth.mode) {
@@ -285,7 +291,7 @@ function init() {
   }
   bindReportForm();
   refresh();
-  pollTimer = setInterval(refresh, POLL_INTERVAL_MS);
+  pollTimer = setInterval(pollTick, POLL_INTERVAL_MS);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') refresh();
   });

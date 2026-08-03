@@ -6,15 +6,22 @@ const TOURNAMENT_SUPABASE_URL = 'https://ijevdpufitfgqlbjsxbo.supabase.co'; // �
 const TOURNAMENT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZXZkcHVmaXRmZ3FsYmpzeGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5MjM3NjYsImV4cCI6MjA5OTQ5OTc2Nn0.UD4vvdn9ul9jb6UUhxCmM-AXRSYXRsN7sVO2hBm5H1g'; // 部署前填入：v2 專案的 VITE_SUPABASE_ANON_KEY
 
 async function callTournamentRpc(fn, args) {
-  const res = await fetch(`${TOURNAMENT_SUPABASE_URL}/rest/v1/rpc/${fn}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: TOURNAMENT_SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${TOURNAMENT_SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify(args),
-  });
+  let res;
+  try {
+    res = await fetch(`${TOURNAMENT_SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: TOURNAMENT_SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${TOURNAMENT_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify(args),
+    });
+  } catch (e) {
+    // fetch 本身失敗（離線、訊號差、DNS 等）拋出 TypeError，訊息為原文 "Failed to fetch"，
+    // 對非技術背景的隊長不友善，統一轉成中文提示
+    throw new Error('網路不穩，請確認連線後再試一次');
+  }
   let body = null;
   try {
     body = await res.json();

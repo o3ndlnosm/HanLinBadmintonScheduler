@@ -65,18 +65,24 @@ create trigger trg_add_creator_as_owner
   for each row execute function add_creator_as_owner();
 
 -- clubs
+drop policy if exists clubs_select on clubs;
 create policy clubs_select on clubs for select
   using (is_club_admin(id));
+drop policy if exists clubs_insert on clubs;
 create policy clubs_insert on clubs for insert
   with check (created_by = auth.uid());
+drop policy if exists clubs_update on clubs;
 create policy clubs_update on clubs for update
   using (is_club_admin(id));
+drop policy if exists clubs_delete on clubs;
 create policy clubs_delete on clubs for delete
   using (is_club_admin(id));
 
 -- club_admins
+drop policy if exists club_admins_select on club_admins;
 create policy club_admins_select on club_admins for select
   using (is_club_admin(club_id));
+drop policy if exists club_admins_write on club_admins;
 create policy club_admins_write on club_admins for all
   using (
     exists (select 1 from club_admins ca
@@ -92,6 +98,7 @@ create policy club_admins_write on club_admins for all
   );
 
 -- members
+drop policy if exists members_all on members;
 create policy members_all on members for all
   using (is_club_admin(club_id))
   with check (is_club_admin(club_id));
@@ -163,6 +170,7 @@ alter table session_state enable row level security;
 -- sessions: gated by club membership. NOTE: the creator is already a club admin at
 -- create time, so is_club_admin(club_id) is true immediately (no AFTER-trigger dependency),
 -- which avoids the INSERT...RETURNING SELECT-policy pitfall that P1's clubs table hit.
+drop policy if exists sessions_all on sessions;
 create policy sessions_all on sessions for all
   using (is_club_admin(club_id)) with check (is_club_admin(club_id));
 
@@ -174,8 +182,10 @@ returns boolean language sql security definer stable as $$
   );
 $$;
 
+drop policy if exists session_attendance_all on session_attendance;
 create policy session_attendance_all on session_attendance for all
   using (is_session_admin(session_id)) with check (is_session_admin(session_id));
+drop policy if exists session_state_all on session_state;
 create policy session_state_all on session_state for all
   using (is_session_admin(session_id)) with check (is_session_admin(session_id));
 
@@ -295,6 +305,7 @@ alter table tournament_teams enable row level security;
 alter table tournament_matches enable row level security;
 
 -- 管理者：比照 sessions 的 is_session_admin 模式
+drop policy if exists tournaments_all on tournaments;
 create policy tournaments_all on tournaments for all
   using (is_club_admin(club_id)) with check (is_club_admin(club_id));
 
@@ -307,8 +318,10 @@ set search_path = public, pg_temp as $$
   );
 $$;
 
+drop policy if exists tournament_teams_all on tournament_teams;
 create policy tournament_teams_all on tournament_teams for all
   using (is_tournament_admin(tournament_id)) with check (is_tournament_admin(tournament_id));
+drop policy if exists tournament_matches_all on tournament_matches;
 create policy tournament_matches_all on tournament_matches for all
   using (is_tournament_admin(tournament_id)) with check (is_tournament_admin(tournament_id));
 
@@ -568,4 +581,5 @@ select t.public_token, tm.name as team, tm.captain_token
 from tournaments t
 join tournament_teams tm on tm.tournament_id = t.id
 where t.name = '第三屆羽球社運動會'
+  and t.held_on = '2026-08-20'
 order by tm.name;

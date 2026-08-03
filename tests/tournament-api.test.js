@@ -44,3 +44,8 @@ test('非 JSON 錯誤回應：顯示連線失敗與狀態碼', async () => {
   });
   await expect(api.fetchPublicView('tok')).rejects.toThrow('連線失敗（502）');
 });
+
+test('fetch 本身失敗（離線／訊號差）：顯示中文提示而非瀏覽器原文錯誤', async () => {
+  global.fetch = jest.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+  await expect(api.fetchPublicView('tok')).rejects.toThrow('網路不穩，請確認連線後再試一次');
+});
