@@ -12,6 +12,10 @@ let auth = { mode: null, token: null };
 let currentView = null;
 let pollTimer = null;
 
+// 記錄已呈現過確認狀態的場次，讓新確認的場次只閃一次
+const seenConfirmed = new Set();
+let firstRenderDone = false;
+
 function teamNameById(view) {
   const map = {};
   view.teams.forEach((t) => { map[t.id] = t.name; });
@@ -151,6 +155,12 @@ function renderSchedule(view) {
       row.className = 'match-row';
       if (isMine) row.classList.add('match-mine');
       if (state.canReport) row.classList.add('can-report');
+      if (match.status === 'confirmed') {
+        if (firstRenderDone && !seenConfirmed.has(match.id)) {
+          row.classList.add('just-confirmed');
+        }
+        seenConfirmed.add(match.id);
+      }
 
       const chip = document.createElement('span');
       chip.className = `event-chip ${match.event}`;
@@ -188,6 +198,7 @@ function renderSchedule(view) {
     box.appendChild(card);
   });
   document.getElementById('scheduleSection').hidden = false;
+  firstRenderDone = true;
 }
 
 function renderAll(view) {
