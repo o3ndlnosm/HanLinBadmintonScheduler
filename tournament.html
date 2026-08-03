@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4a7dbc">
+    <meta name="referrer" content="no-referrer">
+    <title>翰林羽球社 第三屆運動會</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/tournament.css">
+</head>
+<body class="tournament-page">
+    <header class="header tournament-header">
+        <h1><i class="fas fa-trophy"></i> <span id="tournamentName">第三屆運動會</span></h1>
+        <div id="finishedBadge" class="finished-badge" hidden>比賽已結束</div>
+    </header>
+
+    <main class="tournament-main">
+        <div id="offlineBox" class="offline-box" hidden></div>
+        <div id="errorBox" class="error-box" hidden></div>
+
+        <section id="standingsSection" hidden>
+            <h2><i class="fas fa-ranking-star"></i> 即時排名</h2>
+            <div id="standings"></div>
+        </section>
+
+        <section id="scheduleSection" hidden>
+            <h2><i class="fas fa-table-list"></i> 賽程</h2>
+            <div id="schedule"></div>
+        </section>
+    </main>
+
+    <!-- 隊長輸分彈窗（Task 5 啟用） -->
+    <div id="reportOverlay" class="report-overlay" hidden>
+        <div class="report-modal">
+            <h3 id="reportTitle">輸入比分</h3>
+            <p id="reportSubtitle" class="report-subtitle"></p>
+            <div class="score-inputs">
+                <label>我方 <span id="myTeamName"></span>
+                    <input id="scoreSelf" type="number" inputmode="numeric" min="0" max="30" step="1">
+                </label>
+                <span class="score-colon">：</span>
+                <label>對方 <span id="oppTeamName"></span>
+                    <input id="scoreOpp" type="number" inputmode="numeric" min="0" max="30" step="1">
+                </label>
+            </div>
+            <div class="report-actions">
+                <button id="reportCancel" type="button" class="btn-cancel">取消</button>
+                <button id="reportSubmit" type="button" class="btn-submit">送出</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/dialog.js"></script>
+    <script src="js/standings.js"></script>
+    <script src="js/tournament-form.js"></script>
+    <script src="js/tournament-api.js"></script>
+    <script src="js/tournament.js"></script>
+</body>
+</html>

@@ -1,0 +1,245 @@
+/* 比賽頁專屬樣式：沿用 style.css 的 :root 變數 */
+.tournament-main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 0.8rem 3rem;
+}
+
+.tournament-header {
+  text-align: center;
+  padding: 0.8rem;
+}
+
+.finished-badge {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.15rem 0.8rem;
+  background: var(--neutral);
+  color: var(--text-light);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+/* 自查修正：author 的 display 規則優先權高於瀏覽器內建的 [hidden]{display:none}，
+   若不加這條，即使元素帶 hidden 屬性仍會被上面的 display:inline-block 蓋掉而顯示出來 */
+.finished-badge[hidden] {
+  display: none;
+}
+
+.tournament-main h2 {
+  margin: 1.2rem 0 0.6rem;
+  font-size: 1.1rem;
+  color: var(--primary-dark);
+}
+
+.offline-box,
+.error-box {
+  margin: 0.8rem 0;
+  padding: 0.8rem;
+  border-radius: var(--border-radius);
+  text-align: center;
+}
+
+.offline-box {
+  background: var(--warning-light);
+  color: var(--text-dark);
+}
+
+.error-box {
+  background: var(--danger-light);
+  color: var(--text-dark);
+  padding: 2rem 1rem;
+  font-size: 1.1rem;
+}
+
+/* 排名表 */
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.standings-table th,
+.standings-table td {
+  padding: 0.55rem 0.4rem;
+  text-align: center;
+  border-bottom: 1px solid var(--bg-light);
+}
+
+.standings-table th {
+  background: var(--primary);
+  color: white;
+  font-size: 0.85rem;
+}
+
+.standings-table td.team-name {
+  text-align: left;
+  font-weight: 600;
+}
+
+.standings-table tr.my-team {
+  background: #eaf1fb;
+}
+
+.champion-banner {
+  margin-bottom: 0.6rem;
+  padding: 0.8rem;
+  background: linear-gradient(135deg, var(--warning), var(--warning-dark));
+  color: white;
+  border-radius: var(--border-radius);
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  box-shadow: var(--shadow);
+}
+
+/* 賽程 */
+.round-card {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 0.8rem;
+  overflow: hidden;
+}
+
+.round-title {
+  padding: 0.45rem 0.8rem;
+  background: var(--bg-light);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--neutral-dark);
+}
+
+.match-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.8rem;
+  border-top: 1px solid var(--bg-light);
+}
+
+.match-row.match-mine {
+  border-left: 4px solid var(--primary);
+  background: #f6f9ff;
+}
+
+.match-row.can-report {
+  cursor: pointer;
+}
+
+.event-chip {
+  flex: none;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: white;
+  background: var(--info);
+}
+
+.event-chip.男雙 { background: var(--primary); }
+.event-chip.女雙 { background: var(--danger); }
+.event-chip.混雙 { background: var(--secondary); }
+
+.match-teams {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+}
+
+.match-result {
+  flex: none;
+  text-align: right;
+  font-size: 0.85rem;
+}
+
+.match-score {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.state-label { display: block; }
+.state-label.confirmed { color: var(--secondary-dark); }
+.state-label.pending { color: var(--neutral); }
+.state-label.waiting { color: var(--warning-dark); }
+.state-label.conflict { color: var(--danger-dark); font-weight: 700; }
+.state-label.action-needed { color: var(--primary-dark); font-weight: 700; }
+
+/* 隊長輸分彈窗 */
+.report-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* 自查修正：同上，避免彈窗帶 hidden 屬性時仍被 display:flex 蓋掉而常駐顯示 */
+.report-overlay[hidden] {
+  display: none;
+}
+
+.report-modal {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  padding: 1.2rem;
+  width: min(92vw, 360px);
+}
+
+.report-subtitle {
+  color: var(--neutral);
+  font-size: 0.9rem;
+  margin: 0.3rem 0 0.8rem;
+}
+
+.score-inputs {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.score-inputs label {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--neutral-dark);
+}
+
+.score-inputs input {
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.6rem;
+  font-size: 1.4rem;
+  text-align: center;
+  border: 2px solid var(--bg-light);
+  border-radius: var(--border-radius);
+}
+
+.score-colon {
+  font-size: 1.4rem;
+  padding-bottom: 0.6rem;
+}
+
+.report-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.report-actions button {
+  flex: 1;
+  padding: 0.65rem;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.btn-cancel { background: var(--bg-light); color: var(--text-dark); }
+.btn-submit { background: var(--primary); color: white; }
+.btn-submit:disabled { opacity: 0.6; }
