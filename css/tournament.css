@@ -107,48 +107,74 @@
   font-size: 1.1rem;
 }
 
-/* 排名表 */
+/* 排名表：比照 F1 standings —— 純黑底、髮絲線、表頭大寫灰字、數字右對齊 */
 .standings-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
-  border-radius: var(--border-radius);
+  background: var(--f1-panel);
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
   overflow: hidden;
-  box-shadow: var(--shadow);
-}
-
-.standings-table th,
-.standings-table td {
-  padding: 0.55rem 0.4rem;
-  text-align: center;
-  border-bottom: 1px solid var(--bg-light);
+  font-variant-numeric: tabular-nums;
 }
 
 .standings-table th {
-  background: var(--primary);
-  color: white;
-  font-size: 0.85rem;
+  padding: 0.7rem 0.4rem;
+  background: transparent;
+  border-bottom: 1px solid var(--f1-line);
+  color: var(--f1-fg-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+.standings-table th:nth-child(1),
+.standings-table th:nth-child(2) { text-align: left; }
+
+.standings-table td {
+  padding: 0.85rem 0.4rem;
+  border-bottom: 1px solid var(--f1-line);
+  color: var(--f1-fg);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.standings-table tbody tr:last-child td { border-bottom: none; }
+
+/* 名次與隊名靠左（比照 F1 的 POS. / DRIVER 欄） */
+.standings-table td:nth-child(1) {
+  text-align: left;
+  padding-left: 0.9rem;
+  color: var(--f1-fg-muted);
 }
 
 .standings-table td.team-name {
   text-align: left;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.standings-table tr.my-team {
-  background: #eaf1fb;
+/* 自己隊伍：左緣紅條，不用整列變色（保持資料區安靜） */
+.standings-table tr.my-team td:first-child {
+  box-shadow: inset 3px 0 0 var(--f1-red);
 }
 
+.standings-table tr.my-team td { background: rgba(225, 6, 0, 0.06); }
+
+/* 冠亞軍：全部完賽後才出現 */
 .champion-banner {
   margin-bottom: 0.6rem;
-  padding: 0.8rem;
-  background: linear-gradient(135deg, var(--warning), var(--warning-dark));
-  color: white;
-  border-radius: var(--border-radius);
+  padding: 0.9rem;
+  background: var(--f1-panel);
+  border: 1px solid var(--f1-red);
+  border-radius: var(--f1-radius);
   text-align: center;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
-  box-shadow: var(--shadow);
+  letter-spacing: 0.04em;
+  color: var(--f1-fg);
 }
 
 /* 賽程 */
