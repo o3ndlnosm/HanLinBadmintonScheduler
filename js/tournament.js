@@ -186,8 +186,85 @@ async function refresh() {
   renderAll(view);
 }
 
-// Task 5 實作；先放空殼避免 ReferenceError
-function openReportForm(match) {}
+let reportingMatchId = null;
+let submitting = false;
+
+function openReportForm(match) {
+  const names = teamNameById(currentView);
+  const myTeamId = currentView.myTeamId;
+  const iAmTeamA = match.teamAId === myTeamId;
+  const oppTeamId = iAmTeamA ? match.teamBId : match.teamAId;
+
+  reportingMatchId = match.id;
+  document.getElementById('reportTitle').textContent = `第 ${match.roundNo} 輪　${match.event}`;
+  document.getElementById('reportSubtitle').textContent =
+    `${match.timeSlot}　場地${match.courtNo}`;
+  document.getElementById('myTeamName').textContent = names[myTeamId];
+  document.getElementById('oppTeamName').textContent = names[oppTeamId];
+
+  // 已送過的話帶入自己上次回報（myReport 以 A/B 方向正規化存放，要轉回我方/對方）
+  const report = (currentView.reports || {})[match.id];
+  const selfInput = document.getElementById('scoreSelf');
+  const oppInput = document.getElementById('scoreOpp');
+  if (report && report.myReport) {
+    selfInput.value = iAmTeamA ? report.myReport.scoreA : report.myReport.scoreB;
+    oppInput.value = iAmTeamA ? report.myReport.scoreB : report.myReport.scoreA;
+  } else {
+    selfInput.value = '';
+    oppInput.value = '';
+  }
+
+  document.getElementById('reportOverlay').hidden = false;
+  selfInput.focus();
+}
+
+function closeReportForm() {
+  reportingMatchId = null;
+  document.getElementById('reportOverlay').hidden = true;
+}
+
+async function submitReport() {
+  if (submitting || !reportingMatchId) return;
+  const check = validateScores(
+    document.getElementById('scoreSelf').value,
+    document.getElementById('scoreOpp').value
+  );
+  if (!check.ok) {
+    showToast(check.error, 'warning');
+    return;
+  }
+  submitting = true;
+  const submitBtn = document.getElementById('reportSubmit');
+  submitBtn.disabled = true;
+  try {
+    const result = await reportScore(
+      auth.token, reportingMatchId, check.scoreSelf, check.scoreOpp
+    );
+    closeReportForm();
+    if (result.status === 'confirmed') {
+      showToast('雙方比分一致，成績已確認！', 'success');
+    } else if (result.status === 'conflict') {
+      showToast('比分不一致，請與對方隊長重新確認後再送一次', 'warning');
+    } else {
+      showToast('已送出，等待對方隊長確認', 'info');
+    }
+    await refresh();
+  } catch (err) {
+    showToast(err.message, 'error');
+    await refresh(); // 例如已被確認/比賽結束時，讓畫面同步最新狀態
+  } finally {
+    submitting = false;
+    submitBtn.disabled = false;
+  }
+}
+
+function bindReportForm() {
+  document.getElementById('reportSubmit').addEventListener('click', submitReport);
+  document.getElementById('reportCancel').addEventListener('click', closeReportForm);
+  document.getElementById('reportOverlay').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('reportOverlay')) closeReportForm();
+  });
+}
 
 function init() {
   auth = parseTokenFromUrl(location.search);
@@ -195,6 +272,7 @@ function init() {
     showFatal('找不到比賽，請確認連結是否正確');
     return;
   }
+  bindReportForm();
   refresh();
   pollTimer = setInterval(refresh, POLL_INTERVAL_MS);
   document.addEventListener('visibilitychange', () => {
