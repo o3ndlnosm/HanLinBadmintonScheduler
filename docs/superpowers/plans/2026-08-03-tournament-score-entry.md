@@ -265,8 +265,10 @@ describe('matchState', () => {
       { label: '等待對方確認', cssClass: 'waiting', canReport: true });
   });
   test('pending＋對方已報我方未報 → 提示輸入', () => {
+    // 2026-08-03 因 375px 版面實測縮短：原「對方已回報，請輸入比分」(11 字) 讓結果欄過寬、
+    // 壓縮隊名欄導致長隊名折成多行、列高暴增，改為 5 字「對方已回報」（見 final-fix-report.md）。
     expect(matchState(match, myCtx({ m1: { myReport: null, oppReported: true } }))).toEqual(
-      { label: '對方已回報，請輸入比分', cssClass: 'action-needed', canReport: true });
+      { label: '對方已回報', cssClass: 'action-needed', canReport: true });
   });
 });
 ```
@@ -328,7 +330,8 @@ function matchState(match, captainCtx) {
     return { label: '等待對方確認', cssClass: 'waiting', canReport: true };
   }
   if (!report.myReport && report.oppReported) {
-    return { label: '對方已回報，請輸入比分', cssClass: 'action-needed', canReport: true };
+    // 2026-08-03 因 375px 版面實測縮短：原文案 11 字，改為 5 字（見 final-fix-report.md）
+    return { label: '對方已回報', cssClass: 'action-needed', canReport: true };
   }
   return { label: '請輸入比分', cssClass: 'action-needed', canReport: true };
 }

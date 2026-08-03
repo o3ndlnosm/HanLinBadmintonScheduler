@@ -63,8 +63,8 @@ describe('matchState', () => {
     expect(matchState(match, myCtx({ m1: { myReport: { scoreA: 21, scoreB: 15 }, oppReported: false } }))).toEqual(
       { label: '等待對方確認', cssClass: 'waiting', canReport: true });
   });
-  test('pending＋對方已報我方未報 → 提示輸入', () => {
+  test('pending＋對方已報我方未報 → 提示輸入（2026-08-03 縮短為 5 字，見 375px 版面實測）', () => {
     expect(matchState(match, myCtx({ m1: { myReport: null, oppReported: true } }))).toEqual(
-      { label: '對方已回報，請輸入比分', cssClass: 'action-needed', canReport: true });
+      { label: '對方已回報', cssClass: 'action-needed', canReport: true });
   });
 });
