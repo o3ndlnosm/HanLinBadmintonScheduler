@@ -18,7 +18,7 @@
 --   v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_e uuid;
 -- begin
 --   insert into tournaments (club_id, name, held_on, status, created_by)
---   values (v_club, '第三屆羽球社運動會', '2026-08-20', 'active', v_user)
+--   values (v_club, '第三屆翰林匹克羽球運動會', '2026-08-20', 'active', v_user)
 --   returning id into v_t;
 --
 --   -- 先以字母建隊（隊伍 1–5 對應 A–E 由抽籤決定；抽完再跑下方「抽籤後」更新）
@@ -69,7 +69,7 @@
 select t.public_token, tm.name as team, tm.captain_token
 from tournaments t
 join tournament_teams tm on tm.tournament_id = t.id
-where t.name = '第三屆羽球社運動會'
+where t.name = '第三屆翰林匹克羽球運動會'
   and t.held_on = '2026-08-20'
 order by tm.name;
 
@@ -81,32 +81,32 @@ order by tm.name;
 -- 分隊 1（邱奕鈞、陳奕廷、高新翰、陳怡伶、劉凡瑀、洪蘭萍）
 -- update tournament_teams set
 --   players = '[{"name":"邱奕鈞"},{"name":"陳奕廷"},{"name":"高新翰"},{"name":"陳怡伶"},{"name":"劉凡瑀"},{"name":"洪蘭萍"}]'
--- where tournament_id = (select id from tournaments where name = '第三屆羽球社運動會')
+-- where tournament_id = (select id from tournaments where name = '第三屆翰林匹克羽球運動會')
 --   and name = '<字母>';
 
 -- 分隊 2（曾偉哲、吳萬萊、陳彥文、劉杰妮、林玉珠、湯庭禎）
 -- update tournament_teams set
 --   players = '[{"name":"曾偉哲"},{"name":"吳萬萊"},{"name":"陳彥文"},{"name":"劉杰妮"},{"name":"林玉珠"},{"name":"湯庭禎"}]'
--- where tournament_id = (select id from tournaments where name = '第三屆羽球社運動會')
+-- where tournament_id = (select id from tournaments where name = '第三屆翰林匹克羽球運動會')
 --   and name = '<字母>';
 
 -- 分隊 3（賴忠男、林丞輊、李俊寬、楊皓婷、柳雨彤、吳玉婷）
 -- update tournament_teams set
 --   players = '[{"name":"賴忠男"},{"name":"林丞輊"},{"name":"李俊寬"},{"name":"楊皓婷"},{"name":"柳雨彤"},{"name":"吳玉婷"}]'
--- where tournament_id = (select id from tournaments where name = '第三屆羽球社運動會')
+-- where tournament_id = (select id from tournaments where name = '第三屆翰林匹克羽球運動會')
 --   and name = '<字母>';
 
 -- 分隊 4（傅敬軒、郭彥呈、廖宏彬、呂孟娜、蔡依玲）
 -- update tournament_teams set
 --   players = '[{"name":"傅敬軒"},{"name":"郭彥呈"},{"name":"廖宏彬"},{"name":"呂孟娜"},{"name":"蔡依玲"}]'
--- where tournament_id = (select id from tournaments where name = '第三屆羽球社運動會')
+-- where tournament_id = (select id from tournaments where name = '第三屆翰林匹克羽球運動會')
 --   and name = '<字母>';
 
 -- 分隊 5（廖翊凱、陳威任、黃迺芸、洪于婷、謝郁嫺）
 -- update tournament_teams set
 --   players = '[{"name":"廖翊凱"},{"name":"陳威任"},{"name":"黃迺芸"},{"name":"洪于婷"},{"name":"謝郁嫺"}]'
--- where tournament_id = (select id from tournaments where name = '第三屆羽球社運動會')
+-- where tournament_id = (select id from tournaments where name = '第三屆翰林匹克羽球運動會')
 --   and name = '<字母>';
 
 -- 賽後收尾（鎖定所有輸入）：
--- update tournaments set status = 'finished' where name = '第三屆羽球社運動會';
+-- update tournaments set status = 'finished' where name = '第三屆翰林匹克羽球運動會';

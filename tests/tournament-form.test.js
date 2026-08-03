@@ -22,10 +22,14 @@ describe('validateScores', () => {
   test('0 分合法', () => {
     expect(validateScores('21', '0')).toEqual({ ok: true, scoreSelf: 21, scoreOpp: 0 });
   });
+  // 15 分制：14 平後需淨勝 2 分，20 平後先得 21 分者勝，故上限為 21
+  test('21 分為上限，21:20 合法', () => {
+    expect(validateScores('21', '20')).toEqual({ ok: true, scoreSelf: 21, scoreOpp: 20 });
+  });
   test.each([
-    ['', '15'], ['21', ''], ['abc', '15'], ['12.5', '15'], ['-1', '15'], ['31', '15'],
-  ])('非 0–30 整數（%s, %s）→ 錯誤', (a, b) => {
-    expect(validateScores(a, b)).toEqual({ ok: false, error: '比分需為 0–30 的整數' });
+    ['', '15'], ['21', ''], ['abc', '15'], ['12.5', '15'], ['-1', '15'], ['22', '15'], ['15', '25'],
+  ])('非 0–21 整數（%s, %s）→ 錯誤', (a, b) => {
+    expect(validateScores(a, b)).toEqual({ ok: false, error: '比分需為 0–21 的整數' });
   });
   test('平手 → 錯誤', () => {
     expect(validateScores('21', '21')).toEqual({ ok: false, error: '羽球比賽不會平手，請確認比分' });

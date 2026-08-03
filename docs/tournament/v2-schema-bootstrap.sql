@@ -463,9 +463,9 @@ begin
   end if;
 
   if p_score_self is null or p_score_opp is null
-     or p_score_self < 0 or p_score_self > 30
-     or p_score_opp < 0 or p_score_opp > 30 then
-    raise exception '比分需為 0–30 的整數';
+     or p_score_self < 0 or p_score_self > 21
+     or p_score_opp < 0 or p_score_opp > 21 then
+    raise exception '比分需為 0–21 的整數';
   end if;
   if p_score_self = p_score_opp then
     raise exception '羽球比賽不會平手，請確認比分';
