@@ -160,6 +160,9 @@ function renderSchedule(view) {
           row.classList.add('just-confirmed');
         }
         seenConfirmed.add(match.id);
+      } else {
+        // 非 confirmed（例如未來改判退回 pending）：清掉記錄，讓下次重新確認時能再閃一次
+        seenConfirmed.delete(match.id);
       }
 
       const chip = document.createElement('span');
