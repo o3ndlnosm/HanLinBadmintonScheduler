@@ -1,35 +1,90 @@
-/* 比賽頁專屬樣式：沿用 style.css 的 :root 變數 */
+/* 比賽計分頁：F1 賽事計時板風格
+   色值與排版取自 2026-08-03 formula1.com 的 computed style（見 spec）。
+   本檔自成一套 --f1-* 變數，不使用 style.css 的 :root 變數（兩套配色不相容）。 */
+:root {
+  --f1-bg: #26262b;
+  --f1-panel: #000000;
+  --f1-line: #303037;
+  --f1-fg: #ffffff;
+  --f1-fg-muted: #aaaaaa;
+  --f1-fg-faint: #6a6a74;
+  --f1-red: #e10600;
+  --f1-conflict: #e8002d;
+  --f1-win: #37c871;
+  --f1-wait: #e6a417;
+  --f1-ease: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  --f1-radius: 4px;
+}
+
+.tournament-page {
+  background: var(--f1-bg);
+  color: var(--f1-fg);
+  font-family: 'Titillium Web', 'Noto Sans TC', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 頂端紅線：品牌識別（比照 F1 導覽列的紅色底線語彙） */
+.tournament-page::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--f1-red);
+  z-index: 50;
+}
+
+.tournament-header {
+  background: var(--f1-panel);
+  border-bottom: 1px solid var(--f1-line);
+  padding: 1.1rem 0.8rem 0.9rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.tournament-header h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--f1-fg);
+}
+
+.tournament-header h1 i {
+  color: var(--f1-red);
+  margin-right: 0.3rem;
+}
+
+.finished-badge {
+  display: inline-block;
+  margin-top: 0.45rem;
+  padding: 0.18rem 0.7rem;
+  background: transparent;
+  border: 1px solid var(--f1-line);
+  color: var(--f1-fg-muted);
+  border-radius: var(--f1-radius);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+}
+
+.finished-badge[hidden] { display: none; }
+
 .tournament-main {
   max-width: 640px;
   margin: 0 auto;
   padding: 0 0.8rem 3rem;
 }
 
-.tournament-header {
-  text-align: center;
-  padding: 0.8rem;
-}
-
-.finished-badge {
-  display: inline-block;
-  margin-top: 0.3rem;
-  padding: 0.15rem 0.8rem;
-  background: var(--neutral);
-  color: var(--text-light);
-  border-radius: 999px;
-  font-size: 0.85rem;
-}
-
-/* 自查修正：author 的 display 規則優先權高於瀏覽器內建的 [hidden]{display:none}，
-   若不加這條，即使元素帶 hidden 屬性仍會被上面的 display:inline-block 蓋掉而顯示出來 */
-.finished-badge[hidden] {
-  display: none;
-}
-
 .tournament-main h2 {
-  margin: 1.2rem 0 0.6rem;
-  font-size: 1.1rem;
-  color: var(--primary-dark);
+  margin: 1.4rem 0 0.6rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--f1-fg-muted);
+}
+
+.tournament-main h2 i {
+  color: var(--f1-red);
+  margin-right: 0.35rem;
 }
 
 .offline-box,
