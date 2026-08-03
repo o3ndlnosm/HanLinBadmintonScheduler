@@ -45,7 +45,9 @@ function matchState(match, captainCtx) {
     return { label: '等待對方確認', cssClass: 'waiting', canReport: true };
   }
   if (!report.myReport && report.oppReported) {
-    return { label: '對方已回報，請輸入比分', cssClass: 'action-needed', canReport: true };
+    // 2026-08-03：原文案「對方已回報，請輸入比分」(11 字) 在 375px 手機版讓結果欄過寬，
+    // 壓縮隊名欄導致長隊名逐字直排斷成多行、列高暴增（見 375px 實測），改成 5 字縮短版。
+    return { label: '對方已回報', cssClass: 'action-needed', canReport: true };
   }
   return { label: '請輸入比分', cssClass: 'action-needed', canReport: true };
 }

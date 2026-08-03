@@ -1,200 +1,359 @@
-/* 比賽頁專屬樣式：沿用 style.css 的 :root 變數 */
+/* 比賽計分頁：F1 賽事計時板風格
+   色值與排版取自 2026-08-03 formula1.com 的 computed style（見 spec）。
+   本檔自成一套 --f1-* 變數，不使用 style.css 的 :root 變數（兩套配色不相容）。 */
+:root {
+  --f1-bg: #26262b;
+  --f1-panel: #000000;
+  --f1-line: #303037;
+  --f1-fg: #ffffff;
+  --f1-fg-muted: #aaaaaa;
+  --f1-fg-faint: #7a7a84;
+  --f1-red: #e10600;
+  --f1-conflict: #ec1f38;
+  --f1-win: #37c871;
+  --f1-wait: #e6a417;
+  --f1-ease: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  --f1-radius: 4px;
+}
+
+.tournament-page {
+  background: var(--f1-bg);
+  color: var(--f1-fg);
+  font-family: 'Titillium Web', 'Noto Sans TC', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* style.css 的 `* { font-family: ... }` 是每個元素上的 declared value，
+   declared value 永遠贏過繼承值，所以光在 .tournament-page 設定字體不會生效到子元素，
+   必須逐一覆蓋。:not(i) 不可省略：若寫成 `.tournament-page *`，specificity (0,1,0)
+   會與 cdnjs Font Awesome 的 `.fas`（同 (0,1,0)、載入順序更早）打平，
+   平手時後者勝，<i class="fas fa-trophy"> 會失去 FA 字族變成豆腐格。
+   加上 :not(i) 後 specificity 為 (0,1,1) 且根本不命中 <i>，FA 不受影響。 */
+.tournament-page *:not(i) {
+  font-family: 'Titillium Web', 'Noto Sans TC', 'Segoe UI', sans-serif;
+}
+
+/* 頂端紅線：品牌識別（比照 F1 導覽列的紅色底線語彙） */
+.tournament-page::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--f1-red);
+  z-index: 50;
+}
+
+.tournament-header {
+  background: var(--f1-panel);
+  border-bottom: 1px solid var(--f1-line);
+  padding: 1.1rem 0.8rem 0.9rem;
+  text-align: center;
+  margin-bottom: 1rem;
+  box-shadow: none;
+}
+
+.tournament-header h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--f1-fg);
+  text-shadow: none;
+}
+
+.tournament-header h1 i {
+  color: var(--f1-red);
+  margin-right: 0.3rem;
+}
+
+.finished-badge {
+  display: inline-block;
+  margin-top: 0.45rem;
+  padding: 0.18rem 0.7rem;
+  background: transparent;
+  border: 1px solid var(--f1-line);
+  color: var(--f1-fg-muted);
+  border-radius: var(--f1-radius);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+}
+
+/* 若不加這條，author 的 display 宣告會蓋掉瀏覽器內建的 [hidden]{display:none} */
+.finished-badge[hidden] { display: none; }
+
 .tournament-main {
   max-width: 640px;
   margin: 0 auto;
   padding: 0 0.8rem 3rem;
 }
 
-.tournament-header {
-  text-align: center;
-  padding: 0.8rem;
-}
-
-.finished-badge {
-  display: inline-block;
-  margin-top: 0.3rem;
-  padding: 0.15rem 0.8rem;
-  background: var(--neutral);
-  color: var(--text-light);
-  border-radius: 999px;
-  font-size: 0.85rem;
-}
-
-/* 自查修正：author 的 display 規則優先權高於瀏覽器內建的 [hidden]{display:none}，
-   若不加這條，即使元素帶 hidden 屬性仍會被上面的 display:inline-block 蓋掉而顯示出來 */
-.finished-badge[hidden] {
-  display: none;
-}
-
 .tournament-main h2 {
-  margin: 1.2rem 0 0.6rem;
-  font-size: 1.1rem;
-  color: var(--primary-dark);
+  margin: 1.4rem 0 0.6rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--f1-fg-muted);
 }
 
+.tournament-main h2 i {
+  color: var(--f1-red);
+  margin-right: 0.35rem;
+}
+
+/* 提示區塊 */
 .offline-box,
 .error-box {
   margin: 0.8rem 0;
   padding: 0.8rem;
-  border-radius: var(--border-radius);
+  border-radius: var(--f1-radius);
   text-align: center;
+  font-size: 0.9rem;
 }
 
 .offline-box {
-  background: var(--warning-light);
-  color: var(--text-dark);
+  background: rgba(230, 164, 23, 0.12);
+  border: 1px solid var(--f1-wait);
+  color: var(--f1-wait);
 }
 
 .error-box {
-  background: var(--danger-light);
-  color: var(--text-dark);
+  background: var(--f1-panel);
+  border: 1px solid var(--f1-conflict);
+  color: var(--f1-fg);
   padding: 2rem 1rem;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
-/* 排名表 */
+/* 排名表：比照 F1 standings —— 純黑底、髮絲線、表頭大寫灰字、數字右對齊 */
 .standings-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
-  border-radius: var(--border-radius);
+  background: var(--f1-panel);
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
   overflow: hidden;
-  box-shadow: var(--shadow);
-}
-
-.standings-table th,
-.standings-table td {
-  padding: 0.55rem 0.4rem;
-  text-align: center;
-  border-bottom: 1px solid var(--bg-light);
+  font-variant-numeric: tabular-nums;
 }
 
 .standings-table th {
-  background: var(--primary);
-  color: white;
-  font-size: 0.85rem;
+  padding: 0.7rem 0.4rem;
+  background: transparent;
+  border-bottom: 1px solid var(--f1-line);
+  color: var(--f1-fg-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+.standings-table th:nth-child(1),
+.standings-table th:nth-child(2) { text-align: left; }
+
+.standings-table td {
+  padding: 0.85rem 0.4rem;
+  border-bottom: 1px solid var(--f1-line);
+  color: var(--f1-fg);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.standings-table tbody tr:last-child td { border-bottom: none; }
+
+/* 名次與隊名靠左（比照 F1 的 POS. / DRIVER 欄） */
+.standings-table td:nth-child(1) {
+  text-align: left;
+  padding-left: 0.9rem;
+  color: var(--f1-fg-muted);
 }
 
 .standings-table td.team-name {
   text-align: left;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.standings-table tr.my-team {
-  background: #eaf1fb;
+/* 自己隊伍：左緣紅條，不用整列變色（保持資料區安靜） */
+.standings-table tr.my-team td:first-child {
+  box-shadow: inset 3px 0 0 var(--f1-red);
 }
 
+.standings-table tr.my-team td { background: rgba(225, 6, 0, 0.06); }
+
+/* 冠亞軍：全部完賽後才出現 */
 .champion-banner {
   margin-bottom: 0.6rem;
-  padding: 0.8rem;
-  background: linear-gradient(135deg, var(--warning), var(--warning-dark));
-  color: white;
-  border-radius: var(--border-radius);
+  padding: 0.9rem;
+  background: var(--f1-panel);
+  border: 1px solid var(--f1-red);
+  border-radius: var(--f1-radius);
   text-align: center;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
-  box-shadow: var(--shadow);
+  letter-spacing: 0.04em;
+  color: var(--f1-fg);
 }
 
-/* 賽程 */
+/* 賽程：一輪一張卡 */
 .round-card {
-  background: white;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
-  margin-bottom: 0.8rem;
+  background: var(--f1-panel);
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+  margin-bottom: 0.7rem;
   overflow: hidden;
 }
 
 .round-title {
-  padding: 0.45rem 0.8rem;
-  background: var(--bg-light);
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--neutral-dark);
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--f1-line);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--f1-fg-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .match-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.8rem;
-  border-top: 1px solid var(--bg-light);
+  gap: 0.55rem;
+  padding: 0.7rem 0.9rem;
+  border-top: 1px solid var(--f1-line);
+  transition: background-color var(--f1-ease);
 }
 
+.round-title + .match-row { border-top: none; }
+
+/* 自己隊伍的場次：左緣紅條 */
 .match-row.match-mine {
-  border-left: 4px solid var(--primary);
-  background: #f6f9ff;
+  box-shadow: inset 3px 0 0 var(--f1-red);
+  background: rgba(225, 6, 0, 0.05);
 }
 
-.match-row.can-report {
-  cursor: pointer;
-}
+.match-row.can-report { cursor: pointer; }
+.match-row.can-report:active { background: rgba(225, 6, 0, 0.12); }
 
+/* 賽點標籤：外框式，不用實心色塊（維持深色底的沉穩） */
 .event-chip {
   flex: none;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  color: white;
-  background: var(--info);
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--f1-fg-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-.event-chip.男雙 { background: var(--primary); }
-.event-chip.女雙 { background: var(--danger); }
-.event-chip.混雙 { background: var(--secondary); }
+.event-chip.男雙 { border-color: #3d6fb4; color: #7ea8e0; }
+.event-chip.女雙 { border-color: #b43d6f; color: #e08cb0; }
+.event-chip.混雙 { border-color: #3da882; color: #6fd0ac; }
 
 .match-teams {
   flex: 1;
   min-width: 0;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--f1-fg);
+  display: flex;
+  align-items: center;
+}
+
+.team-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.4rem;
+  vertical-align: middle; /* 供 td.team-name 的非 flex 情境使用 */
+  flex: none;
+}
+
+.match-teams .team-dot:last-child {
+  margin-right: 0;
+  margin-left: 0.4rem;
 }
 
 .match-result {
   flex: none;
   text-align: right;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
 }
 
 .match-score {
+  display: block;
+  font-size: 1.05rem;
   font-weight: 700;
-  font-size: 1rem;
+  color: var(--f1-fg);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
-.state-label { display: block; }
-.state-label.confirmed { color: var(--secondary-dark); }
-.state-label.pending { color: var(--neutral); }
-.state-label.waiting { color: var(--warning-dark); }
-.state-label.conflict { color: var(--danger-dark); font-weight: 700; }
-.state-label.action-needed { color: var(--primary-dark); font-weight: 700; }
+.state-label {
+  display: block;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
 
-/* 隊長輸分彈窗 */
+.state-label.confirmed { color: var(--f1-win); }
+.state-label.pending { color: var(--f1-fg-faint); }
+.state-label.waiting { color: var(--f1-wait); }
+.state-label.conflict { color: var(--f1-conflict); }
+
+/* 紅底白字小標籤：純紅字在純黑底對比度不足 WCAG AA，改用底色反轉的行動呼叫樣式 */
+.state-label.action-needed {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  background: var(--f1-red);
+  color: #ffffff;
+  border-radius: var(--f1-radius);
+}
+
+/* 剛確認的場次：短暫亮綠再淡出 */
+@keyframes f1-confirm-flash {
+  0% { background-color: rgba(55, 200, 113, 0.25); }
+  100% { background-color: transparent; }
+}
+
+.match-row.just-confirmed { animation: f1-confirm-flash 1.6s ease-out; }
+
+/* 輸分彈窗 */
 .report-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 
-/* 自查修正：同上，避免彈窗帶 hidden 屬性時仍被 display:flex 蓋掉而常駐顯示 */
-.report-overlay[hidden] {
-  display: none;
-}
+/* 若不加這條，author 的 display 宣告會蓋掉瀏覽器內建的 [hidden]{display:none} */
+.report-overlay[hidden] { display: none; }
 
 .report-modal {
-  background: white;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow-lg);
+  background: #131316;
+  border: 1px solid var(--f1-line);
+  border-top: 3px solid var(--f1-red);
+  border-radius: var(--f1-radius);
   padding: 1.2rem;
   width: min(92vw, 360px);
 }
 
+.report-modal h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--f1-fg);
+}
+
 .report-subtitle {
-  color: var(--neutral);
-  font-size: 0.9rem;
-  margin: 0.3rem 0 0.8rem;
+  color: var(--f1-fg-muted);
+  font-size: 0.85rem;
+  margin: 0.3rem 0 0.9rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .score-inputs {
@@ -206,40 +365,83 @@
 
 .score-inputs label {
   flex: 1;
-  font-size: 0.85rem;
-  color: var(--neutral-dark);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--f1-fg-muted);
 }
 
 .score-inputs input {
   width: 100%;
-  margin-top: 0.25rem;
+  margin-top: 0.3rem;
   padding: 0.6rem;
-  font-size: 1.4rem;
+  font-size: 1.5rem;
+  font-weight: 700;
   text-align: center;
-  border: 2px solid var(--bg-light);
-  border-radius: var(--border-radius);
+  background: #0b0b0d;
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+  color: var(--f1-fg);
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--f1-ease);
+}
+
+.score-inputs input:focus {
+  outline: none;
+  border-color: var(--f1-red);
 }
 
 .score-colon {
-  font-size: 1.4rem;
-  padding-bottom: 0.6rem;
+  font-size: 1.3rem;
+  color: var(--f1-fg-muted);
+  padding-bottom: 0.7rem;
 }
 
 .report-actions {
   display: flex;
   gap: 0.6rem;
-  margin-top: 1rem;
+  margin-top: 1.1rem;
 }
 
 .report-actions button {
   flex: 1;
-  padding: 0.65rem;
-  border: none;
-  border-radius: var(--border-radius);
-  font-size: 1rem;
+  padding: 0.68rem;
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   cursor: pointer;
+  transition: background-color var(--f1-ease), border-color var(--f1-ease);
 }
 
-.btn-cancel { background: var(--bg-light); color: var(--text-dark); }
-.btn-submit { background: var(--primary); color: white; }
-.btn-submit:disabled { opacity: 0.6; }
+.btn-cancel {
+  background: transparent;
+  color: var(--f1-fg-muted);
+}
+
+.btn-submit {
+  background: var(--f1-red);
+  border-color: var(--f1-red);
+  color: #ffffff;
+}
+
+.btn-submit:disabled { opacity: 0.5; }
+
+/* toast 通知：style.css 預設是白底卡片，純黑頁面上太突兀，改成深色卡片。
+   只用 background/color/box-shadow，不可用 border 簡寫——
+   .app-toast-success/warning/error/info 的 border-left-color（specificity 0,1,0）
+   會被 border 簡寫（0,2,0）蓋掉，四種型別的左側色條就沒了。 */
+.tournament-page .app-toast {
+  background: #131316;
+  color: var(--f1-fg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* 尊重系統的減少動態設定 */
+@media (prefers-reduced-motion: reduce) {
+  .match-row,
+  .score-inputs input,
+  .report-actions button { transition: none; }
+  .match-row.just-confirmed { animation: none; }
+}
