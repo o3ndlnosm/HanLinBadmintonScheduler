@@ -246,6 +246,26 @@
   color: var(--f1-fg);
 }
 
+.team-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+  flex: none;
+}
+
+.match-teams .team-dot:last-child {
+  margin-right: 0;
+  margin-left: 0.4rem;
+}
+
+.match-teams {
+  display: flex;
+  align-items: center;
+}
+
 .match-result {
   flex: none;
   text-align: right;

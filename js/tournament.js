@@ -18,6 +18,22 @@ function teamNameById(view) {
   return map;
 }
 
+// 隊伍代表色：依 view.teams 的固定順序配色（比照 F1 車隊色，供快速辨識）
+const TEAM_COLORS = ['#e10600', '#00a19c', '#ff8000', '#9b5de5', '#f5c518'];
+
+function teamColorById(view) {
+  const map = {};
+  view.teams.forEach((t, i) => { map[t.id] = TEAM_COLORS[i % TEAM_COLORS.length]; });
+  return map;
+}
+
+function makeTeamDot(color) {
+  const dot = document.createElement('span');
+  dot.className = 'team-dot';
+  dot.style.backgroundColor = color;
+  return dot;
+}
+
 // 比賽 finished 後鎖定輸入：captainCtx 視為 null（後端也會擋）
 function captainCtxOf(view) {
   if (auth.mode !== 'captain') return null;
@@ -79,14 +95,22 @@ function renderStandings(view) {
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
+  const colors = teamColorById(view);
   rows.forEach((r) => {
     const tr = document.createElement('tr');
     if (auth.mode === 'captain' && r.teamId === view.myTeamId) tr.className = 'my-team';
     const cells = [r.rank, r.name, r.wins, r.losses, r.pointsFor, r.played];
     cells.forEach((value, i) => {
       const td = document.createElement('td');
-      if (i === 1) td.className = 'team-name';
-      td.textContent = value;
+      if (i === 1) {
+        td.className = 'team-name';
+        td.appendChild(makeTeamDot(colors[r.teamId]));
+        const label = document.createElement('span');
+        label.textContent = value;
+        td.appendChild(label);
+      } else {
+        td.textContent = value;
+      }
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
@@ -108,6 +132,7 @@ function renderSchedule(view) {
     byRound.get(m.roundNo).push(m);
   });
 
+  const colors = teamColorById(view);
   [...byRound.keys()].sort((a, b) => a - b).forEach((roundNo) => {
     const matches = byRound.get(roundNo);
     const card = document.createElement('div');
@@ -134,7 +159,11 @@ function renderSchedule(view) {
 
       const teams = document.createElement('span');
       teams.className = 'match-teams';
-      teams.textContent = `${names[match.teamAId]} vs ${names[match.teamBId]}`;
+      teams.appendChild(makeTeamDot(colors[match.teamAId]));
+      const vsLabel = document.createElement('span');
+      vsLabel.textContent = `${names[match.teamAId]} vs ${names[match.teamBId]}`;
+      teams.appendChild(vsLabel);
+      teams.appendChild(makeTeamDot(colors[match.teamBId]));
       row.appendChild(teams);
 
       const result = document.createElement('span');
