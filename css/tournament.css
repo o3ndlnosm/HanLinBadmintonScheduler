@@ -87,24 +87,28 @@
   margin-right: 0.35rem;
 }
 
+/* 提示區塊 */
 .offline-box,
 .error-box {
   margin: 0.8rem 0;
   padding: 0.8rem;
-  border-radius: var(--border-radius);
+  border-radius: var(--f1-radius);
   text-align: center;
+  font-size: 0.9rem;
 }
 
 .offline-box {
-  background: var(--warning-light);
-  color: var(--text-dark);
+  background: rgba(230, 164, 23, 0.12);
+  border: 1px solid var(--f1-wait);
+  color: var(--f1-wait);
 }
 
 .error-box {
-  background: var(--danger-light);
-  color: var(--text-dark);
+  background: var(--f1-panel);
+  border: 1px solid var(--f1-conflict);
+  color: var(--f1-fg);
   padding: 2rem 1rem;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
 /* 排名表：比照 F1 standings —— 純黑底、髮絲線、表頭大寫灰字、數字右對齊 */
@@ -177,105 +181,140 @@
   color: var(--f1-fg);
 }
 
-/* 賽程 */
+/* 賽程：一輪一張卡 */
 .round-card {
-  background: white;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
-  margin-bottom: 0.8rem;
+  background: var(--f1-panel);
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+  margin-bottom: 0.7rem;
   overflow: hidden;
 }
 
 .round-title {
-  padding: 0.45rem 0.8rem;
-  background: var(--bg-light);
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--neutral-dark);
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--f1-line);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--f1-fg-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .match-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.8rem;
-  border-top: 1px solid var(--bg-light);
+  gap: 0.55rem;
+  padding: 0.7rem 0.9rem;
+  border-top: 1px solid var(--f1-line);
+  transition: background-color var(--f1-ease);
 }
 
+.round-card .match-row:first-of-type { border-top: none; }
+
+/* 自己隊伍的場次：左緣紅條 */
 .match-row.match-mine {
-  border-left: 4px solid var(--primary);
-  background: #f6f9ff;
+  box-shadow: inset 3px 0 0 var(--f1-red);
+  background: rgba(225, 6, 0, 0.05);
 }
 
-.match-row.can-report {
-  cursor: pointer;
-}
+.match-row.can-report { cursor: pointer; }
+.match-row.can-report:active { background: rgba(225, 6, 0, 0.12); }
 
+/* 賽點標籤：外框式，不用實心色塊（維持深色底的沉穩） */
 .event-chip {
   flex: none;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  color: white;
-  background: var(--info);
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--f1-fg-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-.event-chip.男雙 { background: var(--primary); }
-.event-chip.女雙 { background: var(--danger); }
-.event-chip.混雙 { background: var(--secondary); }
+.event-chip.男雙 { border-color: #3d6fb4; color: #7ea8e0; }
+.event-chip.女雙 { border-color: #b43d6f; color: #e08cb0; }
+.event-chip.混雙 { border-color: #3da882; color: #6fd0ac; }
 
 .match-teams {
   flex: 1;
   min-width: 0;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--f1-fg);
 }
 
 .match-result {
   flex: none;
   text-align: right;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
 }
 
 .match-score {
+  display: block;
+  font-size: 1.05rem;
   font-weight: 700;
-  font-size: 1rem;
+  color: var(--f1-fg);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
-.state-label { display: block; }
-.state-label.confirmed { color: var(--secondary-dark); }
-.state-label.pending { color: var(--neutral); }
-.state-label.waiting { color: var(--warning-dark); }
-.state-label.conflict { color: var(--danger-dark); font-weight: 700; }
-.state-label.action-needed { color: var(--primary-dark); font-weight: 700; }
+.state-label {
+  display: block;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
 
-/* 隊長輸分彈窗 */
+.state-label.confirmed { color: var(--f1-win); }
+.state-label.pending { color: var(--f1-fg-faint); }
+.state-label.waiting { color: var(--f1-wait); }
+.state-label.conflict { color: var(--f1-conflict); }
+.state-label.action-needed { color: var(--f1-red); }
+
+/* 剛確認的場次：短暫亮綠再淡出 */
+@keyframes f1-confirm-flash {
+  0% { background-color: rgba(55, 200, 113, 0.25); }
+  100% { background-color: transparent; }
+}
+
+.match-row.just-confirmed { animation: f1-confirm-flash 1.6s ease-out; }
+
+/* 輸分彈窗 */
 .report-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 
-/* 自查修正：同上，避免彈窗帶 hidden 屬性時仍被 display:flex 蓋掉而常駐顯示 */
-.report-overlay[hidden] {
-  display: none;
-}
+.report-overlay[hidden] { display: none; }
 
 .report-modal {
-  background: white;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow-lg);
+  background: #131316;
+  border: 1px solid var(--f1-line);
+  border-top: 3px solid var(--f1-red);
+  border-radius: var(--f1-radius);
   padding: 1.2rem;
   width: min(92vw, 360px);
 }
 
+.report-modal h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--f1-fg);
+}
+
 .report-subtitle {
-  color: var(--neutral);
-  font-size: 0.9rem;
-  margin: 0.3rem 0 0.8rem;
+  color: var(--f1-fg-muted);
+  font-size: 0.85rem;
+  margin: 0.3rem 0 0.9rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .score-inputs {
@@ -287,40 +326,73 @@
 
 .score-inputs label {
   flex: 1;
-  font-size: 0.85rem;
-  color: var(--neutral-dark);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--f1-fg-muted);
 }
 
 .score-inputs input {
   width: 100%;
-  margin-top: 0.25rem;
+  margin-top: 0.3rem;
   padding: 0.6rem;
-  font-size: 1.4rem;
+  font-size: 1.5rem;
+  font-weight: 700;
   text-align: center;
-  border: 2px solid var(--bg-light);
-  border-radius: var(--border-radius);
+  background: #0b0b0d;
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+  color: var(--f1-fg);
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--f1-ease);
+}
+
+.score-inputs input:focus {
+  outline: none;
+  border-color: var(--f1-red);
 }
 
 .score-colon {
-  font-size: 1.4rem;
-  padding-bottom: 0.6rem;
+  font-size: 1.3rem;
+  color: var(--f1-fg-muted);
+  padding-bottom: 0.7rem;
 }
 
 .report-actions {
   display: flex;
   gap: 0.6rem;
-  margin-top: 1rem;
+  margin-top: 1.1rem;
 }
 
 .report-actions button {
   flex: 1;
-  padding: 0.65rem;
-  border: none;
-  border-radius: var(--border-radius);
-  font-size: 1rem;
+  padding: 0.68rem;
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   cursor: pointer;
+  transition: background-color var(--f1-ease), border-color var(--f1-ease);
 }
 
-.btn-cancel { background: var(--bg-light); color: var(--text-dark); }
-.btn-submit { background: var(--primary); color: white; }
-.btn-submit:disabled { opacity: 0.6; }
+.btn-cancel {
+  background: transparent;
+  color: var(--f1-fg-muted);
+}
+
+.btn-submit {
+  background: var(--f1-red);
+  border-color: var(--f1-red);
+  color: #ffffff;
+}
+
+.btn-submit:disabled { opacity: 0.5; }
+
+/* 尊重系統的減少動態設定 */
+@media (prefers-reduced-motion: reduce) {
+  .match-row,
+  .score-inputs input,
+  .report-actions button { transition: none; }
+  .match-row.just-confirmed { animation: none; }
+}
