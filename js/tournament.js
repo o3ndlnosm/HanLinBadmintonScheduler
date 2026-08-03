@@ -215,6 +215,7 @@ function openReportForm(match) {
   }
 
   document.getElementById('reportOverlay').hidden = false;
+  document.getElementById('reportSubmit').disabled = false; // 避免殘留前一場的送出中狀態
   selfInput.focus();
 }
 
@@ -233,20 +234,23 @@ async function submitReport() {
     showToast(check.error, 'warning');
     return;
   }
+  const matchId = reportingMatchId; // 記住這次送出的是哪一場，回來後才不會誤關到別場的表單
   submitting = true;
   const submitBtn = document.getElementById('reportSubmit');
   submitBtn.disabled = true;
   try {
     const result = await reportScore(
-      auth.token, reportingMatchId, check.scoreSelf, check.scoreOpp
+      auth.token, matchId, check.scoreSelf, check.scoreOpp
     );
-    closeReportForm();
-    if (result.status === 'confirmed') {
-      showToast('雙方比分一致，成績已確認！', 'success');
-    } else if (result.status === 'conflict') {
-      showToast('比分不一致，請與對方隊長重新確認後再送一次', 'warning');
-    } else {
-      showToast('已送出，等待對方隊長確認', 'info');
+    if (reportingMatchId === matchId) {
+      closeReportForm();
+      if (result.status === 'confirmed') {
+        showToast('雙方比分一致，成績已確認！', 'success');
+      } else if (result.status === 'conflict') {
+        showToast('比分不一致，請與對方隊長重新確認後再送一次', 'warning');
+      } else {
+        showToast('已送出，等待對方隊長確認', 'info');
+      }
     }
     await refresh();
   } catch (err) {
@@ -254,14 +258,21 @@ async function submitReport() {
     await refresh(); // 例如已被確認/比賽結束時，讓畫面同步最新狀態
   } finally {
     submitting = false;
-    submitBtn.disabled = false;
+    if (reportingMatchId === matchId) submitBtn.disabled = false;
   }
 }
 
 function bindReportForm() {
   document.getElementById('reportSubmit').addEventListener('click', submitReport);
-  document.getElementById('reportCancel').addEventListener('click', closeReportForm);
+  document.getElementById('reportCancel').addEventListener('click', () => {
+    if (submitting) {
+      showToast('送出中，請稍候', 'warning');
+      return;
+    }
+    closeReportForm();
+  });
   document.getElementById('reportOverlay').addEventListener('click', (e) => {
+    if (submitting) return;
     if (e.target === document.getElementById('reportOverlay')) closeReportForm();
   });
 }
