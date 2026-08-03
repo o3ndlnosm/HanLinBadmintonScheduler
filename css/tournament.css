@@ -7,9 +7,9 @@
   --f1-line: #303037;
   --f1-fg: #ffffff;
   --f1-fg-muted: #aaaaaa;
-  --f1-fg-faint: #6a6a74;
+  --f1-fg-faint: #7a7a84;
   --f1-red: #e10600;
-  --f1-conflict: #e8002d;
+  --f1-conflict: #ec1f38;
   --f1-win: #37c871;
   --f1-wait: #e6a417;
   --f1-ease: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
@@ -209,7 +209,7 @@
   transition: background-color var(--f1-ease);
 }
 
-.round-card .match-row:first-of-type { border-top: none; }
+.round-title + .match-row { border-top: none; }
 
 /* 自己隊伍的場次：左緣紅條 */
 .match-row.match-mine {
@@ -271,7 +271,15 @@
 .state-label.pending { color: var(--f1-fg-faint); }
 .state-label.waiting { color: var(--f1-wait); }
 .state-label.conflict { color: var(--f1-conflict); }
-.state-label.action-needed { color: var(--f1-red); }
+
+/* 紅底白字小標籤：純紅字在純黑底對比度不足 WCAG AA，改用底色反轉的行動呼叫樣式 */
+.state-label.action-needed {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  background: var(--f1-red);
+  color: #ffffff;
+  border-radius: var(--f1-radius);
+}
 
 /* 剛確認的場次：短暫亮綠再淡出 */
 @keyframes f1-confirm-flash {
