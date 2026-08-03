@@ -23,6 +23,16 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* style.css 的 `* { font-family: ... }` 是每個元素上的 declared value，
+   declared value 永遠贏過繼承值，所以光在 .tournament-page 設定字體不會生效到子元素，
+   必須逐一覆蓋。:not(i) 不可省略：若寫成 `.tournament-page *`，specificity (0,1,0)
+   會與 cdnjs Font Awesome 的 `.fas`（同 (0,1,0)、載入順序更早）打平，
+   平手時後者勝，<i class="fas fa-trophy"> 會失去 FA 字族變成豆腐格。
+   加上 :not(i) 後 specificity 為 (0,1,1) 且根本不命中 <i>，FA 不受影響。 */
+.tournament-page *:not(i) {
+  font-family: 'Titillium Web', 'Noto Sans TC', 'Segoe UI', sans-serif;
+}
+
 /* 頂端紅線：品牌識別（比照 F1 導覽列的紅色底線語彙） */
 .tournament-page::before {
   content: '';
@@ -39,6 +49,7 @@
   padding: 1.1rem 0.8rem 0.9rem;
   text-align: center;
   margin-bottom: 1rem;
+  box-shadow: none;
 }
 
 .tournament-header h1 {
@@ -46,6 +57,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--f1-fg);
+  text-shadow: none;
 }
 
 .tournament-header h1 i {
@@ -65,6 +77,7 @@
   letter-spacing: 0.08em;
 }
 
+/* 若不加這條，author 的 display 宣告會蓋掉瀏覽器內建的 [hidden]{display:none} */
 .finished-badge[hidden] { display: none; }
 
 .tournament-main {
@@ -244,6 +257,8 @@
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--f1-fg);
+  display: flex;
+  align-items: center;
 }
 
 .team-dot {
@@ -252,18 +267,13 @@
   height: 8px;
   border-radius: 50%;
   margin-right: 0.4rem;
-  vertical-align: middle;
+  vertical-align: middle; /* 供 td.team-name 的非 flex 情境使用 */
   flex: none;
 }
 
 .match-teams .team-dot:last-child {
   margin-right: 0;
   margin-left: 0.4rem;
-}
-
-.match-teams {
-  display: flex;
-  align-items: center;
 }
 
 .match-result {
@@ -320,6 +330,7 @@
   z-index: 1000;
 }
 
+/* 若不加這條，author 的 display 宣告會蓋掉瀏覽器內建的 [hidden]{display:none} */
 .report-overlay[hidden] { display: none; }
 
 .report-modal {
@@ -416,6 +427,16 @@
 }
 
 .btn-submit:disabled { opacity: 0.5; }
+
+/* toast 通知：style.css 預設是白底卡片，純黑頁面上太突兀，改成深色卡片。
+   只用 background/color/box-shadow，不可用 border 簡寫——
+   .app-toast-success/warning/error/info 的 border-left-color（specificity 0,1,0）
+   會被 border 簡寫（0,2,0）蓋掉，四種型別的左側色條就沒了。 */
+.tournament-page .app-toast {
+  background: #131316;
+  color: var(--f1-fg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
 
 /* 尊重系統的減少動態設定 */
 @media (prefers-reduced-motion: reduce) {
