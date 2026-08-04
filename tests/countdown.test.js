@@ -1,5 +1,7 @@
 const { countdownState, formatCountdown, formatEventDate } = require('../js/countdown');
 
+// 測試專用固定值，與 js/countdown.js 的 EVENT 常數無關（不需同步）：
+// 這裡測的是 countdownState 的三狀態邊界邏輯，用什麼時間值都成立。
 const EVENT = {
   startAt: '2026-08-20T18:10:00+08:00',
   endAt: '2026-08-20T19:50:00+08:00',
