@@ -78,6 +78,17 @@ npx http-server
 - 純函式：`js/standings.js`（排名）、`js/tournament-form.js`（驗證/狀態），各有 jest 測試
 - 賽前作業與 seed 見 `docs/tournament/賽前作業.md`
 
+### 8. 主頁賽事倒數（js/countdown.js）
+- 主頁頂端顯示 8/20 比賽倒數，歸零後轉為即時計分板入口，19:50 後自動隱藏
+- 賽事時間寫死為 `EVENT` 常數（帶 `+08:00` 時區），主頁不連 Supabase
+- 日期與星期由 `formatEventDate()` 從 `startAt` 推導，不寫死——寫死過一次就錯過一次
+  （曾把 8/20 標成星期三，實際是星期四）
+- 時間換算固定用台北時間：epoch 加 8 小時後用 `getUTC*` 讀取，不可用 `getMonth()` /
+  `getDay()` 等本地時區方法，否則使用者在別的時區會看到錯的日期
+- 純函式 `countdownState` / `formatCountdown` / `formatEventDate` 有 jest 測試，
+  渲染層靠瀏覽器驗證
+- 下屆比賽只需改 `js/countdown.js` 的 `EVENT` 常數即可重啟
+
 ## 重要實作細節
 
 ### 狀態管理 (1-22 行)
@@ -119,12 +130,15 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 165 項）
-2. 純函式模組（`court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 351 項跨 27 套件）
+2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`
 3. `script.js` 本體（無模組匯出）與實際渲染仍靠瀏覽器控制台與手動測試
 4. 在行動裝置上測試語音功能與比賽計分頁
+5. `npm test` 會以 `TZ=America/Los_Angeles` 執行（設定在 package.json）。這是刻意的：
+   若在 Asia/Taipei 執行，`formatEventDate` 誤用本地時區方法的錯誤實作也會通過測試，
+   時區獨立性測試就失去鑑別力。
 
 ## 專案結構
 ```
@@ -136,6 +150,7 @@ historyMatches = []    // 比賽歷史
 │   └── tournament.css      # 比賽計分頁專屬樣式
 ├── js/
 │   ├── court-actions.js    # 場地數量調整與選手替換邏輯（純函式，jest 測試）
+│   ├── countdown.js        # 主頁賽事倒數（純函式 + 渲染，jest 測試）
 │   ├── dialog.js           # 自訂彈窗與 toast 通知（取代原生 alert/confirm，jest+jsdom 測試）
 │   ├── player-state.js     # 選手狀態轉換邏輯（純函式，jest 測試）
 │   ├── pairing-logic.js    # 配對邏輯（純函式，jest 測試）
@@ -145,6 +160,7 @@ historyMatches = []    // 比賽歷史
 │   ├── tournament-api.js   # 比賽計分頁 Supabase RPC 薄封裝（jest 測試）
 │   └── tournament.js       # 比賽計分頁初始化、輪詢、渲染
 ├── tests/
+│   ├── countdown.test.js           # 賽事倒數計算、格式化與日期推導測試
 │   ├── court-actions.test.js       # 場地數量與選手替換測試
 │   ├── dialog.test.js              # 彈窗與通知測試
 │   ├── player-state.test.js        # 選手狀態測試
