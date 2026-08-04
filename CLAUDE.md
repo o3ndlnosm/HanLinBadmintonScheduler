@@ -88,7 +88,11 @@ npx http-server
   `getDay()` 等本地時區方法，否則使用者在別的時區會看到錯的日期
 - 純函式 `countdownState` / `formatCountdown` / `formatEventDate` 有 jest 測試，
   渲染層靠瀏覽器驗證
-- 下屆比賽只需改 `js/countdown.js` 的 `EVENT` 常數即可重啟
+- 背景是 `img/event-banner.jpg`（賽事插畫），上面壓一層半透明品牌色漸層當遮罩。
+  遮罩不可拿掉：插畫高飽和高對比，白字直接疊上去會讀不清楚。`is-during` 只換遮罩
+  顏色、保留插畫，所以用 `background-image` 而非 `background` 簡寫（後者會清掉 url）
+- 下屆比賽只需改 `js/countdown.js` 的 `EVENT` 常數即可重啟；換插畫則替換
+  `img/event-banner.jpg` 並 bump `sw.js` 的 `CACHE_NAME`
 
 ## 重要實作細節
 
@@ -169,6 +173,8 @@ historyMatches = []    // 比賽歷史
 │   ├── standings.test.js           # 比賽排名測試
 │   ├── tournament-form.test.js     # 比賽計分頁表單驗證測試
 │   └── tournament-api.test.js      # 比賽計分頁 API 薄封裝測試
+├── img/
+│   └── event-banner.jpg     # 主頁倒數區背景插畫（1400w JPEG，213K）
 ├── docs/tournament/         # 比賽計分頁：賽前作業清單、Supabase seed/bootstrap SQL
 ├── scripts/generate-qr.sh   # 產生各隊隊長 QR code
 ├── index.html              # 單頁應用程式
