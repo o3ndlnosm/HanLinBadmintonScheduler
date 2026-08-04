@@ -82,7 +82,18 @@ describe('formatCountdown', () => {
   });
 });
 
+// 這組測試依賴 package.json 的 test script 把 TZ 設成非台北時區（目前是
+// America/Los_Angeles）才有鑑別力：若測試環境本地時區恰好就是 Asia/Taipei，
+// 誤用 getMonth()/getDay()/getHours() 的錯誤實作會與正確的 getUTC* 實作
+// 給出相同結果，下面的時區獨立性測試就會變成假陽性（測了等於沒測）。
 describe('formatEventDate', () => {
+  test('測試環境時區不是台北（否則下面的時區獨立性測試沒有鑑別力）', () => {
+    // 本地時區若等於賽事時區（Asia/Taipei），誤用 getMonth()/getDay() 的錯誤實作
+    // 會與正確實作給出相同結果，時區測試就形同虛設。
+    // 由 package.json 的 test script 設定 TZ 保證。
+    expect(Intl.DateTimeFormat().resolvedOptions().timeZone).not.toBe('Asia/Taipei');
+  });
+
   test('賽事開打時刻：8/20 是星期四', () => {
     expect(formatEventDate('2026-08-20T18:10:00+08:00')).toBe('8/20 (四) 18:10 開打');
   });
