@@ -81,6 +81,13 @@
             </div>
         </div>
 
+        <a id="eventCountdown" class="event-countdown" hidden>
+            <span class="ec-title"><i class="fas fa-trophy"></i> <span id="ecName"></span></span>
+            <span id="ecMain" class="ec-main"></span>
+            <span id="ecSub" class="ec-sub"></span>
+            <span id="ecCta" class="ec-cta"></span>
+        </a>
+
         <div class="court-count-control">
             <span class="court-count-label"><svg class="icon-shuttle" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="m17.1 8.05l-3.175-3.175L20.3 1.85l.45 4.4zm2.213 1.913q-.463-.088-.763-.438l-.35-.375l2.725-1.3l.05.5q.075.475-.137.888t-.638.612t-.887.113M2 7.5q0-1.65.938-2.575T5.575 4q1.775 0 3.475.675t2.975 1.95q.775.775 1.238 1.75t.462 2.075q0 .8-.237 1.55t-.738 1.375l7.225 7.225l-1.4 1.4l-7.225-7.225q-.65.475-1.387.737t-1.538.238q-1.2-.025-2.262-.575T4.3 13.7q-1.125-1.275-1.713-2.875T2 7.5"/></svg> 場地數量</span>
             <button class="btn-adjust btn-adjust-minus" onclick="adjustCourtCount(-1)" title="減少場地">−</button>
@@ -215,6 +222,7 @@
     <script src="js/court-actions.js"></script>
     <script src="js/dialog.js"></script>
     <script src="js/script.js"></script>
+    <script src="js/countdown.js"></script>
     <script>
         // 註冊 PWA Service Worker（需 HTTPS 或 localhost）
         if ('serviceWorker' in navigator) {

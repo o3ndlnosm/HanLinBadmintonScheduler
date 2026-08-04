@@ -1197,3 +1197,115 @@ textarea.form-control {
 .dialog-icon-warning { color: var(--warning); }
 .dialog-icon-error { color: var(--danger); }
 .dialog-icon-info { color: var(--info); }
+
+/* ── 賽事倒數：主頁頂端的比賽入口 ──────────────────────────
+   沿用 .card 的圓角與陰影語彙；不使用 tournament.css 的 --f1-* 深色變數。 */
+.event-countdown {
+  display: block;
+  /* 賽事插畫作底，上面壓一層品牌藍漸層當遮罩。
+     遮罩不是裝飾：插畫本身高飽和、高對比，白色倒數數字直接疊上去會讀不清楚。
+     漸層用 rgba 而非 var(--primary)，因為需要控制 alpha 讓插畫透出來。
+     色值即 --primary(#4a7dbc) / --primary-dark(#3864a3)，改主題色時要一併改這裡。 */
+  background-image:
+    linear-gradient(135deg, rgba(74, 125, 188, 0.80) 0%, rgba(56, 100, 163, 0.72) 100%),
+    url('../img/event-banner.jpg');
+  background-size: cover;
+  /* 22%：這塊只有約 130px 高，cover 後只露出整張圖的一條。
+     22% 讓裁切帶落在海象王與羽球拍徽章上；預設的 center 會切到選手小腿，認不出是什麼。 */
+  background-position: center 22%;
+  background-repeat: no-repeat;
+  color: var(--text-light);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  text-decoration: none;
+  /* 插畫底圖讓文字邊緣容易糊掉，補一層陰影拉開層次 */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* author 的 display 宣告會蓋掉瀏覽器內建的 [hidden]{display:none}，必須補這條 */
+.event-countdown[hidden] { display: none; }
+
+.event-countdown:hover,
+.event-countdown:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.ec-title {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.95;
+}
+
+.ec-title i { margin-right: 0.3rem; }
+
+.ec-main {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  /* 等寬數字：秒數每秒變動時整塊寬度不會抖動 */
+  font-variant-numeric: tabular-nums;
+}
+
+.ec-sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.ec-sub:empty { display: none; }
+
+.ec-cta {
+  display: inline-block;
+  margin-top: 0.6rem;
+  padding: 0.25rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* 比賽進行中：整塊改為強調色，並在主要文字前加呼吸紅點 */
+.event-countdown.is-during {
+  /* 只換遮罩顏色，插畫底圖保留——用 background-image 而非 background 簡寫，
+     後者會連 url() 一起清掉，比賽當天反而看不到插畫。 */
+  background-image:
+    linear-gradient(135deg, rgba(214, 96, 98, 0.80) 0%, rgba(192, 70, 72, 0.72) 100%),
+    url('../img/event-banner.jpg');
+}
+
+.event-countdown.is-during .ec-main::before {
+  content: '';
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-right: 0.4em;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: #fff;
+  animation: ec-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ec-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+
+/* 尊重使用者的減少動態偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .event-countdown.is-during .ec-main::before { animation: none; }
+  .event-countdown { transition: none; }
+}
+
+@media (max-width: 480px) {
+  .ec-main { font-size: 1.4rem; }
+}

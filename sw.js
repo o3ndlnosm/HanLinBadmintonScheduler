@@ -3,7 +3,7 @@
  * 策略：同源資源 stale-while-revalidate（先用快取秒開，背景更新，下次載入生效）
  * CDN / Google API 一律直接走網路，不快取（避免影響 OAuth 與 Sheets API）
  */
-const CACHE_NAME = 'hanlin-badminton-v8';
+const CACHE_NAME = 'hanlin-badminton-v10';
 
 const PRECACHE_URLS = [
   './',
@@ -11,11 +11,13 @@ const PRECACHE_URLS = [
   'css/style.css',
   'js/court-actions.js',
   'js/dialog.js',
+  'js/countdown.js',
   'js/script.js',
   'manifest.json',
   'icons/icon-192.png',
   'icons/icon-512.png',
-  'icons/apple-touch-icon.png'
+  'icons/apple-touch-icon.png',
+  'img/event-banner.jpg'
 ];
 
 self.addEventListener('install', (event) => {
