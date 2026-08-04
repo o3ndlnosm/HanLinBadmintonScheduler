@@ -1197,3 +1197,98 @@ textarea.form-control {
 .dialog-icon-warning { color: var(--warning); }
 .dialog-icon-error { color: var(--danger); }
 .dialog-icon-info { color: var(--info); }
+
+/* ── 賽事倒數：主頁頂端的比賽入口 ──────────────────────────
+   沿用 .card 的圓角與陰影語彙；不使用 tournament.css 的 --f1-* 深色變數。 */
+.event-countdown {
+  display: block;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: var(--text-light);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* author 的 display 宣告會蓋掉瀏覽器內建的 [hidden]{display:none}，必須補這條 */
+.event-countdown[hidden] { display: none; }
+
+.event-countdown:hover,
+.event-countdown:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.ec-title {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.95;
+}
+
+.ec-title i { margin-right: 0.3rem; }
+
+.ec-main {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  /* 等寬數字：秒數每秒變動時整塊寬度不會抖動 */
+  font-variant-numeric: tabular-nums;
+}
+
+.ec-sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.ec-sub:empty { display: none; }
+
+.ec-cta {
+  display: inline-block;
+  margin-top: 0.6rem;
+  padding: 0.25rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* 比賽進行中：整塊改為強調色，並在主要文字前加呼吸紅點 */
+.event-countdown.is-during {
+  background: linear-gradient(135deg, var(--danger) 0%, var(--danger-dark) 100%);
+}
+
+.event-countdown.is-during .ec-main::before {
+  content: '';
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-right: 0.4em;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: #fff;
+  animation: ec-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ec-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+
+/* 尊重使用者的減少動態偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .event-countdown.is-during .ec-main::before { animation: none; }
+  .event-countdown { transition: none; }
+}
+
+@media (max-width: 480px) {
+  .ec-main { font-size: 1.4rem; }
+}

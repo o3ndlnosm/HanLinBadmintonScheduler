@@ -35,6 +35,79 @@ function formatCountdown(state) {
   return state.days > 0 ? `${state.days} 天 ${hms}` : hms;
 }
 
+// ── 以下為瀏覽器渲染層（jest 只測上方純函式） ──────────────
+
+const EVENT = {
+  name: '第三屆翰林匹克羽球運動會',
+  // 取自第 1 輪 timeSlot（18:10-18:20）與第 10 輪（19:40-19:50）
+  startAt: '2026-08-20T18:10:00+08:00',
+  endAt: '2026-08-20T19:50:00+08:00',
+  // 公開觀賽 token，本來就要貼社團群組
+  url: 'tournament.html?t=4478488eb60c20146ae9639634944336',
+};
+
+let countdownTimer = null;
+
+function renderCountdown(state, els) {
+  if (state.phase === 'ended') {
+    els.root.hidden = true;
+    return;
+  }
+
+  els.root.hidden = false;
+  els.root.classList.toggle('is-during', state.phase === 'during');
+
+  if (state.phase === 'during') {
+    els.main.textContent = '比賽進行中';
+    els.sub.textContent = '';
+    els.cta.textContent = '進入即時計分板 ›';
+  } else {
+    els.main.textContent = formatCountdown(state);
+    els.sub.textContent = '8/20 (三) 18:10 開打';
+    els.cta.textContent = '查看賽程 ›';
+  }
+}
+
+function initCountdown() {
+  const root = document.getElementById('eventCountdown');
+  if (!root) return;
+
+  const els = {
+    root,
+    main: document.getElementById('ecMain'),
+    sub: document.getElementById('ecSub'),
+    cta: document.getElementById('ecCta'),
+  };
+
+  root.href = EVENT.url;
+  document.getElementById('ecName').textContent = EVENT.name;
+
+  const tick = () => {
+    const state = countdownState(Date.now(), EVENT);
+    renderCountdown(state, els);
+    // 賽事結束後不必再跑
+    if (state.phase === 'ended' && countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+  };
+
+  tick();
+  countdownTimer = setInterval(() => {
+    // 分頁在背景時略過 DOM 更新，回前景時由 visibilitychange 立即補上
+    if (document.hidden) return;
+    tick();
+  }, 1000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') tick();
+  });
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', initCountdown);
+}
+
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { countdownState, formatCountdown };
