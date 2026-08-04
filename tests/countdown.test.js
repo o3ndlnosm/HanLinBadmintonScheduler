@@ -1,4 +1,4 @@
-const { countdownState, formatCountdown } = require('../js/countdown');
+const { countdownState, formatCountdown, formatEventDate } = require('../js/countdown');
 
 const EVENT = {
   startAt: '2026-08-20T18:10:00+08:00',
@@ -79,5 +79,21 @@ describe('formatCountdown', () => {
   test('全為個位數時補零', () => {
     expect(formatCountdown({ phase: 'before', days: 0, hours: 0, minutes: 0, seconds: 7 }))
       .toBe('00 : 00 : 07');
+  });
+});
+
+describe('formatEventDate', () => {
+  test('賽事開打時刻：8/20 是星期四', () => {
+    expect(formatEventDate('2026-08-20T18:10:00+08:00')).toBe('8/20 (四) 18:10 開打');
+  });
+
+  test('另一個已知星期，驗證星期對照表沒有 off-by-one：8/16 是星期日，時分補零', () => {
+    expect(formatEventDate('2026-08-16T09:05:00+08:00')).toBe('8/16 (日) 09:05 開打');
+  });
+
+  test('時區獨立性：台北時間跨日的時刻，不論裝置時區都要顯示台北當地的日期與星期', () => {
+    // UTC 上是 8/19 16:30（星期三），若誤用 getUTCDate()/getUTCDay() 而未先 +8 小時，
+    // 或誤用本地時區方法，結果會變成 8/19。
+    expect(formatEventDate('2026-08-20T00:30:00+08:00')).toBe('8/20 (四) 00:30 開打');
   });
 });

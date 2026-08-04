@@ -35,6 +35,21 @@ function formatCountdown(state) {
   return state.days > 0 ? `${state.days} 天 ${hms}` : hms;
 }
 
+/**
+ * 把賽事開始時刻格式化成「8/20 (四) 18:10 開打」。
+ * 固定用台北時間解讀：先把 epoch 加 8 小時，再用 getUTC* 讀取，
+ * 這樣不論使用者裝置在哪個時區，顯示的都是賽事當地的日期與星期。
+ * 星期一律由日期推導，不寫死——寫死過一次就錯過一次（8/20 是四不是三）。
+ */
+const WEEKDAY_ZH = ['日', '一', '二', '三', '四', '五', '六'];
+
+function formatEventDate(isoString) {
+  const d = new Date(Date.parse(isoString) + 8 * 3600 * 1000);
+  const md = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+  const w = WEEKDAY_ZH[d.getUTCDay()];
+  return `${md} (${w}) ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} 開打`;
+}
+
 // ── 以下為瀏覽器渲染層（jest 只測上方純函式） ──────────────
 
 const EVENT = {
@@ -63,7 +78,7 @@ function renderCountdown(state, els) {
     els.cta.textContent = '進入即時計分板 ›';
   } else {
     els.main.textContent = formatCountdown(state);
-    els.sub.textContent = '8/20 (三) 18:10 開打';
+    els.sub.textContent = formatEventDate(EVENT.startAt);
     els.cta.textContent = '查看賽程 ›';
   }
 }
@@ -110,5 +125,5 @@ if (typeof document !== 'undefined') {
 
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { countdownState, formatCountdown };
+  module.exports = { countdownState, formatCountdown, formatEventDate };
 }
