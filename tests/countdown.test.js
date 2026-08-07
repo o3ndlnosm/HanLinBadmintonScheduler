@@ -1,4 +1,9 @@
-const { countdownState, formatCountdown, formatEventDate } = require('../js/countdown');
+const {
+  countdownState,
+  formatCountdown,
+  formatEventDate,
+  eventDialogText,
+} = require('../js/countdown');
 
 // 測試專用固定值，與 js/countdown.js 的 EVENT 常數無關（不需同步）：
 // 這裡測的是 countdownState 的三狀態邊界邏輯，用什麼時間值都成立。
@@ -108,5 +113,28 @@ describe('formatEventDate', () => {
     // UTC 上是 8/19 16:30（星期三），若誤用 getUTCDate()/getUTCDay() 而未先 +8 小時，
     // 或誤用本地時區方法，結果會變成 8/19。
     expect(formatEventDate('2026-08-20T00:30:00+08:00')).toBe('8/20 (四) 00:30 開打');
+  });
+});
+
+// 點橫幅時彈窗要顯示的內文。橫幅本身不再是連結（點了只開彈窗，不離開排場頁），
+// 內文是開窗當下的快照，不逐秒更新。
+describe('eventDialogText', () => {
+  test('開打前：倒數加開打時間，兩行', () => {
+    const state = countdownState(before(16, 8, 24, 31), EVENT);
+    expect(eventDialogText(state, EVENT)).toBe('還有 16 天 08 : 24 : 31\n8/20 (四) 18:10 開打');
+  });
+
+  test('剩不到一天時不顯示「天」', () => {
+    const state = countdownState(before(0, 5, 3, 2), EVENT);
+    expect(eventDialogText(state, EVENT)).toBe('還有 05 : 03 : 02\n8/20 (四) 18:10 開打');
+  });
+
+  test('比賽期間：不顯示倒數，改標示進行中', () => {
+    const state = countdownState(START + 30 * 60 * 1000, EVENT);
+    expect(eventDialogText(state, EVENT)).toBe('比賽進行中\n8/20 (四) 18:10 開打');
+  });
+
+  test('結束後回傳 null——橫幅此時已隱藏，本來就開不了彈窗', () => {
+    expect(eventDialogText(countdownState(END + 1000, EVENT), EVENT)).toBeNull();
   });
 });
