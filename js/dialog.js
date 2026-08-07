@@ -67,7 +67,9 @@ const DEFAULT_ALERT_TITLES = {
 let dialogOpen = false;
 const dialogQueue = [];
 
-// config: { title, message, type, dismissValue, buttons: [{ text, value, className, primary }] }
+// config: { title, message, type, iconClass, dismissValue,
+//           buttons: [{ text, value, className, primary, href }] }
+// iconClass 省略時用 DIALOG_ICONS[type]；按鈕帶 href 時渲染成開新分頁的連結而非 button
 function openDialog(config) {
   return new Promise((resolve) => {
     dialogQueue.push({ config, resolve });
@@ -91,7 +93,8 @@ function processDialogQueue() {
   header.className = "modal-header";
   const heading = document.createElement("h3");
   const icon = document.createElement("i");
-  icon.className = "fas " + (DIALOG_ICONS[config.type] || DIALOG_ICONS.info);
+  icon.className =
+    "fas " + (config.iconClass || DIALOG_ICONS[config.type] || DIALOG_ICONS.info);
   heading.appendChild(icon);
   heading.appendChild(document.createTextNode(" " + config.title));
   header.appendChild(heading);
@@ -116,9 +119,17 @@ function processDialogQueue() {
   };
 
   config.buttons.forEach((btn) => {
-    const el = document.createElement("button");
+    // 帶 href 的按鈕做成真正的連結：導航由瀏覽器原生處理，
+    // 不走 window.open()——那要等 Promise resolve 之後才呼叫，會被 iOS Safari
+    // 的彈出視窗封鎖當成非使用者觸發而擋掉。
+    const el = document.createElement(btn.href ? "a" : "button");
     el.className = "btn " + btn.className;
     el.textContent = btn.text;
+    if (btn.href) {
+      el.href = btn.href;
+      el.target = "_blank";
+      el.rel = "noopener noreferrer";
+    }
     el.addEventListener("click", () => close(btn.value));
     footer.appendChild(el);
     if (btn.primary) setTimeout(() => el.focus(), 0);
@@ -173,5 +184,5 @@ function showConfirmDialog(message, options = {}) {
 
 // CommonJS export for testing
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { showToast, showAlertDialog, showConfirmDialog };
+  module.exports = { showToast, showAlertDialog, showConfirmDialog, openDialog };
 }

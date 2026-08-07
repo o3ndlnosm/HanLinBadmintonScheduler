@@ -50,6 +50,17 @@ function formatEventDate(isoString) {
   return `${md} (${w}) ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} 開打`;
 }
 
+/**
+ * 點橫幅時彈窗要顯示的內文（兩行）。
+ * 內容是開窗當下的快照，不逐秒更新——要看跳動的倒數，關掉彈窗看橫幅即可。
+ * 賽事結束後橫幅已隱藏，理論上開不了彈窗，回 null 讓呼叫端直接不開。
+ */
+function eventDialogText(state, event) {
+  if (state.phase === 'ended') return null;
+  const first = state.phase === 'during' ? '比賽進行中' : `還有 ${formatCountdown(state)}`;
+  return `${first}\n${formatEventDate(event.startAt)}`;
+}
+
 // ── 以下為瀏覽器渲染層（jest 只測上方純函式） ──────────────
 
 const EVENT = {
@@ -98,8 +109,33 @@ function initCountdown() {
     cta: document.getElementById('ecCta'),
   };
 
-  root.href = EVENT.url;
   document.getElementById('ecName').textContent = EVENT.name;
+
+  // 橫幅是 button 不是連結：排場資料只存在記憶體，離開這一頁就全沒了，
+  // 上課途中誰誤觸都不能把整頁導走。要看賽程走彈窗裡的連結，開新分頁。
+  root.addEventListener('click', () => {
+    const state = countdownState(Date.now(), EVENT);
+    const message = eventDialogText(state, EVENT);
+    if (message === null) return;
+
+    openDialog({
+      title: EVENT.name,
+      message,
+      type: 'info',
+      iconClass: 'fa-trophy dialog-icon-trophy',
+      dismissValue: false,
+      buttons: [
+        { text: '關閉', value: false, className: 'btn-secondary' },
+        {
+          text: state.phase === 'during' ? '進入即時計分板' : '前往賽程',
+          value: true,
+          href: EVENT.url,
+          className: 'btn-primary',
+          primary: true,
+        },
+      ],
+    });
+  });
 
   const tick = () => {
     const state = countdownState(Date.now(), EVENT);
@@ -129,5 +165,5 @@ if (typeof document !== 'undefined') {
 
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { countdownState, formatCountdown, formatEventDate };
+  module.exports = { countdownState, formatCountdown, formatEventDate, eventDialogText };
 }

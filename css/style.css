@@ -1197,11 +1197,21 @@ textarea.form-control {
 .dialog-icon-warning { color: var(--warning); }
 .dialog-icon-error { color: var(--danger); }
 .dialog-icon-info { color: var(--info); }
+/* 賽事彈窗的獎盃：金色，與四種狀態色區隔（它不是狀態，是活動識別） */
+.dialog-icon-trophy { color: #e0a72c; }
 
 /* ── 賽事倒數：主頁頂端的比賽入口 ──────────────────────────
    沿用 .card 的圓角與陰影語彙；不使用 tournament.css 的 --f1-* 深色變數。 */
 .event-countdown {
   display: block;
+  /* 這是 <button> 而非連結（見 index.html 的註解），要抹掉瀏覽器內建的
+     按鈕外觀與字體，才能沿用底下這套卡片樣式 */
+  width: 100%;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
   /* 賽事插畫作底，上面壓一層品牌藍漸層當遮罩。
      遮罩不是裝飾：插畫本身高飽和、高對比，白色倒數數字直接疊上去會讀不清楚。
      漸層用 rgba 而非 var(--primary)，因為需要控制 alpha 讓插畫透出來。

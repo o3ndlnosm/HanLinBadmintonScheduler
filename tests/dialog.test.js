@@ -1,7 +1,12 @@
 /**
  * @jest-environment jsdom
  */
-const { showToast, showAlertDialog, showConfirmDialog } = require("../js/dialog");
+const {
+  showToast,
+  showAlertDialog,
+  showConfirmDialog,
+  openDialog,
+} = require("../js/dialog");
 
 describe("showToast", () => {
   beforeEach(() => {
@@ -131,6 +136,84 @@ describe("showConfirmDialog", () => {
     expect(buttons[1].classList.contains("btn-danger")).toBe(true);
     buttons[0].click();
     await p;
+  });
+});
+
+describe("openDialog 自訂圖示與連結按鈕", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  const close = () => document.querySelector("#appDialog .modal-footer .btn").click();
+
+  test("iconClass 可覆寫類型預設圖示", async () => {
+    const p = openDialog({
+      title: "第三屆翰林匹克羽球運動會",
+      message: "還有 13 天",
+      type: "info",
+      iconClass: "fa-trophy dialog-icon-info",
+      buttons: [{ text: "關閉", value: undefined, className: "btn-secondary" }],
+    });
+    const icon = document.querySelector("#appDialog .modal-header i");
+    expect(icon.classList.contains("fa-trophy")).toBe(true);
+    expect(icon.classList.contains("fa-circle-info")).toBe(false);
+    close();
+    await p;
+  });
+
+  test("未給 iconClass 時仍用類型預設圖示", async () => {
+    const p = openDialog({
+      title: "提示",
+      message: "訊息",
+      type: "info",
+      buttons: [{ text: "關閉", value: undefined, className: "btn-secondary" }],
+    });
+    expect(
+      document.querySelector("#appDialog .modal-header i").classList.contains("fa-circle-info")
+    ).toBe(true);
+    close();
+    await p;
+  });
+
+  // 為什麼要有連結型按鈕：用 window.open() 得在 resolve 之後才呼叫，
+  // iOS Safari 可能當成非使用者觸發而擋掉。原生連結沒有這個問題。
+  test("按鈕帶 href 時渲染成開新分頁的連結", async () => {
+    const p = openDialog({
+      title: "賽事",
+      message: "訊息",
+      type: "info",
+      buttons: [
+        { text: "關閉", value: false, className: "btn-secondary" },
+        { text: "前往賽程", value: true, href: "tournament.html?t=abc", className: "btn-primary" },
+      ],
+    });
+    const link = document.querySelector("#appDialog .modal-footer a.btn");
+    expect(link).not.toBeNull();
+    expect(link.getAttribute("href")).toBe("tournament.html?t=abc");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+    expect(link.textContent).toBe("前往賽程");
+    close();
+    await p;
+  });
+
+  test("點連結按鈕會關閉彈窗並 resolve 其 value", async () => {
+    const p = openDialog({
+      title: "賽事",
+      message: "訊息",
+      type: "info",
+      dismissValue: false,
+      buttons: [
+        { text: "關閉", value: false, className: "btn-secondary" },
+        { text: "前往賽程", value: true, href: "tournament.html?t=abc", className: "btn-primary" },
+      ],
+    });
+    const link = document.querySelector("#appDialog .modal-footer a.btn");
+    // jsdom 不實作導航，攔下預設行為只驗我們自己的關閉邏輯
+    link.addEventListener("click", (e) => e.preventDefault());
+    link.click();
+    await expect(p).resolves.toBe(true);
+    expect(document.getElementById("appDialog")).toBeNull();
   });
 });
 

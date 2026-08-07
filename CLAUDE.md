@@ -81,6 +81,11 @@ npx http-server
 ### 8. 主頁賽事倒數（js/countdown.js）
 - 主頁頂端顯示 8/20 比賽倒數，歸零後轉為即時計分板入口，21:00 後自動隱藏
   （非賽程表第 10 輪預定結束時間 19:50——留 70 分鐘延誤緩衝，賽後也讓人找得到戰績入口）
+- **橫幅是 `<button>` 不是連結**：點擊只開賽事彈窗（`eventDialogText` 組內文 + `openDialog`），
+  要進計分頁得走彈窗裡的「前往賽程」，以新分頁開啟。為什麼：排場資料只在記憶體，
+  上課途中誰誤觸把頁面導走就全沒了。不要改回 `<a href>`——那還有中鍵、長按選單等
+  繞過 click handler 的導航路徑（2026-08-07 改動，見
+  `docs/superpowers/specs/2026-08-07-countdown-popup-design.md`）
 - 賽事時間寫死為 `EVENT` 常數（帶 `+08:00` 時區），主頁不連 Supabase
 - 日期與星期由 `formatEventDate()` 從 `startAt` 推導，不寫死——寫死過一次就錯過一次
   （曾把 8/20 標成星期三，實際是星期四）
@@ -157,6 +162,7 @@ historyMatches = []    // 比賽歷史
 │   ├── court-actions.js    # 場地數量調整與選手替換邏輯（純函式，jest 測試）
 │   ├── countdown.js        # 主頁賽事倒數（純函式 + 渲染，jest 測試）
 │   ├── dialog.js           # 自訂彈窗與 toast 通知（取代原生 alert/confirm，jest+jsdom 測試）
+│                           #   openDialog 支援自訂 iconClass 與 href 型按鈕（渲染成新分頁連結）
 │   ├── player-state.js     # 選手狀態轉換邏輯（純函式，jest 測試）
 │   ├── pairing-logic.js    # 配對邏輯（純函式，jest 測試）
 │   ├── script.js           # 主要應用程式邏輯 (2841 行)
