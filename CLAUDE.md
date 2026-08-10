@@ -99,6 +99,28 @@ npx http-server
 - 下屆比賽只需改 `js/countdown.js` 的 `EVENT` 常數即可重啟；換插畫則替換
   `img/event-banner.jpg` 並 bump `sw.js` 的 `CACHE_NAME`
 
+### 9. 賽程出賽選手（js/tournament.js `makeSide` / `renderSchedule`）
+- 賽程每列為上下兩排：上排賽點與比分狀態，下排兩隊左右對稱、選手在自己隊名正下方
+- 選手名用**暱稱**（試算表「總賽程表(含出賽選手)」），隊伍名冊 `players` 存本名但不上畫面
+- 資料在 `tournament_matches.players_a` / `players_b`（jsonb），由
+  `docs/tournament/lineup-2026-08-20.sql` 灌入，**該檔可安全重跑**——試算表改了重跑即同步
+- 名單為空（`[]`）時該側只顯示隊名，版面退回加這功能之前的樣子。
+  不要拿掉這條退路：SQL 沒跑或跑失敗時，當天頁面才不會空白
+- 上排的比分與狀態靠 `.match-result` 的 flex 並排，**不要改子元素的 `display`**——
+  `.state-label.action-needed` 是 inline-block 紅底標籤，改 display 會把它壓扁
+- 純函式 `formatLineup`（`js/tournament-form.js`）有 jest 測試，渲染層靠瀏覽器驗證
+
+### 10. Service Worker 只由 index.html 註冊
+`tournament.html` 自己不註冊 SW，但 `sw.js` 的 scope 是整個 origin、fetch 攔截所有同源 GET。
+所以：
+
+- 掃 QR code **直接**進計分頁的人（多數選手）沒有 SW，永遠拿到最新版
+- 開過排場主頁的人（主辦、自己）計分頁檔案會被 stale-while-revalidate 快取，
+  改版後不 bump `CACHE_NAME` 就要重整兩次才生效
+
+計分頁的檔案**不在** `PRECACHE_URLS` 裡，是靠 fetch 攔截順帶快取的；
+bump `CACHE_NAME` 後 `activate` 會刪掉整個舊 cache，所以一次重整就生效。
+
 ## 重要實作細節
 
 ### 狀態管理 (1-22 行)
@@ -140,7 +162,7 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 351 項跨 27 套件）
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 201 項跨 14 套件）
 2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`
@@ -167,7 +189,7 @@ historyMatches = []    // 比賽歷史
 │   ├── pairing-logic.js    # 配對邏輯（純函式，jest 測試）
 │   ├── script.js           # 主要應用程式邏輯 (2841 行)
 │   ├── standings.js        # 比賽排名計算（純函式，jest 測試）
-│   ├── tournament-form.js  # 比賽計分頁表單驗證/狀態機（純函式，jest 測試）
+│   ├── tournament-form.js  # 比賽計分頁表單驗證/狀態機、formatLineup（純函式，jest 測試）
 │   ├── tournament-api.js   # 比賽計分頁 Supabase RPC 薄封裝（jest 測試）
 │   └── tournament.js       # 比賽計分頁初始化、輪詢、渲染
 ├── tests/
@@ -182,6 +204,8 @@ historyMatches = []    // 比賽歷史
 ├── img/
 │   └── event-banner.jpg     # 主頁倒數區背景插畫（1400w JPEG，213K）
 ├── docs/tournament/         # 比賽計分頁：賽前作業清單、Supabase seed/bootstrap SQL
+│                            #   lineup-schema-*.sql：出賽選手欄位與 RPC（跑一次）
+│                            #   lineup-*.sql：隊名／名冊／30 場出賽選手（可重跑）
 ├── scripts/generate-qr.sh   # 產生各隊隊長 QR code
 ├── index.html              # 單頁應用程式
 ├── tournament.html         # 比賽計分頁（觀賽 + 隊長輸分）
