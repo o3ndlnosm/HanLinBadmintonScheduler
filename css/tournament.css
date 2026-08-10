@@ -396,6 +396,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 負的上邊距抵銷 .report-subtitle 的 margin-bottom，讓兩行貼合成一組。
+   不直接改 .report-subtitle，以免名單為空（本行 hidden）時間距塌掉 */
+.report-lineup {
+  color: var(--f1-fg);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: -0.5rem 0 0.9rem;
+}
+
 .score-inputs {
   display: flex;
   align-items: flex-end;

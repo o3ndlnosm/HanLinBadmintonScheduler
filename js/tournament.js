@@ -281,6 +281,13 @@ function openReportForm(match) {
   document.getElementById('myTeamName').textContent = names[myTeamId];
   document.getElementById('oppTeamName').textContent = names[oppTeamId];
 
+  // 本場我方出賽選手，避免隊長報錯場次；名單為空時整行不顯示
+  const myPlayers = iAmTeamA ? match.playersA : match.playersB;
+  const lineupEl = document.getElementById('reportLineup');
+  const lineupText = formatLineup(myPlayers);
+  lineupEl.textContent = lineupText ? `本場我方：${lineupText}` : '';
+  lineupEl.hidden = !lineupText;
+
   // 已送過的話帶入自己上次回報（myReport 以 A/B 方向正規化存放，要轉回我方/對方）
   const report = (currentView.reports || {})[match.id];
   const selfInput = document.getElementById('scoreSelf');
