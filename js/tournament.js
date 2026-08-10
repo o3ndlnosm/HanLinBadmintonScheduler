@@ -38,6 +38,35 @@ function makeTeamDot(color) {
   return dot;
 }
 
+// 賽程列的一側：隊名一行、出賽選手一行。isRight 決定色點在隊名的哪一邊與對齊方向
+function makeSide(teamId, players, names, colors, isRight) {
+  const side = document.createElement('span');
+  side.className = isRight ? 'match-side right' : 'match-side';
+
+  const teamLine = document.createElement('span');
+  teamLine.className = 'side-team';
+  const nameEl = document.createElement('span');
+  nameEl.textContent = names[teamId];
+  if (isRight) {
+    teamLine.appendChild(nameEl);
+    teamLine.appendChild(makeTeamDot(colors[teamId]));
+  } else {
+    teamLine.appendChild(makeTeamDot(colors[teamId]));
+    teamLine.appendChild(nameEl);
+  }
+  side.appendChild(teamLine);
+
+  // 名單為空（未灌資料、或 RPC 尚未更新）就不加這一行，版面等同改版前
+  const lineup = formatLineup(players);
+  if (lineup) {
+    const playersEl = document.createElement('span');
+    playersEl.className = 'side-players';
+    playersEl.textContent = lineup;
+    side.appendChild(playersEl);
+  }
+  return side;
+}
+
 // 比賽 finished 後鎖定輸入：captainCtx 視為 null（後端也會擋）
 function captainCtxOf(view) {
   if (auth.mode !== 'captain') return null;
@@ -165,19 +194,14 @@ function renderSchedule(view) {
         seenConfirmed.delete(match.id);
       }
 
+      // 上排：賽點 chip 靠左、比分與狀態靠右
+      const head = document.createElement('span');
+      head.className = 'match-head';
+
       const chip = document.createElement('span');
       chip.className = `event-chip ${match.event}`;
       chip.textContent = `場地${match.courtNo}　${match.event}`;
-      row.appendChild(chip);
-
-      const teams = document.createElement('span');
-      teams.className = 'match-teams';
-      teams.appendChild(makeTeamDot(colors[match.teamAId]));
-      const vsLabel = document.createElement('span');
-      vsLabel.textContent = `${names[match.teamAId]} vs ${names[match.teamBId]}`;
-      teams.appendChild(vsLabel);
-      teams.appendChild(makeTeamDot(colors[match.teamBId]));
-      row.appendChild(teams);
+      head.appendChild(chip);
 
       const result = document.createElement('span');
       result.className = 'match-result';
@@ -191,7 +215,19 @@ function renderSchedule(view) {
       label.className = `state-label ${state.cssClass}`;
       label.textContent = state.label;
       result.appendChild(label);
-      row.appendChild(result);
+      head.appendChild(result);
+      row.appendChild(head);
+
+      // 下排：兩隊各佔一半，選手緊貼自己的隊名下方
+      const body = document.createElement('span');
+      body.className = 'match-body';
+      body.appendChild(makeSide(match.teamAId, match.playersA, names, colors, false));
+      const vs = document.createElement('span');
+      vs.className = 'match-vs';
+      vs.textContent = 'vs';
+      body.appendChild(vs);
+      body.appendChild(makeSide(match.teamBId, match.playersB, names, colors, true));
+      row.appendChild(body);
 
       if (state.canReport) {
         row.addEventListener('click', () => openReportForm(match));
@@ -244,6 +280,13 @@ function openReportForm(match) {
     `${match.timeSlot}　場地${match.courtNo}`;
   document.getElementById('myTeamName').textContent = names[myTeamId];
   document.getElementById('oppTeamName').textContent = names[oppTeamId];
+
+  // 本場我方出賽選手，避免隊長報錯場次；名單為空時整行不顯示
+  const myPlayers = iAmTeamA ? match.playersA : match.playersB;
+  const lineupEl = document.getElementById('reportLineup');
+  const lineupText = formatLineup(myPlayers);
+  lineupEl.textContent = lineupText ? `本場我方：${lineupText}` : '';
+  lineupEl.hidden = !lineupText;
 
   // 已送過的話帶入自己上次回報（myReport 以 A/B 方向正規化存放，要轉回我方/對方）
   const report = (currentView.reports || {})[match.id];

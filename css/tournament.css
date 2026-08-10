@@ -214,9 +214,7 @@
 }
 
 .match-row {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
+  display: block;
   padding: 0.7rem 0.9rem;
   border-top: 1px solid var(--f1-line);
   transition: background-color var(--f1-ease);
@@ -251,14 +249,54 @@
 .event-chip.女雙 { border-color: #b43d6f; color: #e08cb0; }
 .event-chip.混雙 { border-color: #3da882; color: #6fd0ac; }
 
-.match-teams {
+/* 賽程列上排：賽點靠左、比分與狀態靠右 */
+.match-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin-bottom: 0.45rem;
+}
+
+/* 賽程列下排：兩隊左右對稱，選手在自己隊名正下方 */
+.match-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.match-side {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.match-side.right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.side-team {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--f1-fg);
-  display: flex;
-  align-items: center;
+}
+
+.side-players {
+  font-size: 0.8rem;
+  color: var(--f1-fg-muted);
+}
+
+.match-vs {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--f1-fg-faint);
+  padding-top: 0.15rem;
 }
 
 .team-dot {
@@ -271,20 +309,22 @@
   flex: none;
 }
 
-.match-teams .team-dot:last-child {
-  margin-right: 0;
-  margin-left: 0.4rem;
-}
+/* .team-dot 自帶 margin-right 供 standings 表使用，這裡改用 gap 控制間距 */
+.side-team .team-dot { margin-right: 0; }
 
+/* 上排右側：比分與狀態並排。用 flex 而非改子元素的 display，
+   才不會動到 .state-label.action-needed 的 inline-block 紅底樣式 */
 .match-result {
   flex: none;
-  text-align: right;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
   font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 .match-score {
-  display: block;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--f1-fg);
   font-variant-numeric: tabular-nums;
@@ -354,6 +394,15 @@
   font-size: 0.85rem;
   margin: 0.3rem 0 0.9rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* 負的上邊距抵銷 .report-subtitle 的 margin-bottom，讓兩行貼合成一組。
+   不直接改 .report-subtitle，以免名單為空（本行 hidden）時間距塌掉 */
+.report-lineup {
+  color: var(--f1-fg);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: -0.5rem 0 0.9rem;
 }
 
 .score-inputs {
