@@ -118,8 +118,14 @@ npx http-server
 - 開過排場主頁的人（主辦、自己）計分頁檔案會被 stale-while-revalidate 快取，
   改版後不 bump `CACHE_NAME` 就要重整兩次才生效
 
-計分頁的檔案**不在** `PRECACHE_URLS` 裡，是靠 fetch 攔截順帶快取的；
-bump `CACHE_NAME` 後 `activate` 會刪掉整個舊 cache，所以一次重整就生效。
+計分頁的檔案**不在** `PRECACHE_URLS` 裡，是靠 fetch 攔截順帶快取的。
+
+**bump `CACHE_NAME` 之後仍然要重整兩次**（2026-08-10 線上實測）：第一次載入時舊 SW
+還控制著頁面、供應的是舊檔，瀏覽器同時才在背景發現 `sw.js` 變了 → 新 SW install →
+`skipWaiting` → `activate` 並刪掉舊 cache；**第二次**載入才由新 SW 控制、cache 已空、
+從網路拿到新檔。
+bump 的作用是保證舊快取被清乾淨（不必依賴 revalidate 成功），**不是**省掉第二次重整。
+當天若要 hotfix，請預期重整兩次，而且務必自己先驗過畫面再宣布已修好。
 
 ## 重要實作細節
 
