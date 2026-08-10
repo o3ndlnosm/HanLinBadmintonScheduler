@@ -49,3 +49,21 @@ test('fetch 本身失敗（離線／訊號差）：顯示中文提示而非瀏�
   global.fetch = jest.fn().mockRejectedValue(new TypeError('Failed to fetch'));
   await expect(api.fetchPublicView('tok')).rejects.toThrow('網路不穩，請確認連線後再試一次');
 });
+
+test('fetchPublicView：payload 的 playersA / playersB 原樣透傳', async () => {
+  const payload = {
+    tournament: { name: '第三屆翰林匹克羽球運動會', heldOn: '2026-08-20', status: 'active' },
+    teams: [{ id: 't1', name: '羽林萌主', players: [] }],
+    matches: [{
+      id: 'm1', roundNo: 1, courtNo: 2, event: '男雙',
+      teamAId: 't1', teamBId: 't2',
+      playersA: [{ name: '宏彬' }, { name: '彥呈' }],
+      playersB: [{ name: 'Alan' }, { name: '威任' }],
+      status: 'pending', scoreA: null, scoreB: null,
+    }],
+  };
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => payload });
+  const view = await api.fetchPublicView('pub');
+  expect(view.matches[0].playersA).toEqual([{ name: '宏彬' }, { name: '彥呈' }]);
+  expect(view.matches[0].playersB).toEqual([{ name: 'Alan' }, { name: '威任' }]);
+});

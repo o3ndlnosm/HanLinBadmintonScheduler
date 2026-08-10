@@ -1,4 +1,4 @@
-const { parseTokenFromUrl, validateScores, matchState } = require('../js/tournament-form');
+const { parseTokenFromUrl, validateScores, matchState, formatLineup } = require('../js/tournament-form');
 
 describe('parseTokenFromUrl', () => {
   test('?c= 為隊長模式', () => {
@@ -66,5 +66,39 @@ describe('matchState', () => {
   test('pending＋對方已報我方未報 → 提示輸入（2026-08-03 縮短為 5 字，見 375px 版面實測）', () => {
     expect(matchState(match, myCtx({ m1: { myReport: null, oppReported: true } }))).toEqual(
       { label: '對方已回報', cssClass: 'action-needed', canReport: true });
+  });
+});
+
+describe('formatLineup', () => {
+  test('兩位選手以・相接', () => {
+    expect(formatLineup([{ name: '小悠' }, { name: '雨彤' }])).toBe('小悠・雨彤');
+  });
+
+  test('單一選手直接回傳名字', () => {
+    expect(formatLineup([{ name: 'Alan' }])).toBe('Alan');
+  });
+
+  test('三位以上全部列出', () => {
+    expect(formatLineup([{ name: '甲' }, { name: '乙' }, { name: '丙' }])).toBe('甲・乙・丙');
+  });
+
+  test('空陣列回空字串', () => {
+    expect(formatLineup([])).toBe('');
+  });
+
+  test('undefined 回空字串（RPC 尚未更新時的情況）', () => {
+    expect(formatLineup(undefined)).toBe('');
+  });
+
+  test('非陣列回空字串（人為誤植）', () => {
+    expect(formatLineup({ name: '小悠' })).toBe('');
+  });
+
+  test('略過沒有 name 的項目', () => {
+    expect(formatLineup([{ name: '小悠' }, {}, { name: '雨彤' }])).toBe('小悠・雨彤');
+  });
+
+  test('名字前後空白會被去除', () => {
+    expect(formatLineup([{ name: ' 小悠 ' }, { name: '雨彤' }])).toBe('小悠・雨彤');
   });
 });
