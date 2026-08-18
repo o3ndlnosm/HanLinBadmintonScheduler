@@ -16,15 +16,15 @@ describe('parseTokenFromUrl', () => {
 });
 
 describe('validateScores', () => {
-  test('合法比分', () => {
-    expect(validateScores('21', '15')).toEqual({ ok: true, scoreSelf: 21, scoreOpp: 15 });
-  });
-  test('0 分合法', () => {
-    expect(validateScores('21', '0')).toEqual({ ok: true, scoreSelf: 21, scoreOpp: 0 });
-  });
-  // 15 分制：14 平後需淨勝 2 分，20 平後先得 21 分者勝，故上限為 21
-  test('21 分為上限，21:20 合法', () => {
-    expect(validateScores('21', '20')).toEqual({ ok: true, scoreSelf: 21, scoreOpp: 20 });
+  // 賽制：15 分制、一定打完。14 平後 deuce 需淨勝 2 分，20 平後先得 21 分者勝（上限 21）。
+  // 合法完賽比分：15:0–13；16:14、17:15、18:16、19:17、20:18；21:19、21:20。
+  test.each([
+    ['15', '0'], ['15', '13'], ['16', '14'], ['17', '15'], ['18', '16'],
+    ['19', '17'], ['20', '18'], ['21', '19'], ['21', '20'],
+    // 輸方視角（自己分數較低）也要合法
+    ['13', '15'], ['20', '21'],
+  ])('合法完賽比分（%s:%s）', (a, b) => {
+    expect(validateScores(a, b)).toEqual({ ok: true, scoreSelf: Number(a), scoreOpp: Number(b) });
   });
   test.each([
     ['', '15'], ['21', ''], ['abc', '15'], ['12.5', '15'], ['-1', '15'], ['22', '15'], ['15', '25'],
@@ -33,6 +33,21 @@ describe('validateScores', () => {
   });
   test('平手 → 錯誤', () => {
     expect(validateScores('21', '21')).toEqual({ ok: false, error: '羽球比賽不會平手，請確認比分' });
+  });
+  test.each([
+    ['14', '12'],  // 沒人到 15，比賽不會停
+    ['16', '15'],  // deuce 中僅領先 1 分，不會結束
+    ['15', '14'],  // 14 平後需淨勝 2，15:14 不是完賽比分
+    ['21', '18'],  // 20:18 就結束了，不可能打到 21:18
+    ['21', '15'],  // 同上，deuce 領先 2 分即止
+    ['18', '15'],  // deuce 區間領先 3 分，不可能
+    ['13', '11'],
+    ['0', '14'],
+  ])('不符合賽制的比分（%s:%s）→ 錯誤', (a, b) => {
+    expect(validateScores(a, b)).toEqual({
+      ok: false,
+      error: '比分不符合賽制（15 分制、deuce 最高 21 分），請確認',
+    });
   });
 });
 
