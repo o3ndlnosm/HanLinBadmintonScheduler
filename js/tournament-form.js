@@ -11,6 +11,17 @@ function parseTokenFromUrl(search) {
   return { mode: null, token: null };
 }
 
+// 賽制：15 分制、一定打完。14 平後 deuce 需淨勝 2 分，20 平後先得 21 分者勝（上限 21）。
+// 合法完賽比分：15:0–13；16–20 帶淨勝 2 分；21:19、21:20。
+function isLegalFinalScore(a, b) {
+  const w = Math.max(a, b);
+  const l = Math.min(a, b);
+  if (w === 15) return l <= 13;
+  if (w >= 16 && w <= 20) return l === w - 2;
+  if (w === 21) return l === 19 || l === 20;
+  return false;
+}
+
 function validateScores(selfInput, oppInput) {
   const selfStr = String(selfInput).trim();
   const oppStr = String(oppInput).trim();
@@ -24,6 +35,9 @@ function validateScores(selfInput, oppInput) {
     return { ok: false, error: '比分需為 0–21 的整數' };
   }
   if (s === o) return { ok: false, error: '羽球比賽不會平手，請確認比分' };
+  if (!isLegalFinalScore(s, o)) {
+    return { ok: false, error: '比分不符合賽制（15 分制、deuce 最高 21 分），請確認' };
+  }
   return { ok: true, scoreSelf: s, scoreOpp: o };
 }
 
@@ -64,5 +78,5 @@ function formatLineup(players) {
 
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { parseTokenFromUrl, validateScores, matchState, formatLineup };
+  module.exports = { parseTokenFromUrl, validateScores, isLegalFinalScore, matchState, formatLineup };
 }

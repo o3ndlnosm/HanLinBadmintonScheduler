@@ -74,6 +74,10 @@ npx http-server
 
 ### 7. 比賽計分頁（tournament.html）
 - 8/20 第三屆比賽用：隊長輸分（雙方一致才確認）、即時排名、公開計分板
+- **賽制**：15 分制、一定打完；14 平後 deuce 需淨勝 2 分，20 平後先得 21 分者勝（上限 21）。
+  合法完賽比分只有 15:0–13、16–20 帶淨勝 2 分、21:19、21:20。
+  前端 `isLegalFinalScore`（tournament-form.js）與後端 RPC
+  （`docs/tournament/score-rules-2026-08-18.sql`）各驗一次，改規則兩邊要同步改
 - 後端借用 v2 badminton-scheduler 的 Supabase RPC，設定在 `js/tournament-api.js`
 - 純函式：`js/standings.js`（排名）、`js/tournament-form.js`（驗證/狀態），各有 jest 測試
 - 賽前作業與 seed 見 `docs/tournament/賽前作業.md`
