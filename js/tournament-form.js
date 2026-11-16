@@ -11,18 +11,50 @@ function parseTokenFromUrl(search) {
   return { mode: null, token: null };
 }
 
-// 賽制：15 分制、一定打完。14 平後 deuce 需淨勝 2 分，20 平後先得 21 分者勝（上限 21）。
-// 合法完賽比分：15:0–13；16–20 帶淨勝 2 分；21:19、21:20。
-function isLegalFinalScore(a, b) {
-  const w = Math.max(a, b);
-  const l = Math.min(a, b);
-  if (w === 15) return l <= 13;
-  if (w >= 16 && w <= 20) return l === w - 2;
-  if (w === 21) return l === 19 || l === 20;
-  return false;
+// 計分規則依比賽設定（tournaments.score_rule）。後端 tournament_score_legal 為同一份規則的 SQL 版本，改規則兩邊要同步。
+// to15_cap21（預設，第三屆）：15 分制、一定打完；14 平後淨勝 2，20 平後先得 21 分者勝。
+//   合法完賽比分：15:0–13；16–20 帶淨勝 2；21:19、21:20。
+// to21_cap30（2026-11-25 友誼賽）：21 分一局；20 平後淨勝 2，29 平時先得 30 分者勝。
+//   合法完賽比分：21:0–19；22–29 帶淨勝 2；30:28、30:29。
+const DEFAULT_SCORE_RULE = 'to15_cap21';
+const SCORE_RULES = {
+  to15_cap21: {
+    max: 21,
+    isLegal(w, l) {
+      if (w === 15) return l <= 13;
+      if (w >= 16 && w <= 20) return l === w - 2;
+      if (w === 21) return l === 19 || l === 20;
+      return false;
+    },
+    ruleError: '比分不符合賽制（15 分制、deuce 最高 21 分），請確認',
+  },
+  to21_cap30: {
+    max: 30,
+    isLegal(w, l) {
+      if (w === 21) return l <= 19;
+      if (w >= 22 && w <= 29) return l === w - 2;
+      if (w === 30) return l === 28 || l === 29;
+      return false;
+    },
+    ruleError: '比分不符合賽制（21 分制、deuce 最高 30 分），請確認',
+  },
+};
+
+// 缺值或不認得的規則一律視為 15 分制：舊後端不會回 scoreRule，舊比賽行為必須不變
+function resolveScoreRule(rule) {
+  return Object.prototype.hasOwnProperty.call(SCORE_RULES, rule) ? rule : DEFAULT_SCORE_RULE;
 }
 
-function validateScores(selfInput, oppInput) {
+function maxScoreOf(rule) {
+  return SCORE_RULES[resolveScoreRule(rule)].max;
+}
+
+function isLegalFinalScore(a, b, rule) {
+  return SCORE_RULES[resolveScoreRule(rule)].isLegal(Math.max(a, b), Math.min(a, b));
+}
+
+function validateScores(selfInput, oppInput, rule) {
+  const spec = SCORE_RULES[resolveScoreRule(rule)];
   const selfStr = String(selfInput).trim();
   const oppStr = String(oppInput).trim();
   const s = Number(selfStr);
@@ -30,13 +62,13 @@ function validateScores(selfInput, oppInput) {
   if (
     selfStr === '' || oppStr === '' ||
     !Number.isInteger(s) || !Number.isInteger(o) ||
-    s < 0 || s > 21 || o < 0 || o > 21
+    s < 0 || s > spec.max || o < 0 || o > spec.max
   ) {
-    return { ok: false, error: '比分需為 0–21 的整數' };
+    return { ok: false, error: `比分需為 0–${spec.max} 的整數` };
   }
   if (s === o) return { ok: false, error: '羽球比賽不會平手，請確認比分' };
-  if (!isLegalFinalScore(s, o)) {
-    return { ok: false, error: '比分不符合賽制（15 分制、deuce 最高 21 分），請確認' };
+  if (!spec.isLegal(Math.max(s, o), Math.min(s, o))) {
+    return { ok: false, error: spec.ruleError };
   }
   return { ok: true, scoreSelf: s, scoreOpp: o };
 }
@@ -78,5 +110,8 @@ function formatLineup(players) {
 
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { parseTokenFromUrl, validateScores, isLegalFinalScore, matchState, formatLineup };
+  module.exports = {
+    parseTokenFromUrl, validateScores, isLegalFinalScore, matchState, formatLineup,
+    SCORE_RULES, resolveScoreRule, maxScoreOf,
+  };
 }

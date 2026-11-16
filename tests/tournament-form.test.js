@@ -1,4 +1,6 @@
-const { parseTokenFromUrl, validateScores, matchState, formatLineup } = require('../js/tournament-form');
+const {
+  parseTokenFromUrl, validateScores, matchState, formatLineup, resolveScoreRule, maxScoreOf,
+} = require('../js/tournament-form');
 
 describe('parseTokenFromUrl', () => {
   test('?c= 為隊長模式', () => {
@@ -48,6 +50,56 @@ describe('validateScores', () => {
       ok: false,
       error: '比分不符合賽制（15 分制、deuce 最高 21 分），請確認',
     });
+  });
+});
+
+describe('validateScores — to21_cap30（2026-11-25 貿聯×翰林友誼賽）', () => {
+  // 賽制：21 分一局；20 平後須淨勝 2 分；29 平時先得第 30 分者勝。
+  // 合法完賽比分：21:0–19；22–29 勝方對方 = 勝方 − 2；30:28、30:29。
+  const R = 'to21_cap30';
+  test.each([
+    ['21', '0'], ['21', '19'], ['22', '20'], ['25', '23'], ['29', '27'], ['30', '28'], ['30', '29'],
+    // 輸方視角
+    ['19', '21'], ['29', '30'],
+  ])('合法完賽比分（%s:%s）', (a, b) => {
+    expect(validateScores(a, b, R)).toEqual({ ok: true, scoreSelf: Number(a), scoreOpp: Number(b) });
+  });
+  test.each([
+    ['20', '21'],  // 20 平後不能以 1 分差結束
+    ['21', '20'],
+    ['22', '21'],  // 孟娜明確舉例不可出現
+    ['30', '27'],  // 28:27 時就不會打到 30
+    ['23', '20'],  // deuce 區間領先 3 分，不可能
+    ['20', '18'],  // 沒人到 21
+  ])('不符合賽制（%s:%s）→ 錯誤', (a, b) => {
+    expect(validateScores(a, b, R)).toEqual({
+      ok: false,
+      error: '比分不符合賽制（21 分制、deuce 最高 30 分），請確認',
+    });
+  });
+  test.each([
+    ['31', '29'], ['', '21'], ['12.5', '21'], ['-1', '21'],
+  ])('非 0–30 整數（%s, %s）→ 錯誤', (a, b) => {
+    expect(validateScores(a, b, R)).toEqual({ ok: false, error: '比分需為 0–30 的整數' });
+  });
+  test('平手 → 錯誤', () => {
+    expect(validateScores('21', '21', R)).toEqual({ ok: false, error: '羽球比賽不會平手，請確認比分' });
+  });
+});
+
+describe('resolveScoreRule / maxScoreOf', () => {
+  test('缺值或不認得的規則一律退回 15 分制（舊比賽行為）', () => {
+    expect(resolveScoreRule(undefined)).toBe('to15_cap21');
+    expect(resolveScoreRule('xx')).toBe('to15_cap21');
+    expect(resolveScoreRule('to21_cap30')).toBe('to21_cap30');
+  });
+  test('上限分數依規則', () => {
+    expect(maxScoreOf('to21_cap30')).toBe(30);
+    expect(maxScoreOf('to15_cap21')).toBe(21);
+    expect(maxScoreOf(undefined)).toBe(21);
+  });
+  test('不帶規則時 15 分制的 22:20 仍視為超出範圍', () => {
+    expect(validateScores('22', '20')).toEqual({ ok: false, error: '比分需為 0–21 的整數' });
   });
 });
 
