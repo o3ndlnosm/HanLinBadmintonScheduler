@@ -67,3 +67,19 @@ test('fetchPublicView：payload 的 playersA / playersB 原樣透傳', async () 
   expect(view.matches[0].playersA).toEqual([{ name: '宏彬' }, { name: '彥呈' }]);
   expect(view.matches[0].playersB).toEqual([{ name: 'Alan' }, { name: '威任' }]);
 });
+
+test('sendCheer：呼叫 tournament_cheer 並帶 p_token / p_team / p_n，回傳總數', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ M: 10, H: 3 }) });
+  const totals = await api.sendCheer('pub', 'team-M', 10);
+  expect(totals).toEqual({ M: 10, H: 3 });
+  const [url, opts] = global.fetch.mock.calls[0];
+  expect(url).toMatch(/\/rest\/v1\/rpc\/tournament_cheer$/);
+  expect(JSON.parse(opts.body)).toEqual({ p_token: 'pub', p_team: 'team-M', p_n: 10 });
+});
+
+test('fetchCheerTotals：呼叫 tournament_cheer_totals 並帶 p_token', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ M: 1, H: 2 }) });
+  expect(await api.fetchCheerTotals('cap')).toEqual({ M: 1, H: 2 });
+  expect(global.fetch.mock.calls[0][0]).toMatch(/\/rest\/v1\/rpc\/tournament_cheer_totals$/);
+  expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ p_token: 'cap' });
+});

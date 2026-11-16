@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#000000">
     <meta name="referrer" content="no-referrer">
-    <title>第三屆翰林匹克羽球運動會</title>
+    <title>羽球比賽計分板</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,13 +15,20 @@
 </head>
 <body class="tournament-page">
     <header class="header tournament-header">
-        <h1><i class="fas fa-trophy"></i> <span id="tournamentName">第三屆翰林匹克羽球運動會</span></h1>
+        <h1><i class="fas fa-trophy"></i> <span id="tournamentName"></span></h1>
         <div id="finishedBadge" class="finished-badge" hidden>比賽已結束</div>
     </header>
 
     <main class="tournament-main">
         <div id="offlineBox" class="offline-box" hidden></div>
         <div id="errorBox" class="error-box" hidden></div>
+
+        <!-- 比點賽制（2026-11-25 友誼賽起）：點數計分板＋公司應援條，取代排名表 -->
+        <section id="pointsSection" hidden>
+            <h2><i class="fas fa-flag-checkered"></i> 點數比分</h2>
+            <div id="pointBoard"></div>
+            <div id="cheerSection" class="cheer-section" hidden></div>
+        </section>
 
         <section id="standingsSection" hidden>
             <h2><i class="fas fa-ranking-star"></i> 即時排名</h2>
@@ -58,8 +65,10 @@
 
     <script src="js/dialog.js"></script>
     <script src="js/standings.js"></script>
+    <script src="js/team-points.js"></script>
     <script src="js/tournament-form.js"></script>
     <script src="js/tournament-api.js"></script>
+    <script src="js/cheer.js"></script>
     <script src="js/tournament.js"></script>
 </body>
 </html>

@@ -53,7 +53,19 @@ function computeTeamPoints(teams, matches) {
   return { points, totals, winnerId, allConfirmed };
 }
 
+const POINT_NUMERALS = ['一', '二', '三', '四', '五', '六', '七', '八', '九'];
+
+// 1 → '第一點'（point_no 的 DB check 為 1–9）
+function pointLabel(pointNo) {
+  return `第${POINT_NUMERALS[pointNo - 1] || pointNo}點`;
+}
+
+// { event:'男雙', eventTag:'A' } → '男雙A'
+function eventLabel(match) {
+  return `${match.event}${match.eventTag || ''}`;
+}
+
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { hasPoints, computeTeamPoints };
+  module.exports = { hasPoints, computeTeamPoints, pointLabel, eventLabel };
 }

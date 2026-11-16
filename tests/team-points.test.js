@@ -1,4 +1,4 @@
-const { hasPoints, computeTeamPoints } = require('../js/team-points');
+const { hasPoints, computeTeamPoints, pointLabel, eventLabel } = require('../js/team-points');
 
 // 2026-11-25 貿聯×翰林友誼賽：M=貿聯（team A）、H=翰林（team B）
 const TEAMS = [{ id: 'M', name: '貿聯' }, { id: 'H', name: '翰林' }];
@@ -128,5 +128,18 @@ describe('computeTeamPoints', () => {
     const r = computeTeamPoints(TEAMS, ms);
     expect(r.points).toHaveLength(5);
     expect(r.points.every((p) => p.total === 3)).toBe(true);
+  });
+});
+
+describe('pointLabel / eventLabel', () => {
+  test('點次用中文數字', () => {
+    expect(pointLabel(1)).toBe('第一點');
+    expect(pointLabel(5)).toBe('第五點');
+    expect(pointLabel(9)).toBe('第九點');
+  });
+  test('賽點接上 A/B 組別，沒有組別時只顯示賽點', () => {
+    expect(eventLabel({ event: '男雙', eventTag: 'A' })).toBe('男雙A');
+    expect(eventLabel({ event: '女雙', eventTag: '' })).toBe('女雙');
+    expect(eventLabel({ event: '混雙' })).toBe('混雙');
   });
 });

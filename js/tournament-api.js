@@ -1,5 +1,5 @@
 /**
- * v2 badminton-scheduler Supabase 後端的薄封裝（比賽模式三個 RPC）
+ * v2 badminton-scheduler Supabase 後端的薄封裝（比賽模式 RPC）
  * anon key 為公開值，安全由 RLS 與 security definer RPC 把關（同 v1 寫死 Google API key 的模式）
  */
 const TOURNAMENT_SUPABASE_URL = 'https://ijevdpufitfgqlbjsxbo.supabase.co'; // 部署前填入：v2 專案的 VITE_SUPABASE_URL
@@ -48,7 +48,16 @@ function reportScore(token, matchId, scoreSelf, scoreOpp) {
   });
 }
 
+// 公司應援（2026-11-25 友誼賽起）：token 可為觀賽或輸分 token；回傳兩隊目前總數 { teamId: count }
+function sendCheer(token, teamId, n) {
+  return callTournamentRpc('tournament_cheer', { p_token: token, p_team: teamId, p_n: n });
+}
+
+function fetchCheerTotals(token) {
+  return callTournamentRpc('tournament_cheer_totals', { p_token: token });
+}
+
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { fetchPublicView, fetchCaptainView, reportScore };
+  module.exports = { fetchPublicView, fetchCaptainView, reportScore, sendCheer, fetchCheerTotals };
 }
