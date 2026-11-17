@@ -139,6 +139,11 @@ npx http-server
 
 計分頁的檔案**不在** `PRECACHE_URLS` 裡，是靠 fetch 攔截順帶快取的。
 
+**計分頁的本地 CSS／JS 網址帶 `?v=<版本>`，必須與 `CACHE_NAME` 的版本號一起 bump**（2026-11-17 起，
+`tests/tournament-html-assets.test.js` 會擋）。為什麼：網址固定時，開過舊版計分頁的手機第一次打開新比賽
+會拿到「新 HTML（新 token 網址不在快取）＋舊 JS（固定網址在快取）」，舊前端會用舊規則擋分數。
+網址帶版本號後舊快取一定找不到，第一次載入就是新版。
+
 **bump `CACHE_NAME` 之後仍然要重整兩次**（2026-08-10 線上實測）：第一次載入時舊 SW
 還控制著頁面、供應的是舊檔，瀏覽器同時才在背景發現 `sw.js` 變了 → 新 SW install →
 `skipWaiting` → `activate` 並刪掉舊 cache；**第二次**載入才由新 SW 控制、cache 已空、
