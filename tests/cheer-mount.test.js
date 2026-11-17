@@ -10,6 +10,7 @@ const TEAMS = [
 
 let mountCheerBar;
 let setCheerReveal;
+let setCheerReadOnly;
 let cheerSlogans;
 let totals;
 let frames;
@@ -37,7 +38,9 @@ beforeEach(() => {
   totals = { M: 100, H: 100 };
   global.fetchCheerTotals = jest.fn(() => Promise.resolve(totals));
   global.sendCheer = jest.fn(() => Promise.resolve(totals));
-  jest.isolateModules(() => { ({ mountCheerBar, setCheerReveal, cheerSlogans } = require('../js/cheer')); });
+  jest.isolateModules(() => {
+    ({ mountCheerBar, setCheerReveal, setCheerReadOnly, cheerSlogans } = require('../js/cheer'));
+  });
 });
 
 afterEach(() => {
@@ -186,5 +189,21 @@ describe('比賽結束才公布應援數', () => {
     await tick();
     expect(headText()).toContain('貿聯 120');
     expect(global.sendCheer).not.toHaveBeenCalled();
+  });
+
+  // 2026-11-17 review Important 1：頁面開著時比賽才變 finished（賽後收尾時現場頁面幾乎都開著）
+  test('開著的頁面中途變唯讀：按鈕拿掉、沒送出的點擊不再算進公布的數字、定時送出停掉', async () => {
+    global.sendCheer = jest.fn(() => Promise.reject(new Error('比賽已結束')));
+    setCheerReveal(true);
+    mountCheerBar(container(), TEAMS, 'pub');
+    await tick();
+    expect(jest.getTimerCount()).toBe(2); // 定時送出＋輪詢
+    buttons()[0].click();
+    expect(headText()).toContain('貿聯 101');
+    setCheerReadOnly(true);
+    await tick();
+    expect(buttons()).toHaveLength(0);
+    expect(headText()).toContain('貿聯 100');
+    expect(jest.getTimerCount()).toBe(1); // 只剩輪詢
   });
 });

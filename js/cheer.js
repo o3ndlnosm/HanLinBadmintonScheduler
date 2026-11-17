@@ -230,11 +230,18 @@ let cheerMounted = false;
 // 比賽結束（15 場全部確認或 finished）才公布應援數；比賽中標題列只顯示隊名（2026-11-17 使用者拍板）
 let cheerRevealed = false;
 let cheerRenderHead = null;  // 掛載後：用最後一次的總數重畫標題列
+let cheerGoReadOnly = null;  // 掛載後：把開著的應援條切成唯讀
 
 // 由 tournament.js 每次刷新時依比賽狀態設定；掛載前呼叫也有效（掛載時讀這個旗標）
 function setCheerReveal(revealed) {
   cheerRevealed = !!revealed;
   if (cheerRenderHead) cheerRenderHead();
+}
+
+// 頁面開著時比賽才變 finished（賽後收尾）：mountCheerBar 只掛一次，由 tournament.js 每次刷新時呼叫這個切成唯讀。
+// 只會從可加油切到唯讀，不會切回來（比賽重開要重新整理）。掛載前呼叫沒有作用，由 mountCheerBar 的 readOnly 處理。
+function setCheerReadOnly(readOnly) {
+  if (readOnly && cheerGoReadOnly) cheerGoReadOnly();
 }
 
 // teams：[{ id, name, color }]，取前兩隊（左 A、右 B）
@@ -281,8 +288,10 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
 
   let btnA = null;
   let btnB = null;
-  if (!readOnly) {
-    const buttons = document.createElement('div');
+  let buttons = null;
+  let isReadOnly = readOnly;
+  if (!isReadOnly) {
+    buttons = document.createElement('div');
     buttons.className = 'cheer-buttons';
     const makeBtn = (team) => {
       const btn = document.createElement('button');
@@ -361,7 +370,8 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
     token, teamIds: [ta.id, tb.id], send: sendCheer, fetchTotals: fetchCheerTotals, onChange: render,
   });
 
-  if (!readOnly) {
+  let flushTimer = null;
+  if (!isReadOnly) {
     const bump = (btn) => {
       btn.classList.remove('bump');
       void btn.offsetWidth; // 重新觸發動畫
@@ -369,13 +379,22 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
     };
     btnA.addEventListener('click', () => { ctrl.tap(ta.id); bump(btnA); });
     btnB.addEventListener('click', () => { ctrl.tap(tb.id); bump(btnB); });
-    setInterval(() => ctrl.flush(), CHEER_FLUSH_MS);
+    flushTimer = setInterval(() => ctrl.flush(), CHEER_FLUSH_MS);
   }
   setInterval(() => { if (document.visibilityState === 'visible') ctrl.poll(); }, CHEER_POLL_MS);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') { if (!readOnly) ctrl.flush(); }
+    if (document.visibilityState === 'hidden') { if (!isReadOnly) ctrl.flush(); }
     else ctrl.poll();
   });
+  // 切唯讀：拿掉按鈕、停掉定時送出；還沒送出的點擊最後送一次（後端會拒絕），送出失敗後數字回到伺服器值，
+  // 不會停在本機多算的數字上
+  cheerGoReadOnly = () => {
+    if (isReadOnly) return;
+    isReadOnly = true;
+    if (buttons) buttons.remove();
+    clearInterval(flushTimer);
+    ctrl.flush();
+  };
   ctrl.poll();
 }
 
@@ -386,6 +405,6 @@ if (typeof module !== 'undefined' && module.exports) {
     CHEER_BUBBLE_MAX_PER_SIDE, CHEER_BUBBLE_MS,
     addTap, cheerRatio, displayTotals, createCheerController, sparkCount, createSparkLayer,
     cheerSlogans, createBubbleLayer,
-    mountCheerBar, setCheerReveal,
+    mountCheerBar, setCheerReveal, setCheerReadOnly,
   };
 }

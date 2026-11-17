@@ -66,6 +66,7 @@ test('比點資料但隊伍不足兩隊：不拋錯、賽程照樣畫出來', ()
 describe('應援條公布與唯讀', () => {
   let mountSpy;
   let revealSpy;
+  let readOnlySpy;
   const allConfirmed = (view) => {
     view.matches.forEach((m) => { m.status = 'confirmed'; m.scoreA = 21; m.scoreB = 15; });
     return view;
@@ -76,6 +77,8 @@ describe('應援條公布與唯讀', () => {
     revealSpy = jest.fn();
     window.mountCheerBar = mountSpy;
     window.setCheerReveal = revealSpy;
+    readOnlySpy = jest.fn();
+    window.setCheerReadOnly = readOnlySpy;
   });
 
   test('比賽中（還有沒確認的）：不公布、可以加油', () => {
@@ -98,6 +101,8 @@ describe('應援條公布與唯讀', () => {
     expect(mountSpy).toHaveBeenCalledTimes(1);
     expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
     expect(revealSpy).toHaveBeenLastCalledWith(true);
+    // 頁面開著時才變 finished：mountCheerBar 只掛一次，要另外切成唯讀（review Important 1）
+    expect(readOnlySpy).toHaveBeenLastCalledWith(true);
   });
 
   test('公布出錯：賽程照樣畫出來、renderAll 不拋錯', () => {

@@ -343,6 +343,8 @@ function renderAll(view) {
         auth.token,
         { readOnly: finished }
       );
+      // 頁面開著時才變 finished：上面不會重掛，另外切成唯讀
+      setCheerReadOnly(finished);
     } catch (e) {
       // 應援失敗靜默略過
     }

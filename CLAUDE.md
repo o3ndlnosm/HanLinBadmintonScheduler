@@ -95,7 +95,8 @@ npx http-server
 - **應援泡泡＋比賽結束才公布應援數**（2026-11-17，設計 `docs/superpowers/specs/2026-11-17-cheer-bubbles-design.md`）：
   跟火花同一個 bursts 觸發，該隊那側冒固定口號泡泡（`cheerSlogans`，不放嗆對方的話），一次增加只冒 1 個、每側同時最多 3 個。
   比賽中標題列只顯示隊名；`renderAll` 依 `allConfirmed || status === 'finished'` 呼叫 `setCheerReveal()` 才公布應援總數。
-  finished 後應援條仍掛但唯讀（`mountCheerBar(..., { readOnly: true })`，沒有按鈕），收尾後才打開的人也看得到總數
+  finished 後應援條仍掛但唯讀（`mountCheerBar(..., { readOnly: true })`，沒有按鈕），收尾後才打開的人也看得到總數；
+  頁面開著時才變 finished，由 `renderAll` 每次呼叫的 `setCheerReadOnly(true)` 切成唯讀（拿掉按鈕、停掉定時送出）
 - 負載實測用 `scripts/cheer-load-test.mjs`（每支模擬手機一條 HTTP/2 連線）。**不要改回 fetch**：
   Node fetch 會把模擬手機的請求擠進少數連線排隊，量到的是測試工具的瓶頸（2026-11-17 實測 p95 15 s vs 實際 164 ms）
 - 後端借用 v2 badminton-scheduler 的 Supabase RPC，設定在 `js/tournament-api.js`
