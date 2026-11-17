@@ -322,21 +322,26 @@ function renderSchedule(view) {
 
 function renderAll(view) {
   renderHeader(view);
-  if (hasPoints(view.matches)) {
-    renderPointBoard(view);
-    // 應援條只在比點模式出現；mountCheerBar 內部保證只掛一次。比賽結束後不再掛（後端也會擋）
-    if (view.tournament.status !== 'finished' && view.teams.length >= 2) {
+  // 比點模式需要兩隊（左右對戰）；資料不完整時退回排名表，不讓點數板拋錯
+  const pointMode = hasPoints(view.matches) && view.teams.length >= 2;
+  if (pointMode) renderPointBoard(view);
+  else renderStandings(view);
+  // 賽程（隊長輸分入口）先畫，應援條之後才掛
+  renderSchedule(view);
+  // 反目標：應援出錯不得連帶讓比分功能壞掉，所以包在 try/catch 裡、放在最後。
+  // 應援條只在比點模式出現；mountCheerBar 內部保證只掛一次。比賽結束後不再掛（後端也會擋）
+  if (pointMode && view.tournament.status !== 'finished') {
+    try {
       const colors = teamColorById(view);
       mountCheerBar(
         document.getElementById('cheerSection'),
         view.teams.slice(0, 2).map((t) => ({ id: t.id, name: t.name, color: colors[t.id] })),
         auth.token
       );
+    } catch (e) {
+      // 應援失敗靜默略過
     }
-  } else {
-    renderStandings(view);
   }
-  renderSchedule(view);
 }
 
 async function refresh() {
