@@ -1,6 +1,6 @@
 const {
   CHEER_MAX_PER_WINDOW, CHEER_FLUSH_MS, CHEER_POLL_MS,
-  addTap, cheerRatio, displayTotals, createCheerController,
+  addTap, cheerRatio, displayTotals, createCheerController, sparkCount,
 } = require('../js/cheer');
 
 describe('常數（spec：每 2 秒最多算 10 下、每 2 秒送一次、每 3 秒輪詢）', () => {
@@ -169,5 +169,77 @@ describe('createCheerController', () => {
     const { ctrl, calls } = setup();
     await ctrl.flush();
     expect(calls.send).toEqual([]);
+  });
+});
+
+// 2026-11-17 交界火花：每隊這次顯示總數增加多少（bursts）
+describe('sparkCount', () => {
+  test('增加量對應火花顆數：5 + n，最多 18', () => {
+    expect(sparkCount(0)).toBe(0);
+    expect(sparkCount(1)).toBe(6);
+    expect(sparkCount(12)).toBe(17);
+    expect(sparkCount(13)).toBe(18);
+    expect(sparkCount(1000)).toBe(18);
+  });
+});
+
+describe('createCheerController bursts', () => {
+  const make = ({ send, fetchTotals } = {}) => {
+    const bursts = [];
+    const ctrl = createCheerController({
+      token: 'pub', teamIds: ['M', 'H'],
+      send: send || (() => Promise.resolve({})),
+      fetchTotals: fetchTotals || (() => Promise.resolve({})),
+      onChange: (t, b) => bursts.push(b),
+    });
+    return { ctrl, bursts };
+  };
+
+  test('自己按一下 → 這隊增加 1', () => {
+    const { ctrl, bursts } = make();
+    ctrl.tap('M');
+    expect(bursts[bursts.length - 1]).toEqual({ M: 1 });
+  });
+
+  test('第一次拿到伺服器總數不算增加；之後別人的增加照算', async () => {
+    let value = { M: 5000, H: 4000 };
+    const { ctrl, bursts } = make({ fetchTotals: () => Promise.resolve(value) });
+    await ctrl.poll();
+    expect(bursts[bursts.length - 1]).toEqual({});
+    value = { M: 5003, H: 4000 };
+    await ctrl.poll();
+    expect(bursts[bursts.length - 1]).toEqual({ M: 3 });
+  });
+
+  test('自己按的那下送出回來時不重複算，只算別人的', async () => {
+    let server = { M: 100, H: 0 };
+    const { ctrl, bursts } = make({
+      fetchTotals: () => Promise.resolve(server),
+      send: () => Promise.resolve({ M: 104, H: 0 }), // 先前 100 + 自己 1 + 別人 3
+    });
+    await ctrl.poll();
+    ctrl.tap('M');
+    expect(bursts[bursts.length - 1]).toEqual({ M: 1 });
+    await ctrl.flush();
+    expect(bursts[bursts.length - 1]).toEqual({ M: 3 });
+  });
+
+  test('超過 2 秒 10 下的點擊沒算進去，不算增加', () => {
+    const { ctrl, bursts } = make();
+    for (let i = 0; i < 10; i++) ctrl.tap('H');
+    const before = bursts.length;
+    ctrl.tap('H');
+    expect(bursts.slice(before).every((b) => !b.H)).toBe(true);
+  });
+
+  test('較舊的輪詢結果晚回來，不算增加', async () => {
+    let value = { M: 100, H: 0 };
+    const { ctrl, bursts } = make({ fetchTotals: () => Promise.resolve(value) });
+    await ctrl.poll();
+    value = { M: 110, H: 0 };
+    await ctrl.poll();
+    value = { M: 105, H: 0 };
+    await ctrl.poll();
+    expect(bursts[bursts.length - 1]).toEqual({});
   });
 });

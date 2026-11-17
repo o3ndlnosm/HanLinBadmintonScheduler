@@ -11,6 +11,14 @@
 const CHEER_MAX_PER_WINDOW = 10;
 const CHEER_FLUSH_MS = 2000;
 const CHEER_POLL_MS = 3000;
+const CHEER_SPARK_MAX_LIVE = 60;  // 同時存在的火花上限（手機效能）
+const CHEER_SPARK_YELLOW = '#ffd23f';
+
+// 這次增加量 → 交界火花顆數（2026-11-17 設計見 docs/superpowers/specs/2026-11-17-cheer-sparks-design.md）
+function sparkCount(n) {
+  if (!(n > 0)) return 0;
+  return Math.min(5 + n, 18);
+}
 
 function addTap(windowCount, max = CHEER_MAX_PER_WINDOW) {
   if (windowCount >= max) return { windowCount: max, counted: false };
@@ -39,15 +47,36 @@ function createCheerController({ token, teamIds, send, fetchTotals, onChange }) 
   const inflight = Object.fromEntries(teamIds.map((id) => [id, 0]));  // 已送出、還沒回來
   const windowCount = Object.fromEntries(teamIds.map((id) => [id, 0]));
 
-  // 顯示 = 伺服器數 + 送出中 + 本機累積：送出途中再按，數字不會先掉回去
-  const emit = () => onChange(displayTotals(displayTotals(server, inflight), pending));
+  let shownLast = Object.fromEntries(teamIds.map((id) => [id, 0]));
+  let primed = false;  // 還沒接受過伺服器總數
+
+  // 顯示 = 伺服器數 + 送出中 + 本機累積：送出途中再按，數字不會先掉回去。
+  // bursts = 各隊顯示總數比上次多了多少（自己按、別人的批次一律同一套）；
+  // 自己按的量送出回來時已經算在上次的顯示裡，所以不會重複算。
+  // quiet：第一次接受伺服器總數（打開頁面 0 → 幾千）不算增加。
+  const emit = (quiet = false) => {
+    const shown = displayTotals(displayTotals(server, inflight), pending);
+    const bursts = {};
+    if (!quiet) {
+      teamIds.forEach((id) => {
+        const d = (shown[id] || 0) - (shownLast[id] || 0);
+        if (d > 0) bursts[id] = d;
+      });
+    }
+    shownLast = shown;
+    onChange(shown, bursts);
+  };
   // 總數只會增加：逐隊取大值，較舊的回應（例如送出前發出、較晚回來的輪詢）不會讓畫面下降。
   // 代價：用 SQL 歸零後，開著的頁面要重新整理才會看到歸零。
+  // 回傳 true 表示這是第一次接受伺服器總數。
   const accept = (totals) => {
-    if (!totals || typeof totals !== 'object') return;
+    if (!totals || typeof totals !== 'object') return false;
     Object.entries(totals).forEach(([id, n]) => {
       if (typeof n === 'number') server[id] = Math.max(server[id] || 0, n);
     });
+    const first = !primed;
+    primed = true;
+    return first;
   };
 
   function tap(teamId) {
@@ -64,28 +93,73 @@ function createCheerController({ token, teamIds, send, fetchTotals, onChange }) 
     const batch = teamIds.filter((id) => pending[id] > 0).map((id) => [id, pending[id]]);
     teamIds.forEach((id) => { windowCount[id] = 0; });
     batch.forEach(([id, n]) => { pending[id] = 0; inflight[id] += n; });
+    let quiet = false;
     for (const [teamId, n] of batch) {
       try {
-        accept(await send(token, teamId, n));
+        if (accept(await send(token, teamId, n))) quiet = true;
       } catch (e) {
         // 應援失敗靜默略過
       } finally {
         inflight[teamId] -= n;
       }
     }
-    if (batch.length) emit();
+    if (batch.length) emit(quiet);
   }
 
   async function poll() {
     try {
-      accept(await fetchTotals(token));
-      emit();
+      const first = accept(await fetchTotals(token));
+      emit(first);
     } catch (e) {
       // 應援失敗靜默略過
     }
   }
 
   return { tap, flush, poll };
+}
+
+// 火花層：在 layer（position: relative 的容器）裡，從 (x, y) 往 dir（+1 右、−1 左）噴火花。
+// 每顆只動 transform／opacity，跑完就移除；同時存在超過 maxLive 這批就少噴；
+// 瀏覽器不支援 Web Animations 時不噴。回傳實際噴出的顆數。
+function createSparkLayer(layer, maxLive = CHEER_SPARK_MAX_LIVE) {
+  let live = 0;
+
+  function burst(x, y, dir, color, n) {
+    if (typeof layer.animate !== 'function') return 0;
+    const want = Math.min(sparkCount(n), maxLive - live);
+    const palette = [color, CHEER_SPARK_YELLOW, '#ffffff'];
+    for (let i = 0; i < want; i++) {
+      const el = document.createElement('span');
+      const size = 2 + Math.random() * 3;
+      el.className = 'cheer-spark';
+      el.style.left = `${x - size / 2}px`;
+      el.style.top = `${y - size / 2}px`;
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.backgroundColor = palette[i % palette.length];
+      layer.appendChild(el);
+      live += 1;
+
+      const ang = (dir > 0 ? 0 : Math.PI) + (Math.random() - 0.5) * 2.2; // 往前、上下 ±63°
+      const dist = 14 + Math.random() * 34;
+      const anim = el.animate([
+        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+        { transform: `translate(${Math.cos(ang) * dist}px, ${Math.sin(ang) * dist}px) scale(0.2)`, opacity: 0 },
+      ], { duration: 380 + Math.random() * 320, easing: 'cubic-bezier(0.2, 0.7, 0.4, 1)' });
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        el.remove();
+        live -= 1;
+      };
+      anim.onfinish = finish;
+      anim.oncancel = finish;
+    }
+    return want;
+  }
+
+  return { burst, live: () => live };
 }
 
 // ---- 瀏覽器掛載（渲染層，靠瀏覽器驗證） ----
@@ -161,7 +235,7 @@ function mountCheerBar(container, teams, token) {
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    CHEER_MAX_PER_WINDOW, CHEER_FLUSH_MS, CHEER_POLL_MS,
-    addTap, cheerRatio, displayTotals, createCheerController,
+    CHEER_MAX_PER_WINDOW, CHEER_FLUSH_MS, CHEER_POLL_MS, CHEER_SPARK_MAX_LIVE,
+    addTap, cheerRatio, displayTotals, createCheerController, sparkCount, createSparkLayer,
   };
 }
