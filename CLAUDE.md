@@ -88,11 +88,15 @@ npx http-server
 - **公司應援條**（`js/cheer.js`，只在比點模式）：純炒氣氛、不影響比分。本機累積、每 2 秒送一次、
   每隊每 2 秒窗口最多算 10 下、總數每 3 秒輪詢；失敗一律靜默、與計分完全分開。
   後端只檢查單次 1–10，anon key 公開可被灌數——已知且接受（觀賽 token 全場共用，無法依 token 限流）
+- **交界火花**（2026-11-17，設計 `docs/superpowers/specs/2026-11-17-cheer-sparks-design.md`）：兩色交界一顆閃爍光點；
+  任一隊顯示總數增加時從交界朝對方噴火花（控制器 `onChange(totals, bursts)`，bursts = 顯示總數差，自己按與別人的批次同一套）。
+  第一次拿到伺服器總數不噴；輪詢不併入有點擊送出中的隊（否則送出中的量會被算兩次）；同時存在最多 60 顆；
+  減少動態效果與分頁背景時不噴；`.cheer-section` 的 `overflow: hidden` 是防 375px 水平捲動用的，不要拿掉
 - 負載實測用 `scripts/cheer-load-test.mjs`（每支模擬手機一條 HTTP/2 連線）。**不要改回 fetch**：
   Node fetch 會把模擬手機的請求擠進少數連線排隊，量到的是測試工具的瓶頸（2026-11-17 實測 p95 15 s vs 實際 164 ms）
 - 後端借用 v2 badminton-scheduler 的 Supabase RPC，設定在 `js/tournament-api.js`
 - 純函式：`js/standings.js`（排名）、`js/tournament-form.js`（驗證/狀態）、`js/team-points.js`（比點）、
-  `js/cheer.js`（應援累積／裁切／比例），各有 jest 測試
+  `js/cheer.js`（應援累積／裁切／比例／火花增加量），各有 jest 測試
 - 第三屆賽前作業與 seed 見 `docs/tournament/賽前作業.md`；友誼賽 SQL 為 `docs/tournament/friendly-*.sql`
   （schema → rpc-selftest 驗證 → seed 建賽 → lineup 掛人名；測試比賽用 seed 換賽名建、test-cleanup 刪）
 - 建賽時同一交易內 `now()` 相同，隊伍 `created_at` 要明確錯開，否則 payload 的隊伍順序（左右與配色）不保證
@@ -192,7 +196,7 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 266 項跨 16 套件）
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 302 項跨 20 套件）
 2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`
@@ -221,7 +225,7 @@ historyMatches = []    // 比賽歷史
 │   ├── standings.js        # 比賽排名計算（純函式，jest 測試）
 │   ├── tournament-form.js  # 比賽計分頁表單驗證/狀態機、formatLineup（純函式，jest 測試）
 │   ├── team-points.js      # 比點計算、點次標籤（純函式，jest 測試）
-│   ├── cheer.js            # 公司應援條：累積／裁切／控制器（jest）＋ 掛載（瀏覽器）
+│   ├── cheer.js            # 公司應援條：累積／裁切／控制器／火花層（jest）＋ 掛載（jsdom＋瀏覽器）
 │   ├── tournament-api.js   # 比賽計分頁 Supabase RPC 薄封裝（jest 測試）
 │   └── tournament.js       # 比賽計分頁初始化、輪詢、渲染
 ├── tests/
@@ -233,7 +237,11 @@ historyMatches = []    // 比賽歷史
 │   ├── standings.test.js           # 比賽排名測試
 │   ├── tournament-form.test.js     # 比賽計分頁表單驗證測試
 │   ├── team-points.test.js         # 比點計算測試（友誼賽 15 場賽程）
-│   ├── cheer.test.js               # 應援累積、裁切、控制器測試
+│   ├── cheer.test.js               # 應援累積、裁切、控制器、火花增加量測試
+│   ├── cheer-sparks.test.js        # 火花層（jsdom）：顆數、上限、移除
+│   ├── cheer-mount.test.js         # 應援條掛載（jsdom）：光點、首次不噴、方向、減少動態、背景分頁
+│   ├── tournament-render.test.js   # 計分頁渲染（jsdom）：應援出錯不影響賽程
+│   ├── tournament-html-assets.test.js # 計分頁資源 ?v= 與 sw.js CACHE_NAME 一致
 │   └── tournament-api.test.js      # 比賽計分頁 API 薄封裝測試
 ├── img/
 │   └── event-banner.jpg     # 主頁倒數區背景插畫（1400w JPEG，213K）

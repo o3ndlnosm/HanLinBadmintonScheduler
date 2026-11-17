@@ -243,3 +243,42 @@ describe('createCheerController bursts', () => {
     expect(bursts[bursts.length - 1]).toEqual({});
   });
 });
+
+// 2026-11-17 review Minor 1：送出途中、伺服器已含自己那下的輪詢先回來，自己按的量不能再算一次
+describe('輪詢與送出回應順序顛倒', () => {
+  test('送出中的隊伍，輪詢值先不併入：數字不跳、不重複噴；另一隊照常', async () => {
+    let resolveSend;
+    let pollValue = { M: 100, H: 0 };
+    const changes = [];
+    const ctrl = createCheerController({
+      token: 'pub', teamIds: ['M', 'H'],
+      send: () => new Promise((r) => { resolveSend = r; }),
+      fetchTotals: () => Promise.resolve(pollValue),
+      onChange: (t, b) => changes.push([t, b]),
+    });
+    await ctrl.poll();                 // 伺服器 100
+    ctrl.tap('M');                     // 顯示 101、噴 {M:1}
+    const sending = ctrl.flush();      // 1 下送出中
+    pollValue = { M: 101, H: 5 };      // 伺服器已寫入自己那下，輪詢先回來
+    await ctrl.poll();
+    expect(changes[changes.length - 1]).toEqual([{ M: 101, H: 5 }, { H: 5 }]);
+    resolveSend({ M: 101, H: 5 });
+    await sending;
+    expect(changes[changes.length - 1]).toEqual([{ M: 101, H: 5 }, {}]);
+  });
+});
+
+// 2026-11-17 review Minor 4：第一次拿到伺服器總數發生在送出回應（輪詢還沒成功過）也不算增加
+test('第一次拿到伺服器總數是送出回應：不算增加', async () => {
+  const bursts = [];
+  const ctrl = createCheerController({
+    token: 'pub', teamIds: ['M', 'H'],
+    send: () => Promise.resolve({ M: 5001, H: 4000 }),
+    fetchTotals: () => Promise.reject(new Error('還沒輪詢成功')),
+    onChange: (t, b) => bursts.push(b),
+  });
+  ctrl.tap('M');
+  expect(bursts[bursts.length - 1]).toEqual({ M: 1 });
+  await ctrl.flush();
+  expect(bursts[bursts.length - 1]).toEqual({});
+});

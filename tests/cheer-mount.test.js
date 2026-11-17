@@ -76,3 +76,26 @@ test('系統開了減少動態效果：不噴', async () => {
   buttons()[0].click();
   expect(sparks()).toHaveLength(0);
 });
+
+// 2026-11-17 review Minor 3：分頁在背景時不噴
+test('分頁在背景：不噴', async () => {
+  Object.defineProperty(document, 'visibilityState', { get: () => 'hidden', configurable: true });
+  try {
+    mountCheerBar(container(), TEAMS, 'pub');
+    await tick();
+    buttons()[0].click();
+    expect(sparks()).toHaveLength(0);
+  } finally {
+    delete document.visibilityState;
+  }
+});
+
+// 2026-11-17 review Minor 4：火花出錯不影響應援數與按鈕回饋
+test('火花出錯：數字照常更新、按鈕照常有回饋', async () => {
+  window.matchMedia = () => { throw new Error('boom'); };
+  mountCheerBar(container(), TEAMS, 'pub');
+  await tick();
+  buttons()[0].click();
+  expect(document.querySelector('#cheer .cheer-counts').textContent).toContain('101');
+  expect(buttons()[0].classList.contains('bump')).toBe(true);
+});

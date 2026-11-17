@@ -69,9 +69,12 @@ function createCheerController({ token, teamIds, send, fetchTotals, onChange }) 
   // 總數只會增加：逐隊取大值，較舊的回應（例如送出前發出、較晚回來的輪詢）不會讓畫面下降。
   // 代價：用 SQL 歸零後，開著的頁面要重新整理才會看到歸零。
   // 回傳 true 表示這是第一次接受伺服器總數。
-  const accept = (totals) => {
+  // skipInflight（輪詢用）：有點擊正在送出的隊伍不併入。輪詢若在伺服器寫入之後才讀，值已含送出中的量，
+  // 再加上顯示裡的 inflight 就會重複算（數字先多跳、火花重複噴）；那一隊的新總數等送出回應帶回來。
+  const accept = (totals, skipInflight = false) => {
     if (!totals || typeof totals !== 'object') return false;
     Object.entries(totals).forEach(([id, n]) => {
+      if (skipInflight && inflight[id] > 0) return;
       if (typeof n === 'number') server[id] = Math.max(server[id] || 0, n);
     });
     const first = !primed;
@@ -108,7 +111,7 @@ function createCheerController({ token, teamIds, send, fetchTotals, onChange }) 
 
   async function poll() {
     try {
-      const first = accept(await fetchTotals(token));
+      const first = accept(await fetchTotals(token), true);
       emit(first);
     } catch (e) {
       // 應援失敗靜默略過
@@ -120,7 +123,7 @@ function createCheerController({ token, teamIds, send, fetchTotals, onChange }) 
 
 // 火花層：在 layer（position: relative 的容器）裡，從 (x, y) 往 dir（+1 右、−1 左）噴火花。
 // 每顆只動 transform／opacity，跑完就移除；同時存在超過 maxLive 這批就少噴；
-// 瀏覽器不支援 Web Animations 時不噴。回傳實際噴出的顆數。
+// 瀏覽器不支援 Web Animations、或動畫建立失敗時不噴（也不留元素、不佔上限）。回傳實際噴出的顆數。
 function createSparkLayer(layer, maxLive = CHEER_SPARK_MAX_LIVE) {
   let live = 0;
 
@@ -128,6 +131,7 @@ function createSparkLayer(layer, maxLive = CHEER_SPARK_MAX_LIVE) {
     if (typeof layer.animate !== 'function') return 0;
     const want = Math.min(sparkCount(n), maxLive - live);
     const palette = [color, CHEER_SPARK_YELLOW, '#ffffff'];
+    let made = 0;
     for (let i = 0; i < want; i++) {
       const el = document.createElement('span');
       const size = 2 + Math.random() * 3;
@@ -137,15 +141,22 @@ function createSparkLayer(layer, maxLive = CHEER_SPARK_MAX_LIVE) {
       el.style.width = `${size}px`;
       el.style.height = `${size}px`;
       el.style.backgroundColor = palette[i % palette.length];
-      layer.appendChild(el);
-      live += 1;
 
       const ang = (dir > 0 ? 0 : Math.PI) + (Math.random() - 0.5) * 2.2; // 往前、上下 ±63°
       const dist = 14 + Math.random() * 34;
-      const anim = el.animate([
-        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-        { transform: `translate(${Math.cos(ang) * dist}px, ${Math.sin(ang) * dist}px) scale(0.2)`, opacity: 0 },
-      ], { duration: 380 + Math.random() * 320, easing: 'cubic-bezier(0.2, 0.7, 0.4, 1)' });
+      let anim;
+      try {
+        layer.appendChild(el);
+        anim = el.animate([
+          { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+          { transform: `translate(${Math.cos(ang) * dist}px, ${Math.sin(ang) * dist}px) scale(0.2)`, opacity: 0 },
+        ], { duration: 380 + Math.random() * 320, easing: 'cubic-bezier(0.2, 0.7, 0.4, 1)' });
+      } catch (e) {
+        el.remove();  // 一顆失敗，這批其餘的也會失敗
+        break;
+      }
+      live += 1;
+      made += 1;
       let done = false;
       const finish = () => {
         if (done) return;
@@ -156,13 +167,13 @@ function createSparkLayer(layer, maxLive = CHEER_SPARK_MAX_LIVE) {
       anim.onfinish = finish;
       anim.oncancel = finish;
     }
-    return want;
+    return made;
   }
 
   return { burst, live: () => live };
 }
 
-// ---- 瀏覽器掛載（渲染層，靠瀏覽器驗證） ----
+// ---- 瀏覽器掛載（渲染層；結構與火花觸發有 jsdom 測試，版面與動畫靠瀏覽器驗證） ----
 let cheerMounted = false;
 
 // teams：[{ id, name, color }]，取前兩隊（左 A、右 B）

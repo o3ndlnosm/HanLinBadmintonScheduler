@@ -49,3 +49,20 @@ test('瀏覽器不支援動畫 → 不噴、不留元素', () => {
   expect(layer.burst(100, 7, 1, '#e10600', 5)).toBe(0);
   expect(layerEl().children).toHaveLength(0);
 });
+
+// 2026-11-17 review Minor 2：動畫建立失敗時不能留下靜止的火花、也不能佔掉上限
+test('動畫建立拋錯 → 不留元素、不佔上限', () => {
+  Element.prototype.animate = function () { throw new Error('boom'); };
+  const layer = createSparkLayer(layerEl());
+  expect(layer.burst(100, 7, 1, '#e10600', 5)).toBe(0);
+  expect(layerEl().children).toHaveLength(0);
+  expect(layer.live()).toBe(0);
+});
+
+test('動畫被取消（oncancel）也會移除元素', () => {
+  const layer = createSparkLayer(layerEl());
+  layer.burst(100, 7, 1, '#e10600', 1);
+  finishers.forEach((a) => a.oncancel());
+  expect(layerEl().children).toHaveLength(0);
+  expect(layer.live()).toBe(0);
+});
