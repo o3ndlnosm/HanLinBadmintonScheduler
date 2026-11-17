@@ -13,6 +13,16 @@ const CHEER_FLUSH_MS = 2000;
 const CHEER_POLL_MS = 3000;
 const CHEER_SPARK_MAX_LIVE = 60;  // 同時存在的火花上限（手機效能）
 const CHEER_SPARK_YELLOW = '#ffd23f';
+const CHEER_BUBBLE_MAX_PER_SIDE = 3;  // 每側同時存在的泡泡上限
+const CHEER_BUBBLE_MS = 1400;
+
+// 泡泡口號（2026-11-17 設計見 docs/superpowers/specs/2026-11-17-cheer-bubbles-design.md）：不放嗆對方的話
+function cheerSlogans(teamName) {
+  return [
+    '加油！', '衝啊！', '好球！', '穩住！', '漂亮！', '拿下這分！',
+    `${teamName}加油！`, `${teamName}衝衝衝！`, `${teamName}必勝！`,
+  ];
+}
 
 // 這次增加量 → 交界火花顆數（2026-11-17 設計見 docs/superpowers/specs/2026-11-17-cheer-sparks-design.md）
 function sparkCount(n) {
@@ -173,6 +183,48 @@ function createSparkLayer(layer, maxLive = CHEER_SPARK_MAX_LIVE) {
   return { burst, live: () => live };
 }
 
+// 泡泡層：side 'a'（左側）或 'b'（右側），彈出、上飄、淡出。寫法同火花層：跑完移除、每側同時最多 maxPerSide 個、
+// 不支援 Web Animations 或建立失敗時不冒（也不留元素、不佔上限）。回傳有沒有冒出來。
+function createBubbleLayer(layer, maxPerSide = CHEER_BUBBLE_MAX_PER_SIDE) {
+  const live = { a: 0, b: 0 };
+
+  function pop(side, text, color) {
+    if (typeof layer.animate !== 'function' || !(side in live)) return false;
+    if (live[side] >= maxPerSide) return false;
+    const el = document.createElement('span');
+    el.className = `cheer-bubble cheer-bubble-${side}`;
+    el.textContent = text;
+    el.style.backgroundColor = color;
+    el.style[side === 'a' ? 'left' : 'right'] = `${2 + Math.random() * 26}%`;
+    let anim;
+    try {
+      layer.appendChild(el);
+      anim = el.animate([
+        { transform: 'translateY(6px) scale(0.6)', opacity: 0 },
+        { transform: 'translateY(0) scale(1)', opacity: 1, offset: 0.15 },
+        { transform: 'translateY(-4px) scale(1)', opacity: 1, offset: 0.75 },
+        { transform: 'translateY(-10px) scale(0.95)', opacity: 0 },
+      ], { duration: CHEER_BUBBLE_MS, easing: 'ease-out' });
+    } catch (e) {
+      el.remove();
+      return false;
+    }
+    live[side] += 1;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      el.remove();
+      live[side] -= 1;
+    };
+    anim.onfinish = finish;
+    anim.oncancel = finish;
+    return true;
+  }
+
+  return { pop, live: (side) => live[side] };
+}
+
 // ---- 瀏覽器掛載（渲染層；結構與火花觸發有 jsdom 測試，版面與動畫靠瀏覽器驗證） ----
 let cheerMounted = false;
 
@@ -278,7 +330,9 @@ function mountCheerBar(container, teams, token) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CHEER_MAX_PER_WINDOW, CHEER_FLUSH_MS, CHEER_POLL_MS, CHEER_SPARK_MAX_LIVE,
+    CHEER_BUBBLE_MAX_PER_SIDE, CHEER_BUBBLE_MS,
     addTap, cheerRatio, displayTotals, createCheerController, sparkCount, createSparkLayer,
+    cheerSlogans, createBubbleLayer,
     mountCheerBar,
   };
 }
