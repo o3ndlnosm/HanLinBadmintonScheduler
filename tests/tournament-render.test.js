@@ -61,3 +61,48 @@ test('比點資料但隊伍不足兩隊：不拋錯、賽程照樣畫出來', ()
   expect(() => globalEval('renderAll')(view)).not.toThrow();
   expect(document.querySelectorAll('#schedule .match-row')).toHaveLength(15);
 });
+
+// 2026-11-17 比賽結束才公布應援數：15 場全部確認或比賽 finished 才公布；finished 後應援條唯讀仍掛
+describe('應援條公布與唯讀', () => {
+  let mountSpy;
+  let revealSpy;
+  const allConfirmed = (view) => {
+    view.matches.forEach((m) => { m.status = 'confirmed'; m.scoreA = 21; m.scoreB = 15; });
+    return view;
+  };
+
+  beforeEach(() => {
+    mountSpy = jest.fn();
+    revealSpy = jest.fn();
+    window.mountCheerBar = mountSpy;
+    window.setCheerReveal = revealSpy;
+  });
+
+  test('比賽中（還有沒確認的）：不公布、可以加油', () => {
+    globalEval('renderAll')(friendlyView());
+    expect(revealSpy).toHaveBeenLastCalledWith(false);
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false });
+  });
+
+  test('15 場全部確認：公布', () => {
+    globalEval('renderAll')(allConfirmed(friendlyView()));
+    expect(revealSpy).toHaveBeenLastCalledWith(true);
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false });
+  });
+
+  test('比賽 finished：仍掛應援條（唯讀）並公布', () => {
+    const view = friendlyView();
+    view.tournament.status = 'finished';
+    globalEval('renderAll')(view);
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
+    expect(revealSpy).toHaveBeenLastCalledWith(true);
+  });
+
+  test('公布出錯：賽程照樣畫出來、renderAll 不拋錯', () => {
+    window.setCheerReveal = () => { throw new Error('reveal boom'); };
+    expect(() => globalEval('renderAll')(friendlyView())).not.toThrow();
+    expect(document.querySelectorAll('#schedule .match-row')).toHaveLength(15);
+  });
+});

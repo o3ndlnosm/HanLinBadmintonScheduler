@@ -562,6 +562,27 @@
   font-variant-numeric: tabular-nums;
   margin-bottom: 0.35rem;
 }
+/* 應援泡泡＋比賽結束才公布應援數（2026-11-17）：標題列比賽中只有隊名，泡泡疊在這一行上往上飄 */
+.cheer-head { position: relative; }
+.cheer-total-label { color: var(--f1-fg); font-weight: 700; }
+.cheer-bubbles {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  pointer-events: none;
+}
+.cheer-bubble {
+  position: absolute;
+  bottom: -3px; /* 上飄 10px 仍在 .cheer-section 的上內距裡，不被切掉 */
+  padding: 2px 8px;
+  border-radius: 10px 10px 10px 3px;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.cheer-bubble-b { border-radius: 10px 10px 3px 10px; }
 .cheer-bar {
   height: 14px;
   border-radius: 7px;

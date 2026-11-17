@@ -329,14 +329,19 @@ function renderAll(view) {
   // 賽程（隊長輸分入口）先畫，應援條之後才掛
   renderSchedule(view);
   // 反目標：應援出錯不得連帶讓比分功能壞掉，所以包在 try/catch 裡、放在最後。
-  // 應援條只在比點模式出現；mountCheerBar 內部保證只掛一次。比賽結束後不再掛（後端也會擋）
-  if (pointMode && view.tournament.status !== 'finished') {
+  // 應援條只在比點模式出現；mountCheerBar 內部保證只掛一次。
+  // 應援數比賽結束才公布（15 場全部確認，或比賽 finished）；先設公布狀態再掛，finished 後才打開的人第一眼就看到總數。
+  // finished 後應援條唯讀（沒有按鈕，後端也會擋應援），仍顯示應援總數。
+  if (pointMode) {
     try {
+      const finished = view.tournament.status === 'finished';
+      setCheerReveal(finished || computeTeamPoints(view.teams, view.matches).allConfirmed);
       const colors = teamColorById(view);
       mountCheerBar(
         document.getElementById('cheerSection'),
         view.teams.slice(0, 2).map((t) => ({ id: t.id, name: t.name, color: colors[t.id] })),
-        auth.token
+        auth.token,
+        { readOnly: finished }
       );
     } catch (e) {
       // 應援失敗靜默略過

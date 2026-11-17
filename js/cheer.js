@@ -225,21 +225,40 @@ function createBubbleLayer(layer, maxPerSide = CHEER_BUBBLE_MAX_PER_SIDE) {
   return { pop, live: (side) => live[side] };
 }
 
-// ---- 瀏覽器掛載（渲染層；結構與火花觸發有 jsdom 測試，版面與動畫靠瀏覽器驗證） ----
+// ---- 瀏覽器掛載（渲染層；結構、火花與泡泡的觸發、公布與唯讀有 jsdom 測試，版面與動畫靠瀏覽器驗證） ----
 let cheerMounted = false;
+// 比賽結束（15 場全部確認或 finished）才公布應援數；比賽中標題列只顯示隊名（2026-11-17 使用者拍板）
+let cheerRevealed = false;
+let cheerRenderHead = null;  // 掛載後：用最後一次的總數重畫標題列
+
+// 由 tournament.js 每次刷新時依比賽狀態設定；掛載前呼叫也有效（掛載時讀這個旗標）
+function setCheerReveal(revealed) {
+  cheerRevealed = !!revealed;
+  if (cheerRenderHead) cheerRenderHead();
+}
 
 // teams：[{ id, name, color }]，取前兩隊（左 A、右 B）
-function mountCheerBar(container, teams, token) {
+// readOnly（比賽 finished）：沒有加油按鈕、不送應援；總數照常輪詢
+function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
   if (cheerMounted || !container || teams.length < 2) return;
   cheerMounted = true;
   const [ta, tb] = teams;
 
   container.textContent = '';
+  // 標題列：隊名（公布後加上應援總數）；泡泡疊在這一行上
+  const head = document.createElement('div');
+  head.className = 'cheer-head';
   const counts = document.createElement('div');
   counts.className = 'cheer-counts';
   const countA = document.createElement('span');
+  const totalLabel = document.createElement('span');
+  totalLabel.className = 'cheer-total-label';
+  totalLabel.textContent = '應援總數';
   const countB = document.createElement('span');
-  counts.append(countA, countB);
+  counts.append(countA, totalLabel, countB);
+  const bubbleEl = document.createElement('div');
+  bubbleEl.className = 'cheer-bubbles';
+  head.append(counts, bubbleEl);
 
   const bar = document.createElement('div');
   bar.className = 'cheer-bar';
@@ -258,29 +277,36 @@ function mountCheerBar(container, teams, token) {
   core.className = 'cheer-spark-core';
   fx.appendChild(core);
   track.append(bar, fx);
+  container.append(head, track);
 
-  const buttons = document.createElement('div');
-  buttons.className = 'cheer-buttons';
-  const makeBtn = (team) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'cheer-btn';
-    btn.style.borderColor = team.color;
-    btn.textContent = `為${team.name}加油`;
-    return btn;
-  };
-  const btnA = makeBtn(ta);
-  const btnB = makeBtn(tb);
-  buttons.append(btnA, btnB);
-  container.append(counts, track, buttons);
+  let btnA = null;
+  let btnB = null;
+  if (!readOnly) {
+    const buttons = document.createElement('div');
+    buttons.className = 'cheer-buttons';
+    const makeBtn = (team) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cheer-btn';
+      btn.style.borderColor = team.color;
+      btn.textContent = `為${team.name}加油`;
+      return btn;
+    };
+    btnA = makeBtn(ta);
+    btnB = makeBtn(tb);
+    buttons.append(btnA, btnB);
+    container.append(buttons);
+  }
   container.hidden = false;
 
   const sparkLayer = createSparkLayer(fx);
-  const reducedMotion = () => typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const bubbleLayer = createBubbleLayer(bubbleEl);
+  const motionOff = () => (typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+    || document.visibilityState === 'hidden';
   // 從光點目前的位置噴：A 隊往右（B 那側）、B 隊往左
   const burstAtJunction = (bursts) => {
-    if (!bursts || reducedMotion() || document.visibilityState === 'hidden') return;
+    if (!bursts || motionOff()) return;
     const layerBox = fx.getBoundingClientRect();
     const coreBox = core.getBoundingClientRect();
     const x = coreBox.left + coreBox.width / 2 - layerBox.left;
@@ -288,12 +314,33 @@ function mountCheerBar(container, teams, token) {
     if (bursts[ta.id]) sparkLayer.burst(x, y, 1, ta.color, bursts[ta.id]);
     if (bursts[tb.id]) sparkLayer.burst(x, y, -1, tb.color, bursts[tb.id]);
   };
+  // 一次增加只冒一個泡泡（量交給火花），A 在左、B 在右
+  const pickSlogan = (team) => {
+    const list = cheerSlogans(team.name);
+    return list[Math.floor(Math.random() * list.length)];
+  };
+  const popBubbles = (bursts) => {
+    if (!bursts || motionOff()) return;
+    if (bursts[ta.id]) bubbleLayer.pop('a', pickSlogan(ta), ta.color);
+    if (bursts[tb.id]) bubbleLayer.pop('b', pickSlogan(tb), tb.color);
+  };
+
+  let last = {};
+  const renderHead = () => {
+    if (cheerRevealed) {
+      countA.textContent = `${ta.name} ${(last[ta.id] || 0).toLocaleString()}`;
+      countB.textContent = `${(last[tb.id] || 0).toLocaleString()} ${tb.name}`;
+    } else {
+      countA.textContent = ta.name;
+      countB.textContent = tb.name;
+    }
+    totalLabel.hidden = !cheerRevealed;
+  };
+  cheerRenderHead = renderHead;
 
   const render = (totals, bursts) => {
-    const a = totals[ta.id] || 0;
-    const b = totals[tb.id] || 0;
-    countA.textContent = `${ta.name} ${a.toLocaleString()}`;
-    countB.textContent = `${b.toLocaleString()} ${tb.name}`;
+    last = totals;
+    renderHead();
     const ratio = cheerRatio(totals, ta.id, tb.id);
     fillA.style.width = `${ratio}%`;
     core.style.left = `${ratio}%`;
@@ -302,6 +349,11 @@ function mountCheerBar(container, teams, token) {
     } catch (e) {
       // 火花失敗靜默略過，不影響應援數
     }
+    try {
+      popBubbles(bursts);
+    } catch (e) {
+      // 泡泡失敗靜默略過，不影響應援數
+    }
   };
   render({});
 
@@ -309,18 +361,19 @@ function mountCheerBar(container, teams, token) {
     token, teamIds: [ta.id, tb.id], send: sendCheer, fetchTotals: fetchCheerTotals, onChange: render,
   });
 
-  const bump = (btn) => {
-    btn.classList.remove('bump');
-    void btn.offsetWidth; // 重新觸發動畫
-    btn.classList.add('bump');
-  };
-  btnA.addEventListener('click', () => { ctrl.tap(ta.id); bump(btnA); });
-  btnB.addEventListener('click', () => { ctrl.tap(tb.id); bump(btnB); });
-
-  setInterval(() => ctrl.flush(), CHEER_FLUSH_MS);
+  if (!readOnly) {
+    const bump = (btn) => {
+      btn.classList.remove('bump');
+      void btn.offsetWidth; // 重新觸發動畫
+      btn.classList.add('bump');
+    };
+    btnA.addEventListener('click', () => { ctrl.tap(ta.id); bump(btnA); });
+    btnB.addEventListener('click', () => { ctrl.tap(tb.id); bump(btnB); });
+    setInterval(() => ctrl.flush(), CHEER_FLUSH_MS);
+  }
   setInterval(() => { if (document.visibilityState === 'visible') ctrl.poll(); }, CHEER_POLL_MS);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') ctrl.flush();
+    if (document.visibilityState === 'hidden') { if (!readOnly) ctrl.flush(); }
     else ctrl.poll();
   });
   ctrl.poll();
@@ -333,6 +386,6 @@ if (typeof module !== 'undefined' && module.exports) {
     CHEER_BUBBLE_MAX_PER_SIDE, CHEER_BUBBLE_MS,
     addTap, cheerRatio, displayTotals, createCheerController, sparkCount, createSparkLayer,
     cheerSlogans, createBubbleLayer,
-    mountCheerBar,
+    mountCheerBar, setCheerReveal,
   };
 }
