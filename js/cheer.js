@@ -35,12 +35,19 @@ function displayTotals(serverTotals, pendingByTeam) {
 
 function createCheerController({ token, teamIds, send, fetchTotals, onChange }) {
   let server = Object.fromEntries(teamIds.map((id) => [id, 0]));
-  const pending = Object.fromEntries(teamIds.map((id) => [id, 0]));
+  const pending = Object.fromEntries(teamIds.map((id) => [id, 0]));   // 本機累積、尚未送出
+  const inflight = Object.fromEntries(teamIds.map((id) => [id, 0]));  // 已送出、還沒回來
   const windowCount = Object.fromEntries(teamIds.map((id) => [id, 0]));
 
-  const emit = () => onChange(displayTotals(server, pending));
+  // 顯示 = 伺服器數 + 送出中 + 本機累積：送出途中再按，數字不會先掉回去
+  const emit = () => onChange(displayTotals(displayTotals(server, inflight), pending));
+  // 總數只會增加：逐隊取大值，較舊的回應（例如送出前發出、較晚回來的輪詢）不會讓畫面下降。
+  // 代價：用 SQL 歸零後，開著的頁面要重新整理才會看到歸零。
   const accept = (totals) => {
-    if (totals && typeof totals === 'object') server = { ...server, ...totals };
+    if (!totals || typeof totals !== 'object') return;
+    Object.entries(totals).forEach(([id, n]) => {
+      if (typeof n === 'number') server[id] = Math.max(server[id] || 0, n);
+    });
   };
 
   function tap(teamId) {
@@ -52,15 +59,18 @@ function createCheerController({ token, teamIds, send, fetchTotals, onChange }) 
     return r.counted;
   }
 
-  // 送出前先把本機累積歸零（失敗也不重送），並重開下一個 2 秒窗口
+  // 送出前先把本機累積移到「送出中」（失敗也不重送），並重開下一個 2 秒窗口
   async function flush() {
     const batch = teamIds.filter((id) => pending[id] > 0).map((id) => [id, pending[id]]);
-    teamIds.forEach((id) => { pending[id] = 0; windowCount[id] = 0; });
+    teamIds.forEach((id) => { windowCount[id] = 0; });
+    batch.forEach(([id, n]) => { pending[id] = 0; inflight[id] += n; });
     for (const [teamId, n] of batch) {
       try {
         accept(await send(token, teamId, n));
       } catch (e) {
         // 應援失敗靜默略過
+      } finally {
+        inflight[teamId] -= n;
       }
     }
     if (batch.length) emit();

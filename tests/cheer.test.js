@@ -116,6 +116,55 @@ describe('createCheerController', () => {
     expect(bad.calls.changes).toEqual([]);
   });
 
+  // 2026-11-17 review：送出途中的量不在顯示裡、較舊的總數直接覆蓋，狂按時數字會先往回掉再跳回
+  test('送出途中再按：畫面不會掉回去（送出中的量仍計入顯示）', async () => {
+    let resolveSend;
+    const changes = [];
+    const ctrl = createCheerController({
+      token: 'pub', teamIds: ['M', 'H'],
+      send: () => new Promise((r) => { resolveSend = r; }),
+      fetchTotals: () => Promise.resolve({ M: 100, H: 0 }),
+      onChange: (t) => changes.push(t.M),
+    });
+    await ctrl.poll();                       // 伺服器 100
+    for (let i = 0; i < 10; i++) ctrl.tap('M'); // 110
+    const sending = ctrl.flush();            // 10 下送出中
+    ctrl.tap('M');                           // 再按 1 下
+    expect(changes[changes.length - 1]).toBe(111);
+    resolveSend({ M: 110, H: 0 });
+    await sending;
+    expect(changes[changes.length - 1]).toBe(111);
+  });
+
+  test('較舊的輪詢結果晚回來，畫面不會下降', async () => {
+    const changes = [];
+    let pollValue = { M: 100, H: 0 };
+    const ctrl = createCheerController({
+      token: 'pub', teamIds: ['M', 'H'],
+      send: () => Promise.resolve({ M: 110, H: 0 }),
+      fetchTotals: () => Promise.resolve(pollValue),
+      onChange: (t) => changes.push(t.M),
+    });
+    for (let i = 0; i < 10; i++) ctrl.tap('M');
+    await ctrl.flush();                      // 伺服器回 110
+    pollValue = { M: 100, H: 0 };            // 送出前發出、較晚回來的舊輪詢
+    await ctrl.poll();
+    expect(changes[changes.length - 1]).toBe(110);
+  });
+
+  test('同時呼叫兩次 flush，同一批只送一次', async () => {
+    const sent = [];
+    const ctrl = createCheerController({
+      token: 'pub', teamIds: ['M', 'H'],
+      send: (token, teamId, n) => { sent.push(n); return Promise.resolve({ M: n, H: 0 }); },
+      fetchTotals: () => Promise.resolve({}),
+      onChange: () => {},
+    });
+    for (let i = 0; i < 4; i++) ctrl.tap('M');
+    await Promise.all([ctrl.flush(), ctrl.flush()]);
+    expect(sent).toEqual([4]);
+  });
+
   test('沒有累積時 flush 不送任何請求', async () => {
     const { ctrl, calls } = setup();
     await ctrl.flush();
