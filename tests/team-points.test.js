@@ -78,6 +78,16 @@ describe('computeTeamPoints', () => {
     expect(r.totals).toEqual({ M: 0, H: 1 });
   });
 
+  test('2:0 後第三場比分不一致 → 比數不變、點仍歸原方（plan Review Focus 4）', () => {
+    const ms = pendingMatches();
+    confirm(ms, 'r1c1', 'H');
+    confirm(ms, 'r2c3', 'H');
+    ms.find((x) => x.id === 'r4c2').status = 'conflict';
+    const p1 = computeTeamPoints(TEAMS, ms).points[0];
+    expect(p1.wins).toEqual({ M: 0, H: 2 });
+    expect(p1.winnerId).toBe('H');
+  });
+
   test('pending 與 conflict 場次不計入：1 勝＋1 衝突＋1 未賽 → 進行中', () => {
     const ms = pendingMatches();
     confirm(ms, 'r1c1', 'H');
