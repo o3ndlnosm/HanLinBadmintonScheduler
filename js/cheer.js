@@ -186,6 +186,16 @@ function mountCheerBar(container, teams, token) {
   bar.style.backgroundColor = tb.color;
   bar.appendChild(fillA);
 
+  // 交界火花：bar 為了圓角是 overflow: hidden，火花另外疊在上面的 fx 層
+  const track = document.createElement('div');
+  track.className = 'cheer-track';
+  const fx = document.createElement('div');
+  fx.className = 'cheer-fx';
+  const core = document.createElement('div');
+  core.className = 'cheer-spark-core';
+  fx.appendChild(core);
+  track.append(bar, fx);
+
   const buttons = document.createElement('div');
   buttons.className = 'cheer-buttons';
   const makeBtn = (team) => {
@@ -199,15 +209,36 @@ function mountCheerBar(container, teams, token) {
   const btnA = makeBtn(ta);
   const btnB = makeBtn(tb);
   buttons.append(btnA, btnB);
-  container.append(counts, bar, buttons);
+  container.append(counts, track, buttons);
   container.hidden = false;
 
-  const render = (totals) => {
+  const sparkLayer = createSparkLayer(fx);
+  const reducedMotion = () => typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 從光點目前的位置噴：A 隊往右（B 那側）、B 隊往左
+  const burstAtJunction = (bursts) => {
+    if (!bursts || reducedMotion() || document.visibilityState === 'hidden') return;
+    const layerBox = fx.getBoundingClientRect();
+    const coreBox = core.getBoundingClientRect();
+    const x = coreBox.left + coreBox.width / 2 - layerBox.left;
+    const y = layerBox.height / 2;
+    if (bursts[ta.id]) sparkLayer.burst(x, y, 1, ta.color, bursts[ta.id]);
+    if (bursts[tb.id]) sparkLayer.burst(x, y, -1, tb.color, bursts[tb.id]);
+  };
+
+  const render = (totals, bursts) => {
     const a = totals[ta.id] || 0;
     const b = totals[tb.id] || 0;
     countA.textContent = `${ta.name} ${a.toLocaleString()}`;
     countB.textContent = `${b.toLocaleString()} ${tb.name}`;
-    fillA.style.width = `${cheerRatio(totals, ta.id, tb.id)}%`;
+    const ratio = cheerRatio(totals, ta.id, tb.id);
+    fillA.style.width = `${ratio}%`;
+    core.style.left = `${ratio}%`;
+    try {
+      burstAtJunction(bursts);
+    } catch (e) {
+      // 火花失敗靜默略過，不影響應援數
+    }
   };
   render({});
 
@@ -237,5 +268,6 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CHEER_MAX_PER_WINDOW, CHEER_FLUSH_MS, CHEER_POLL_MS, CHEER_SPARK_MAX_LIVE,
     addTap, cheerRatio, displayTotals, createCheerController, sparkCount, createSparkLayer,
+    mountCheerBar,
   };
 }

@@ -552,6 +552,7 @@
   background: var(--f1-panel);
   border: 1px solid var(--f1-line);
   border-radius: var(--f1-radius);
+  overflow: hidden; /* 交界火花飛到邊緣時不撐出水平捲動 */
 }
 .cheer-counts {
   display: flex;
@@ -570,6 +571,34 @@
   height: 100%;
   width: 50%;
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* 交界火花（2026-11-17）：bar 為了圓角要 overflow: hidden，火花疊在 track 上的 fx 層 */
+.cheer-track { position: relative; }
+.cheer-fx {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  pointer-events: none;
+}
+.cheer-spark-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: cheer-flicker 0.45s ease-in-out infinite alternate;
+}
+@keyframes cheer-flicker {
+  from { transform: scale(0.7); opacity: 0.7; }
+  to { transform: scale(1.3); opacity: 1; }
+}
+.cheer-spark {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
 }
 .cheer-buttons {
   display: grid;
@@ -606,4 +635,5 @@
   .match-row.just-confirmed { animation: none; }
   .cheer-btn.bump { animation: none; }
   .cheer-fill { transition: none; }
+  .cheer-spark-core { animation: none; transition: none; }
 }
