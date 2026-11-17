@@ -487,10 +487,123 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
+
+/* ===== 比點賽制：點數計分板（2026-11-25 友誼賽起） ===== */
+.point-score {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem 0.9rem;
+  background: var(--f1-panel);
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+  margin-bottom: 0.6rem;
+}
+.point-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  min-width: 0;
+}
+.point-team.right { justify-content: flex-end; }
+.point-team.my-team { color: var(--f1-fg); text-decoration: underline 2px var(--f1-red); text-underline-offset: 0.3em; }
+.point-nums {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+.point-rows {
+  background: var(--f1-panel);
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+  overflow: hidden;
+}
+.point-row {
+  display: grid;
+  grid-template-columns: 1fr auto 6.5rem;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--f1-line);
+}
+.point-row:last-child { border-bottom: none; }
+.point-label { display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.point-no { color: var(--f1-fg-muted); font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+.point-games { font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+.point-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--f1-fg-faint);
+  white-space: nowrap;
+}
+.point-row.decided .point-status { color: var(--f1-win); font-weight: 700; }
+
+/* ===== 公司應援條：拔河比例條＋兩個加油按鈕 ===== */
+.cheer-section {
+  margin-top: 0.6rem;
+  padding: 0.8rem 0.9rem 0.9rem;
+  background: var(--f1-panel);
+  border: 1px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+}
+.cheer-counts {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--f1-fg-muted);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.35rem;
+}
+.cheer-bar {
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+}
+.cheer-fill {
+  height: 100%;
+  width: 50%;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cheer-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+}
+.cheer-btn {
+  padding: 0.75rem 0.4rem;
+  background: transparent;
+  border: 2px solid var(--f1-line);
+  border-radius: var(--f1-radius);
+  color: var(--f1-fg);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation; /* 狂按時避免手機雙擊縮放 */
+  -webkit-user-select: none;
+  user-select: none;
+}
+.cheer-btn:active { background: rgba(255, 255, 255, 0.08); }
+.cheer-btn.bump { animation: cheer-bump 0.18s ease-out; }
+@keyframes cheer-bump {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
 /* 尊重系統的減少動態設定 */
 @media (prefers-reduced-motion: reduce) {
   .match-row,
   .score-inputs input,
   .report-actions button { transition: none; }
   .match-row.just-confirmed { animation: none; }
+  .cheer-btn.bump { animation: none; }
+  .cheer-fill { transition: none; }
 }

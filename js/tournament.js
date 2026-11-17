@@ -3,8 +3,10 @@
  * 相依（由 tournament.html 的 <script> 順序保證）：
  *   dialog.js → showToast
  *   standings.js → computeStandings
+ *   team-points.js → hasPoints / computeTeamPoints / pointLabel / eventLabel
  *   tournament-form.js → parseTokenFromUrl / matchState / validateScores
  *   tournament-api.js → fetchPublicView / fetchCaptainView / reportScore
+ *   cheer.js → mountCheerBar
  */
 const POLL_INTERVAL_MS = 10000;
 
@@ -76,6 +78,7 @@ function captainCtxOf(view) {
 
 function showFatal(message) {
   if (pollTimer) clearInterval(pollTimer);
+  document.getElementById('pointsSection').hidden = true;
   document.getElementById('standingsSection').hidden = true;
   document.getElementById('scheduleSection').hidden = true;
   const box = document.getElementById('errorBox');
@@ -95,6 +98,7 @@ function setOffline(message) {
 
 function renderHeader(view) {
   document.getElementById('tournamentName').textContent = view.tournament.name;
+  document.title = view.tournament.name;
   document.getElementById('finishedBadge').hidden = view.tournament.status !== 'finished';
 }
 
@@ -153,6 +157,80 @@ function renderStandings(view) {
   document.getElementById('standingsSection').hidden = false;
 }
 
+// 比點賽制的計分板：大字點數、五點各自的場次比數與歸屬（2026-11-25 友誼賽起）
+function renderPointBoard(view) {
+  const result = computeTeamPoints(view.teams, view.matches);
+  const names = teamNameById(view);
+  const colors = teamColorById(view);
+  const [ta, tb] = view.teams;
+  const box = document.getElementById('pointBoard');
+  box.textContent = '';
+
+  if (result.winnerId) {
+    const loserId = result.winnerId === ta.id ? tb.id : ta.id;
+    const won = result.totals[result.winnerId];
+    const banner = document.createElement('div');
+    banner.className = 'champion-banner';
+    banner.textContent = result.allConfirmed
+      ? `🏆 比賽結束：${names[result.winnerId]} 以 ${won}：${result.totals[loserId]} 勝出`
+      : `🏆 ${names[result.winnerId]} 拿下 ${won} 點，確定勝出`;
+    box.appendChild(banner);
+  }
+
+  const score = document.createElement('div');
+  score.className = 'point-score';
+  const side = (team, isRight) => {
+    const el = document.createElement('span');
+    el.className = isRight ? 'point-team right' : 'point-team';
+    const label = document.createElement('span');
+    label.textContent = team.name;
+    if (auth.mode === 'captain' && team.id === view.myTeamId) el.classList.add('my-team');
+    if (isRight) el.append(label, makeTeamDot(colors[team.id]));
+    else el.append(makeTeamDot(colors[team.id]), label);
+    return el;
+  };
+  const nums = document.createElement('span');
+  nums.className = 'point-nums';
+  nums.textContent = `${result.totals[ta.id]} : ${result.totals[tb.id]}`;
+  score.append(side(ta, false), nums, side(tb, true));
+  box.appendChild(score);
+
+  const list = document.createElement('div');
+  list.className = 'point-rows';
+  result.points.forEach((p) => {
+    const row = document.createElement('div');
+    row.className = 'point-row';
+    if (p.winnerId) row.classList.add('decided');
+
+    const label = document.createElement('span');
+    label.className = 'point-label';
+    const no = document.createElement('span');
+    no.className = 'point-no';
+    no.textContent = pointLabel(p.pointNo);
+    const chip = document.createElement('span');
+    chip.className = `event-chip ${p.event}`;
+    chip.textContent = eventLabel(p);
+    label.append(no, chip);
+
+    const games = document.createElement('span');
+    games.className = 'point-games';
+    games.textContent = `${p.wins[ta.id]} : ${p.wins[tb.id]}`;
+
+    const status = document.createElement('span');
+    status.className = 'point-status';
+    if (p.winnerId) {
+      status.appendChild(makeTeamDot(colors[p.winnerId]));
+      status.append(`${names[p.winnerId]}拿下`);
+    } else {
+      status.textContent = p.played ? '進行中' : '未開打';
+    }
+    row.append(label, games, status);
+    list.appendChild(row);
+  });
+  box.appendChild(list);
+  document.getElementById('pointsSection').hidden = false;
+}
+
 function renderSchedule(view) {
   const ctx = captainCtxOf(view);
   const names = teamNameById(view);
@@ -200,7 +278,9 @@ function renderSchedule(view) {
 
       const chip = document.createElement('span');
       chip.className = `event-chip ${match.event}`;
-      chip.textContent = `場地${match.courtNo}　${match.event}`;
+      chip.textContent = typeof match.pointNo === 'number'
+        ? `場地${match.courtNo}　${pointLabel(match.pointNo)}　${eventLabel(match)}`
+        : `場地${match.courtNo}　${match.event}`;
       head.appendChild(chip);
 
       const result = document.createElement('span');
@@ -242,8 +322,26 @@ function renderSchedule(view) {
 
 function renderAll(view) {
   renderHeader(view);
-  renderStandings(view);
+  // 比點模式需要兩隊（左右對戰）；資料不完整時退回排名表，不讓點數板拋錯
+  const pointMode = hasPoints(view.matches) && view.teams.length >= 2;
+  if (pointMode) renderPointBoard(view);
+  else renderStandings(view);
+  // 賽程（隊長輸分入口）先畫，應援條之後才掛
   renderSchedule(view);
+  // 反目標：應援出錯不得連帶讓比分功能壞掉，所以包在 try/catch 裡、放在最後。
+  // 應援條只在比點模式出現；mountCheerBar 內部保證只掛一次。比賽結束後不再掛（後端也會擋）
+  if (pointMode && view.tournament.status !== 'finished') {
+    try {
+      const colors = teamColorById(view);
+      mountCheerBar(
+        document.getElementById('cheerSection'),
+        view.teams.slice(0, 2).map((t) => ({ id: t.id, name: t.name, color: colors[t.id] })),
+        auth.token
+      );
+    } catch (e) {
+      // 應援失敗靜默略過
+    }
+  }
 }
 
 async function refresh() {
@@ -275,7 +373,9 @@ function openReportForm(match) {
   const oppTeamId = iAmTeamA ? match.teamBId : match.teamAId;
 
   reportingMatchId = match.id;
-  document.getElementById('reportTitle').textContent = `第 ${match.roundNo} 輪　${match.event}`;
+  document.getElementById('reportTitle').textContent = typeof match.pointNo === 'number'
+    ? `第 ${match.roundNo} 輪　${pointLabel(match.pointNo)}　${eventLabel(match)}`
+    : `第 ${match.roundNo} 輪　${match.event}`;
   document.getElementById('reportSubtitle').textContent =
     `${match.timeSlot}　場地${match.courtNo}`;
   document.getElementById('myTeamName').textContent = names[myTeamId];
@@ -292,6 +392,9 @@ function openReportForm(match) {
   const report = (currentView.reports || {})[match.id];
   const selfInput = document.getElementById('scoreSelf');
   const oppInput = document.getElementById('scoreOpp');
+  const maxScore = maxScoreOf(currentView.tournament.scoreRule);
+  selfInput.max = maxScore;
+  oppInput.max = maxScore;
   if (report && report.myReport) {
     selfInput.value = iAmTeamA ? report.myReport.scoreA : report.myReport.scoreB;
     oppInput.value = iAmTeamA ? report.myReport.scoreB : report.myReport.scoreA;
@@ -314,7 +417,8 @@ async function submitReport() {
   if (submitting || !reportingMatchId) return;
   const check = validateScores(
     document.getElementById('scoreSelf').value,
-    document.getElementById('scoreOpp').value
+    document.getElementById('scoreOpp').value,
+    currentView.tournament.scoreRule
   );
   if (!check.ok) {
     showToast(check.error, 'warning');

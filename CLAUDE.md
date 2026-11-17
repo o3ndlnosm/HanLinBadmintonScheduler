@@ -74,13 +74,28 @@ npx http-server
 
 ### 7. 比賽計分頁（tournament.html）
 - 8/20 第三屆比賽用：隊長輸分（雙方一致才確認）、即時排名、公開計分板
-- **賽制**：15 分制、一定打完；14 平後 deuce 需淨勝 2 分，20 平後先得 21 分者勝（上限 21）。
-  合法完賽比分只有 15:0–13、16–20 帶淨勝 2 分、21:19、21:20。
-  前端 `isLegalFinalScore`（tournament-form.js）與後端 RPC
-  （`docs/tournament/score-rules-2026-08-18.sql`）各驗一次，改規則兩邊要同步改
+- **計分規則依比賽設定**（2026-11-16 起，`tournaments.score_rule`）：
+  - `to15_cap21`（預設，第三屆）：15 分制、一定打完；14 平後淨勝 2，20 平後先得 21 分者勝。
+    合法完賽比分只有 15:0–13、16–20 帶淨勝 2 分、21:19、21:20
+  - `to21_cap30`（11/25 友誼賽）：21 分一局；20 平後淨勝 2，29 平時先得 30 分者勝。
+    合法完賽比分只有 21:0–19、22–29 帶淨勝 2 分、30:28、30:29
+  - 前端 `SCORE_RULES`（tournament-form.js）與後端 `tournament_score_legal`
+    （`docs/tournament/friendly-schema-2026-11-25.sql`）各驗一次，改規則兩邊要同步改；
+    不認得或缺值的規則一律視為 `to15_cap21`（舊後端、舊比賽行為不變）
+- **比點模式**（11/25 貿聯×翰林友誼賽）：任一場有 `pointNo` 就顯示點數計分板（`js/team-points.js`），
+  取代排名表；每點過半勝場拿下、整體過半點數勝出，過半數由資料推導不寫死。
+  賽程標籤顯示「第一點 男雙A」（`point_no` + `event_tag`）
+- **公司應援條**（`js/cheer.js`，只在比點模式）：純炒氣氛、不影響比分。本機累積、每 2 秒送一次、
+  每隊每 2 秒窗口最多算 10 下、總數每 3 秒輪詢；失敗一律靜默、與計分完全分開。
+  後端只檢查單次 1–10，anon key 公開可被灌數——已知且接受（觀賽 token 全場共用，無法依 token 限流）
+- 負載實測用 `scripts/cheer-load-test.mjs`（每支模擬手機一條 HTTP/2 連線）。**不要改回 fetch**：
+  Node fetch 會把模擬手機的請求擠進少數連線排隊，量到的是測試工具的瓶頸（2026-11-17 實測 p95 15 s vs 實際 164 ms）
 - 後端借用 v2 badminton-scheduler 的 Supabase RPC，設定在 `js/tournament-api.js`
-- 純函式：`js/standings.js`（排名）、`js/tournament-form.js`（驗證/狀態），各有 jest 測試
-- 賽前作業與 seed 見 `docs/tournament/賽前作業.md`
+- 純函式：`js/standings.js`（排名）、`js/tournament-form.js`（驗證/狀態）、`js/team-points.js`（比點）、
+  `js/cheer.js`（應援累積／裁切／比例），各有 jest 測試
+- 第三屆賽前作業與 seed 見 `docs/tournament/賽前作業.md`；友誼賽 SQL 為 `docs/tournament/friendly-*.sql`
+  （schema → rpc-selftest 驗證 → seed 建賽 → lineup 掛人名；測試比賽用 seed 換賽名建、test-cleanup 刪）
+- 建賽時同一交易內 `now()` 相同，隊伍 `created_at` 要明確錯開，否則 payload 的隊伍順序（左右與配色）不保證
 
 ### 8. 主頁賽事倒數（js/countdown.js）
 - 主頁頂端顯示 8/20 比賽倒數，歸零後轉為即時計分板入口，21:00 後自動隱藏
@@ -123,6 +138,11 @@ npx http-server
   改版後不 bump `CACHE_NAME` 就要重整兩次才生效
 
 計分頁的檔案**不在** `PRECACHE_URLS` 裡，是靠 fetch 攔截順帶快取的。
+
+**計分頁的本地 CSS／JS 網址帶 `?v=<版本>`，必須與 `CACHE_NAME` 的版本號一起 bump**（2026-11-17 起，
+`tests/tournament-html-assets.test.js` 會擋）。為什麼：網址固定時，開過舊版計分頁的手機第一次打開新比賽
+會拿到「新 HTML（新 token 網址不在快取）＋舊 JS（固定網址在快取）」，舊前端會用舊規則擋分數。
+網址帶版本號後舊快取一定找不到，第一次載入就是新版。
 
 **bump `CACHE_NAME` 之後仍然要重整兩次**（2026-08-10 線上實測）：第一次載入時舊 SW
 還控制著頁面、供應的是舊檔，瀏覽器同時才在背景發現 `sw.js` 變了 → 新 SW install →
@@ -172,7 +192,7 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 201 項跨 14 套件）
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 266 項跨 16 套件）
 2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`
@@ -200,6 +220,8 @@ historyMatches = []    // 比賽歷史
 │   ├── script.js           # 主要應用程式邏輯 (2841 行)
 │   ├── standings.js        # 比賽排名計算（純函式，jest 測試）
 │   ├── tournament-form.js  # 比賽計分頁表單驗證/狀態機、formatLineup（純函式，jest 測試）
+│   ├── team-points.js      # 比點計算、點次標籤（純函式，jest 測試）
+│   ├── cheer.js            # 公司應援條：累積／裁切／控制器（jest）＋ 掛載（瀏覽器）
 │   ├── tournament-api.js   # 比賽計分頁 Supabase RPC 薄封裝（jest 測試）
 │   └── tournament.js       # 比賽計分頁初始化、輪詢、渲染
 ├── tests/
@@ -210,13 +232,17 @@ historyMatches = []    // 比賽歷史
 │   ├── pairing-logic.test.js       # 配對邏輯測試
 │   ├── standings.test.js           # 比賽排名測試
 │   ├── tournament-form.test.js     # 比賽計分頁表單驗證測試
+│   ├── team-points.test.js         # 比點計算測試（友誼賽 15 場賽程）
+│   ├── cheer.test.js               # 應援累積、裁切、控制器測試
 │   └── tournament-api.test.js      # 比賽計分頁 API 薄封裝測試
 ├── img/
 │   └── event-banner.jpg     # 主頁倒數區背景插畫（1400w JPEG，213K）
 ├── docs/tournament/         # 比賽計分頁：賽前作業清單、Supabase seed/bootstrap SQL
 │                            #   lineup-schema-*.sql：出賽選手欄位與 RPC（跑一次）
 │                            #   lineup-*.sql：隊名／名冊／30 場出賽選手（可重跑）
-├── scripts/generate-qr.sh   # 產生各隊隊長 QR code
+│                            #   friendly-*.sql：11/25 友誼賽 schema、自我測試、建賽、出賽選手、測試清理
+├── scripts/generate-qr.sh   # 產生各隊隊長 QR code（第三屆五隊格式）
+├── scripts/cheer-load-test.mjs # 應援負載實測（每支模擬手機一條 HTTP/2 連線）
 ├── index.html              # 單頁應用程式
 ├── tournament.html         # 比賽計分頁（觀賽 + 隊長輸分）
 └── CLAUDE.md               # 此檔案
