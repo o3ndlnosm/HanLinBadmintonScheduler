@@ -4,7 +4,12 @@
 // 每支模擬手機：每 2 秒 tournament_cheer（n=10，隨機一隊）、每 3 秒 tournament_cheer_totals、
 //              每 10 秒 tournament_public_view（同前端的實際節奏）。
 // 通過標準（spec）：錯誤率 0%、p95 < 1500 ms。只對測試比賽跑；token 由命令列帶入，不寫進任何檔案。
+//
+// 為什麼不用 fetch：Node 的 fetch 會把陸續加入的模擬手機請求集中到少數幾條既有的 HTTP/2 連線上排隊
+// （2026-11-17 量測：25 支手機只開 4 條連線、最多 112 個請求卡在客戶端，p50 4 s；同負載從 Chrome 發 p95 128 ms）。
+// 真實情境是每支手機的瀏覽器各自一條 HTTP/2 連線並多工送出，所以這裡每支模擬手機開一個 node:http2 session。
 import { readFileSync } from 'node:fs';
+import http2 from 'node:http2';
 import { fileURLToPath } from 'node:url';
 
 const [token, teamA, teamB, clientsArg = '50', secondsArg = '60'] = process.argv.slice(2);
@@ -21,24 +26,42 @@ const URL_BASE = apiSrc.match(/TOURNAMENT_SUPABASE_URL = '([^']+)'/)[1];
 const KEY = apiSrc.match(/TOURNAMENT_SUPABASE_ANON_KEY = '([^']+)'/)[1];
 
 const stats = {};
-async function rpc(fn, args) {
+function record(fn, ms, errKey) {
   const s = (stats[fn] ||= { ok: 0, err: 0, ms: [], errors: {} });
-  const t0 = performance.now();
-  try {
-    const res = await fetch(`${URL_BASE}/rest/v1/rpc/${fn}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: KEY, Authorization: `Bearer ${KEY}` },
-      body: JSON.stringify(args),
+  s.ms.push(ms);
+  if (errKey) { s.err += 1; s.errors[errKey] = (s.errors[errKey] || 0) + 1; } else s.ok += 1;
+}
+
+// 一支模擬手機 = 一條 HTTP/2 連線，請求在上面多工送出（同瀏覽器）
+function makePhone() {
+  const session = http2.connect(URL_BASE);
+  session.on('error', () => {}); // 個別請求的錯誤由 request 的 error 事件記錄
+  const rpc = (fn, args) => new Promise((resolve) => {
+    const t0 = performance.now();
+    const body = JSON.stringify(args);
+    let req;
+    try {
+      req = session.request({
+        ':method': 'POST', ':path': `/rest/v1/rpc/${fn}`,
+        'content-type': 'application/json', apikey: KEY, authorization: `Bearer ${KEY}`,
+      });
+    } catch (e) {
+      record(fn, performance.now() - t0, e.code || e.name);
+      resolve();
+      return;
+    }
+    let status = 0;
+    req.on('response', (h) => { status = h[':status']; });
+    req.on('data', () => {});
+    req.on('end', () => {
+      record(fn, performance.now() - t0, status >= 200 && status < 300 ? null : String(status));
+      resolve();
     });
-    await res.text();
-    s.ms.push(performance.now() - t0);
-    if (res.ok) s.ok += 1;
-    else { s.err += 1; s.errors[res.status] = (s.errors[res.status] || 0) + 1; }
-  } catch (e) {
-    s.ms.push(performance.now() - t0);
-    s.err += 1;
-    s.errors[e.name] = (s.errors[e.name] || 0) + 1;
-  }
+    req.on('error', (e) => { record(fn, performance.now() - t0, e.code || e.name); resolve(); });
+    req.setTimeout(20000, () => req.close(http2.constants.NGHTTP2_CANCEL));
+    req.end(body);
+  });
+  return { rpc, close: () => session.close() };
 }
 
 const pct = (arr, p) => {
@@ -51,14 +74,16 @@ async function client(deadline) {
   // 錯開起跑，模擬手機陸續加入
   await new Promise((r) => setTimeout(r, Math.random() * 2000));
   // 診斷用：SKIP_CHEER=1 只跑讀取，用來分辨瓶頸是應援寫入還是整體請求量
+  const phone = makePhone();
   const timers = [
     process.env.SKIP_CHEER ? null
-      : setInterval(() => rpc('tournament_cheer', { p_token: token, p_team: Math.random() < 0.5 ? teamA : teamB, p_n: 10 }), 2000),
-    setInterval(() => rpc('tournament_cheer_totals', { p_token: token }), 3000),
-    setInterval(() => rpc('tournament_public_view', { p_token: token }), 10000),
+      : setInterval(() => phone.rpc('tournament_cheer', { p_token: token, p_team: Math.random() < 0.5 ? teamA : teamB, p_n: 10 }), 2000),
+    setInterval(() => phone.rpc('tournament_cheer_totals', { p_token: token }), 3000),
+    setInterval(() => phone.rpc('tournament_public_view', { p_token: token }), 10000),
   ];
   await new Promise((r) => setTimeout(r, deadline - Date.now()));
   timers.filter(Boolean).forEach(clearInterval);
+  setTimeout(() => phone.close(), 3000); // 等最後一批回應再關連線
 }
 
 const startedAt = new Date();
