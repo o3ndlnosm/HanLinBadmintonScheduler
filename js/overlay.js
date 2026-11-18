@@ -6,12 +6,14 @@
  *   tournament-api.js → fetchPublicView
  *   team-points.js → hasPoints / computeTeamPoints / pointLabel / eventLabel / teamColorById
  * 反目標：
- * - 直播畫面上不能出現錯誤訊息：成功顯示過一次之後，讀取失敗或找不到比賽都保留上一次的畫面。
+ * - 直播畫面上不能出現錯誤訊息：成功顯示過一次之後，讀取失敗、找不到比賽、算不出比分都保留上一次的畫面。
  * - 不接受輸分通行碼：只認 ?t=，有輸分權限的連結不該被貼進第三方 App。
  */
 const OVERLAY_POLL_MS = 10000;
 const OVERLAY_BAD_LINK = '請改用觀賽連結';
 const OVERLAY_NOT_FOUND = '找不到比賽，請確認觀賽連結';
+const OVERLAY_LOADING = '讀取比分中…';
+const OVERLAY_NO_POINTS = '這場比賽沒有點數比分，請確認觀賽連結';
 
 // 已確認的場次中輪次最大、同輪取場地號碼最大的那場（payload 沒有確認時間；輪次照時間排）
 function latestConfirmedMatch(matches) {
@@ -101,19 +103,27 @@ function initOverlay({ search, root, fetchView, intervalMs = OVERLAY_POLL_MS }) 
     return { refresh: async () => {}, stop: () => {}, ready: Promise.resolve() };
   }
 
+  // 設定時（還沒成功顯示過比分）每種狀態都要看得出來：透明頁一片空白時，設定的人分不出還在讀、讀不到或連結不對。
+  // 顯示過比分之後（直播中）一律保留上一次畫面，不出現任何提示或錯誤字。
   let shown = false;
+  renderOverlay(root, null, OVERLAY_LOADING);
   async function refresh() {
     try {
       const view = await fetchView(auth.token);
       if (!view || !view.tournament) {
-        // 只在設定時（還沒成功顯示過）提示連結有誤；直播中不出現
         if (!shown) renderOverlay(root, null, OVERLAY_NOT_FOUND);
         return;
       }
-      renderOverlay(root, overlayLines(view));
+      const lines = overlayLines(view);
+      if (!lines) {
+        if (!shown) renderOverlay(root, null, OVERLAY_NO_POINTS);
+        return;
+      }
+      renderOverlay(root, lines);
       shown = true;
     } catch (e) {
-      // 讀取失敗：保留上一次的畫面，不顯示錯誤
+      // 讀取失敗：畫面維持原樣（設定時停在「讀取比分中…」）；原因只寫到主控台，不會出現在直播畫面上
+      console.warn('[overlay] 讀取比分失敗', e);
     }
   }
 
@@ -132,7 +142,7 @@ if (typeof module === 'undefined' && typeof document !== 'undefined') {
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    OVERLAY_POLL_MS, OVERLAY_BAD_LINK, OVERLAY_NOT_FOUND,
+    OVERLAY_POLL_MS, OVERLAY_BAD_LINK, OVERLAY_NOT_FOUND, OVERLAY_LOADING, OVERLAY_NO_POINTS,
     latestConfirmedMatch, overlayLines, renderOverlay, initOverlay,
   };
 }

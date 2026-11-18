@@ -209,7 +209,7 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 382 項跨 23 套件）
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 388 項跨 23 套件）
 2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`
@@ -226,7 +226,8 @@ historyMatches = []    // 比賽歷史
 │   └── settings.json        # Live Server 設定 (連接埠 5501)
 ├── css/
 │   ├── style.css           # 使用 CSS 變數的樣式
-│   └── tournament.css      # 比賽計分頁專屬樣式
+│   ├── tournament.css      # 比賽計分頁專屬樣式
+│   └── overlay.css         # 直播畫面疊加比分（透明背景、vmin 尺寸）
 ├── js/
 │   ├── court-actions.js    # 場地數量調整與選手替換邏輯（純函式，jest 測試）
 │   ├── countdown.js        # 主頁賽事倒數（純函式 + 渲染，jest 測試）

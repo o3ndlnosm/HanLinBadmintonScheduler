@@ -158,7 +158,7 @@ describe('initOverlay：只認觀賽連結、每 10 秒重讀、失敗保留上�
   });
   afterEach(() => { jest.useRealTimers(); });
 
-  test.each([['?c=abc'], [''], ['?t=']])('%p：顯示請改用觀賽連結、不讀資料', async (search) => {
+  test.each([['?c=abc'], [''], ['?t='], ['?t=tok&c=abc']])('%p：顯示請改用觀賽連結、不讀資料', async (search) => {
     const fetchView = jest.fn();
     const ctl = initOverlay({ search, root, fetchView });
     await ctl.ready;
@@ -197,6 +197,56 @@ describe('initOverlay：只認觀賽連結、每 10 秒重讀、失敗保留上�
     const ctl = initOverlay({ search: '?t=wrong', root, fetchView });
     await ctl.ready;
     expect(root.textContent).toBe('找不到比賽，請確認觀賽連結');
+    ctl.stop();
+  });
+
+  // review Important 1：透明頁在設定時一片空白，分不出「還在讀」「讀不到」「連結不對」
+  test('第一次還沒讀到：顯示讀取比分中…', () => {
+    const fetchView = jest.fn(() => new Promise(() => {}));
+    const ctl = initOverlay({ search: '?t=tok', root, fetchView });
+    expect(root.textContent).toBe('讀取比分中…');
+    ctl.stop();
+  });
+
+  test('第一次就讀取失敗：停在讀取比分中…，原因記到主控台', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchView = jest.fn(() => Promise.reject(new Error('連線失敗（500）')));
+    const ctl = initOverlay({ search: '?t=tok', root, fetchView });
+    await ctl.ready;
+    expect(root.textContent).toBe('讀取比分中…');
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+    ctl.stop();
+  });
+
+  test('RPC 回 null（通行碼錯）：顯示找不到比賽', async () => {
+    const fetchView = jest.fn(() => Promise.resolve(null));
+    const ctl = initOverlay({ search: '?t=wrong', root, fetchView });
+    await ctl.ready;
+    expect(root.textContent).toBe('找不到比賽，請確認觀賽連結');
+    ctl.stop();
+  });
+
+  test('第一次就是非比點賽事：提示這場沒有點數比分', async () => {
+    const v = friendlyView();
+    v.matches.forEach((m) => { m.pointNo = null; });
+    const fetchView = jest.fn(() => Promise.resolve(v));
+    const ctl = initOverlay({ search: '?t=tok', root, fetchView });
+    await ctl.ready;
+    expect(root.textContent).toBe('這場比賽沒有點數比分，請確認觀賽連結');
+    ctl.stop();
+  });
+
+  test('顯示過比分後拿到算不出比分的資料：保留上一次畫面', async () => {
+    const fetchView = jest.fn(() => Promise.resolve(friendlyView()));
+    const ctl = initOverlay({ search: '?t=tok', root, fetchView });
+    await ctl.ready;
+    const before = root.innerHTML;
+    const v = friendlyView();
+    v.teams = v.teams.slice(0, 1);
+    fetchView.mockImplementationOnce(() => Promise.resolve(v));
+    await ctl.refresh();
+    expect(root.innerHTML).toBe(before);
     ctl.stop();
   });
 

@@ -68,7 +68,6 @@ test('比點資料但隊伍不足兩隊：不拋錯、賽程照樣畫出來', ()
   expect(document.querySelectorAll('#schedule .match-row')).toHaveLength(15);
 });
 
-// 2026-11-17 比賽結束才公布應援數：15 場全部確認或比賽 finished 才公布；finished 後應援條唯讀仍掛
 test('點數比分板的隊伍色點：貿聯紅、翰林青', () => {
   window.mountCheerBar = jest.fn();
   window.setCheerReveal = jest.fn();
@@ -79,6 +78,7 @@ test('點數比分板的隊伍色點：貿聯紅、翰林青', () => {
   expect(dots[1].style.backgroundColor).toBe('rgb(0, 161, 156)');
 });
 
+// 2026-11-17 比賽結束才公布應援數：15 場全部確認或比賽 finished 才公布；finished 後應援條唯讀仍掛
 describe('應援條公布與唯讀', () => {
   let mountSpy;
   let revealSpy;
