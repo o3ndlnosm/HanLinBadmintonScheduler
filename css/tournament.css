@@ -658,3 +658,26 @@
   .cheer-fill { transition: none; }
   .cheer-spark-core { animation: none; transition: none; }
 }
+
+/* 直播框（2026-11-25 友誼賽起）：16:9、寬度跟著版面，手機寬度不撐出水平捲動 */
+.live-frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: var(--f1-radius);
+  overflow: hidden;
+}
+
+.live-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.live-open {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--f1-fg-muted);
+}

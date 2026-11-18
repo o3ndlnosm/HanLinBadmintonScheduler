@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const SCRIPTS = ['dialog', 'standings', 'team-points', 'tournament-form', 'tournament-api', 'cheer', 'tournament'];
+const SCRIPTS = ['dialog', 'standings', 'team-points', 'tournament-form', 'tournament-api', 'cheer', 'live', 'tournament'];
 
 // 友誼賽賽程（輪, 場地, 賽點, A/B, 點）
 const SCHEDULE = [
@@ -39,8 +39,14 @@ beforeAll(() => {
   const html = fs.readFileSync(path.join(root, 'tournament.html'), 'utf8');
   const body = html.match(/<body[^>]*>([\s\S]*)<\/body>/)[1].replace(/<script[\s\S]*?<\/script>/g, '');
   document.body.innerHTML = body;
-  SCRIPTS.forEach((name) => globalEval(fs.readFileSync(path.join(root, 'js', `${name}.js`), 'utf8')));
-  globalEval("auth = { mode: 'captain', token: 'cap-M' };");
+  SCRIPTS.forEach((name) => {
+    let code = fs.readFileSync(path.join(root, 'js', `${name}.js`), 'utf8');
+    // tournament.js 頂層的 `let auth` 在間接 eval 下只屬於那次 eval，外面直接 assign 改不到它；
+    // 附一個測試用 setter，才能真的切換觀賽／輸分模式。
+    if (name === 'tournament') code += '\nwindow.__setAuth = (a) => { auth = a; };';
+    globalEval(code);
+  });
+  window.__setAuth({ mode: 'captain', token: 'cap-M' });
 });
 
 beforeEach(() => {
@@ -108,6 +114,81 @@ describe('應援條公布與唯讀', () => {
   test('公布出錯：賽程照樣畫出來、renderAll 不拋錯', () => {
     window.setCheerReveal = () => { throw new Error('reveal boom'); };
     expect(() => globalEval('renderAll')(friendlyView())).not.toThrow();
+    expect(document.querySelectorAll('#schedule .match-row')).toHaveLength(15);
+  });
+});
+
+describe('直播框', () => {
+  const URL1 = 'https://youtu.be/AbCdEfGhI_-';
+  let realMountLive;
+  let section;
+  const withLive = (url) => {
+    const view = friendlyView();
+    view.tournament.liveUrl = url;
+    return view;
+  };
+
+  beforeAll(() => { realMountLive = window.mountLiveBox; });
+
+  beforeEach(() => {
+    window.mountCheerBar = jest.fn();
+    window.setCheerReveal = jest.fn();
+    window.setCheerReadOnly = jest.fn();
+    window.mountLiveBox = realMountLive;
+    section = document.getElementById('liveSection');
+    section.textContent = '';
+    section.hidden = true;
+    delete section.dataset.liveId;
+    window.__setAuth({ mode: 'public', token: 'pub' });
+  });
+
+  afterEach(() => {
+    window.__setAuth({ mode: 'captain', token: 'cap-M' });
+    window.mountLiveBox = realMountLive;
+  });
+
+  test('觀賽模式有直播網址：直播框出現在點數比分板之前', () => {
+    globalEval('renderAll')(withLive(URL1));
+    expect(section.hidden).toBe(false);
+    expect(section.querySelectorAll('iframe')).toHaveLength(1);
+    const points = document.getElementById('pointsSection');
+    expect(section.compareDocumentPosition(points) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('連續 renderAll 兩次：還是同一個 iframe 元素', () => {
+    globalEval('renderAll')(withLive(URL1));
+    const first = section.querySelector('iframe');
+    globalEval('renderAll')(withLive(URL1));
+    expect(section.querySelectorAll('iframe')).toHaveLength(1);
+    expect(section.querySelector('iframe')).toBe(first);
+  });
+
+  test('輸分模式有直播網址：不掛直播框', () => {
+    window.__setAuth({ mode: 'captain', token: 'cap-M' });
+    const spy = jest.fn();
+    window.mountLiveBox = spy;
+    globalEval('renderAll')(withLive(URL1));
+    expect(spy).not.toHaveBeenCalled();
+    expect(section.hidden).toBe(true);
+  });
+
+  test('payload 沒有 liveUrl：直播框不出現、不拋錯', () => {
+    expect(() => globalEval('renderAll')(friendlyView())).not.toThrow();
+    expect(section.hidden).toBe(true);
+    expect(section.querySelectorAll('iframe')).toHaveLength(0);
+  });
+
+  test('比賽 finished 後網址還在：直播框照樣顯示', () => {
+    const view = withLive(URL1);
+    view.tournament.status = 'finished';
+    globalEval('renderAll')(view);
+    expect(section.hidden).toBe(false);
+    expect(section.querySelectorAll('iframe')).toHaveLength(1);
+  });
+
+  test('直播框掛載出錯：賽程照樣畫出 15 列', () => {
+    window.mountLiveBox = () => { throw new Error('live boom'); };
+    expect(() => globalEval('renderAll')(withLive(URL1))).not.toThrow();
     expect(document.querySelectorAll('#schedule .match-row')).toHaveLength(15);
   });
 });

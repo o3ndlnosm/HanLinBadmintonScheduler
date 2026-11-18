@@ -7,6 +7,7 @@
  *   tournament-form.js → parseTokenFromUrl / matchState / validateScores
  *   tournament-api.js → fetchPublicView / fetchCaptainView / reportScore
  *   cheer.js → mountCheerBar
+ *   live.js → mountLiveBox
  */
 const POLL_INTERVAL_MS = 10000;
 
@@ -328,6 +329,15 @@ function renderAll(view) {
   else renderStandings(view);
   // 賽程（隊長輸分入口）先畫，應援條之後才掛
   renderSchedule(view);
+  // 直播框只在觀賽頁（輸分的人在現場，不需要看直播）。反目標：直播框出錯不得連帶讓比分功能壞掉，包在 try/catch 裡。
+  // mountLiveBox 內部保證同一支影片不重掛，每 10 秒重畫不會中斷播放。
+  if (auth.mode === 'public') {
+    try {
+      mountLiveBox(document.getElementById('liveSection'), view.tournament.liveUrl);
+    } catch (e) {
+      // 直播框失敗靜默略過
+    }
+  }
   // 反目標：應援出錯不得連帶讓比分功能壞掉，所以包在 try/catch 裡、放在最後。
   // 應援條只在比點模式出現；mountCheerBar 內部保證只掛一次。
   // 應援數比賽結束才公布（15 場全部確認，或比賽 finished）；先設公布狀態再掛，finished 後才打開的人第一眼就看到總數。

@@ -10,8 +10,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=18">
-    <link rel="stylesheet" href="css/tournament.css?v=18">
+    <link rel="stylesheet" href="css/style.css?v=19">
+    <link rel="stylesheet" href="css/tournament.css?v=19">
 </head>
 <body class="tournament-page">
     <header class="header tournament-header">
@@ -22,6 +22,9 @@
     <main class="tournament-main">
         <div id="offlineBox" class="offline-box" hidden></div>
         <div id="errorBox" class="error-box" hidden></div>
+
+        <!-- 直播（2026-11-25 友誼賽起）：賽事資料有 YouTube 網址時才出現，只在觀賽頁（js/live.js） -->
+        <section id="liveSection" class="live-section" hidden></section>
 
         <!-- 比點賽制（2026-11-25 友誼賽起）：點數計分板＋公司應援條，取代排名表 -->
         <section id="pointsSection" hidden>
@@ -63,12 +66,13 @@
         </div>
     </div>
 
-    <script src="js/dialog.js?v=18"></script>
-    <script src="js/standings.js?v=18"></script>
-    <script src="js/team-points.js?v=18"></script>
-    <script src="js/tournament-form.js?v=18"></script>
-    <script src="js/tournament-api.js?v=18"></script>
-    <script src="js/cheer.js?v=18"></script>
-    <script src="js/tournament.js?v=18"></script>
+    <script src="js/dialog.js?v=19"></script>
+    <script src="js/standings.js?v=19"></script>
+    <script src="js/team-points.js?v=19"></script>
+    <script src="js/tournament-form.js?v=19"></script>
+    <script src="js/tournament-api.js?v=19"></script>
+    <script src="js/cheer.js?v=19"></script>
+    <script src="js/live.js?v=19"></script>
+    <script src="js/tournament.js?v=19"></script>
 </body>
 </html>
