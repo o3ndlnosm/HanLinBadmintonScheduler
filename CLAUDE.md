@@ -97,11 +97,15 @@ npx http-server
   比賽中標題列只顯示隊名；`renderAll` 依 `allConfirmed || status === 'finished'` 呼叫 `setCheerReveal()` 才公布應援總數。
   finished 後應援條仍掛但唯讀（`mountCheerBar(..., { readOnly: true })`，沒有按鈕），收尾後才打開的人也看得到總數；
   頁面開著時才變 finished，由 `renderAll` 每次呼叫的 `setCheerReadOnly(true)` 切成唯讀（拿掉按鈕、停掉定時送出）
+- **YouTube 直播框**（`js/live.js`，2026-11-18，設計 `docs/superpowers/specs/2026-11-18-live-stream-design.md`）：
+  網址存在 `tournaments.live_url`，由 `tournament_public_payload` 以 `tournament.liveUrl` 送出（SQL `docs/tournament/live-url-2026-11-25.sql`）。
+  只在觀賽模式（`?t=`）掛在點數比分板上方；`youtubeIdFrom` 只認 YouTube 網址、自己組 embed 網址；同一支影片不重掛（記在 `section.dataset.liveId`）。
+  整頁是 `no-referrer`，iframe 另設 `referrerPolicy = 'strict-origin-when-cross-origin'` 只送網域——**拿掉會變成 YouTube 錯誤 153**（2026-11-18 對照組實測）
 - 負載實測用 `scripts/cheer-load-test.mjs`（每支模擬手機一條 HTTP/2 連線）。**不要改回 fetch**：
   Node fetch 會把模擬手機的請求擠進少數連線排隊，量到的是測試工具的瓶頸（2026-11-17 實測 p95 15 s vs 實際 164 ms）
 - 後端借用 v2 badminton-scheduler 的 Supabase RPC，設定在 `js/tournament-api.js`
 - 純函式：`js/standings.js`（排名）、`js/tournament-form.js`（驗證/狀態）、`js/team-points.js`（比點）、
-  `js/cheer.js`（應援累積／裁切／比例／火花增加量／口號），各有 jest 測試
+  `js/cheer.js`（應援累積／裁切／比例／火花增加量／口號）、`js/live.js`（YouTube 網址取 ID），各有 jest 測試
 - 第三屆賽前作業與 seed 見 `docs/tournament/賽前作業.md`；友誼賽 SQL 為 `docs/tournament/friendly-*.sql`
   （schema → rpc-selftest 驗證 → seed 建賽 → lineup 掛人名；測試比賽用 seed 換賽名建、test-cleanup 刪）
 - 建賽時同一交易內 `now()` 相同，隊伍 `created_at` 要明確錯開，否則 payload 的隊伍順序（左右與配色）不保證
@@ -201,7 +205,7 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 319 項跨 21 套件）
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 354 項跨 22 套件）
 2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`
@@ -231,6 +235,7 @@ historyMatches = []    // 比賽歷史
 │   ├── tournament-form.js  # 比賽計分頁表單驗證/狀態機、formatLineup（純函式，jest 測試）
 │   ├── team-points.js      # 比點計算、點次標籤（純函式，jest 測試）
 │   ├── cheer.js            # 公司應援條：累積／裁切／控制器／火花層／泡泡層（jest）＋ 掛載（jsdom＋瀏覽器）
+│   ├── live.js             # 觀賽頁 YouTube 直播框：網址取 ID（jest）＋ 掛載（jsdom＋瀏覽器）
 │   ├── tournament-api.js   # 比賽計分頁 Supabase RPC 薄封裝（jest 測試）
 │   └── tournament.js       # 比賽計分頁初始化、輪詢、渲染
 ├── tests/
@@ -246,7 +251,8 @@ historyMatches = []    // 比賽歷史
 │   ├── cheer-sparks.test.js        # 火花層（jsdom）：顆數、上限、移除
 │   ├── cheer-bubbles.test.js       # 泡泡層（jsdom）：口號、每側上限、移除、建立失敗
 │   ├── cheer-mount.test.js         # 應援條掛載（jsdom）：光點、首次不噴、方向、減少動態、背景分頁、泡泡、公布、唯讀
-│   ├── tournament-render.test.js   # 計分頁渲染（jsdom）：應援出錯不影響賽程
+│   ├── live.test.js                # 直播框（jsdom）：網址取 ID、只掛一次、換影片、清空
+│   ├── tournament-render.test.js   # 計分頁渲染（jsdom）：應援／直播框出錯不影響賽程、直播框只在觀賽頁
 │   ├── tournament-html-assets.test.js # 計分頁資源 ?v= 與 sw.js CACHE_NAME 一致
 │   └── tournament-api.test.js      # 比賽計分頁 API 薄封裝測試
 ├── img/
