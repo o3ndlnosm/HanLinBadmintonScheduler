@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>直播比分疊加</title>
+    <!-- 給 PRISM 網頁小工具疊在直播畫面上：整頁透明，只有左下角的比分條。用法見 docs/tournament/賽前作業.md -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/overlay.css?v=20">
+</head>
+<body>
+    <div id="overlay"></div>
+
+    <script src="js/tournament-form.js?v=20"></script>
+    <script src="js/tournament-api.js?v=20"></script>
+    <script src="js/team-points.js?v=20"></script>
+    <script src="js/overlay.js?v=20"></script>
+</body>
+</html>

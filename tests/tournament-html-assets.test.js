@@ -23,3 +23,19 @@ test('tournament.html 至少引用了計分頁的 JS 與 CSS', () => {
 test.each(localAssets)('%s 帶有與 CACHE_NAME 相同的版本號', (url) => {
   expect(url).toMatch(new RegExp(`\\?v=${version}$`));
 });
+
+// 直播疊加比分頁（2026-11-18）：同樣受 SW 快取影響，資源網址也要帶同一個版本號
+const overlayHtml = fs.readFileSync(path.join(root, 'overlay.html'), 'utf8');
+const overlayAssets = [
+  ...[...overlayHtml.matchAll(/<script src="(js\/[^"]+)"/g)].map((m) => m[1]),
+  ...[...overlayHtml.matchAll(/<link rel="stylesheet" href="(css\/[^"]+)"/g)].map((m) => m[1]),
+];
+
+test('overlay.html 引用疊加頁的 JS 與 CSS', () => {
+  expect(overlayAssets.some((u) => u.startsWith('js/overlay.js'))).toBe(true);
+  expect(overlayAssets.some((u) => u.startsWith('css/overlay.css'))).toBe(true);
+});
+
+test.each(overlayAssets)('overlay.html 的 %s 帶有與 CACHE_NAME 相同的版本號', (url) => {
+  expect(url).toMatch(new RegExp(`\\?v=${version}$`));
+});
