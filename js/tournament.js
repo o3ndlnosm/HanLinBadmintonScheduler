@@ -3,7 +3,7 @@
  * 相依（由 tournament.html 的 <script> 順序保證）：
  *   dialog.js → showToast
  *   standings.js → computeStandings
- *   team-points.js → hasPoints / computeTeamPoints / pointLabel / eventLabel
+ *   team-points.js → hasPoints / computeTeamPoints / pointLabel / eventLabel / teamColorById
  *   tournament-form.js → parseTokenFromUrl / matchState / validateScores
  *   tournament-api.js → fetchPublicView / fetchCaptainView / reportScore
  *   cheer.js → mountCheerBar
@@ -22,15 +22,6 @@ let firstRenderDone = false;
 function teamNameById(view) {
   const map = {};
   view.teams.forEach((t) => { map[t.id] = t.name; });
-  return map;
-}
-
-// 隊伍代表色：依 view.teams 的固定順序配色（比照 F1 車隊色，供快速辨識）
-const TEAM_COLORS = ['#e10600', '#00a19c', '#ff8000', '#9b5de5', '#f5c518'];
-
-function teamColorById(view) {
-  const map = {};
-  view.teams.forEach((t, i) => { map[t.id] = TEAM_COLORS[i % TEAM_COLORS.length]; });
   return map;
 }
 

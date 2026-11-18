@@ -1,4 +1,4 @@
-const { hasPoints, computeTeamPoints, pointLabel, eventLabel } = require('../js/team-points');
+const { hasPoints, computeTeamPoints, pointLabel, eventLabel, TEAM_COLORS, teamColorById } = require('../js/team-points');
 
 // 2026-11-25 貿聯×翰林友誼賽：M=貿聯（team A）、H=翰林（team B）
 const TEAMS = [{ id: 'M', name: '貿聯' }, { id: 'H', name: '翰林' }];
@@ -151,5 +151,15 @@ describe('pointLabel / eventLabel', () => {
     expect(eventLabel({ event: '男雙', eventTag: 'A' })).toBe('男雙A');
     expect(eventLabel({ event: '女雙', eventTag: '' })).toBe('女雙');
     expect(eventLabel({ event: '混雙' })).toBe('混雙');
+  });
+});
+
+describe('teamColorById（計分頁與直播疊加頁共用的隊伍色）', () => {
+  test('依隊伍順序配色、超過五隊從頭輪', () => {
+    const view = { teams: ['A', 'B', 'C', 'D', 'E', 'F'].map((id) => ({ id })) };
+    expect(teamColorById(view)).toEqual({
+      A: '#e10600', B: '#00a19c', C: '#ff8000', D: '#9b5de5', E: '#f5c518', F: '#e10600',
+    });
+    expect(TEAM_COLORS).toHaveLength(5);
   });
 });

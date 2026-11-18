@@ -65,7 +65,17 @@ function eventLabel(match) {
   return `${match.event}${match.eventTag || ''}`;
 }
 
+// 隊伍代表色：依 view.teams 的固定順序配色（比照 F1 車隊色，供快速辨識）。
+// 計分頁（tournament.js）與直播疊加頁（overlay.js）共用，顏色只在這裡改。
+const TEAM_COLORS = ['#e10600', '#00a19c', '#ff8000', '#9b5de5', '#f5c518'];
+
+function teamColorById(view) {
+  const map = {};
+  view.teams.forEach((t, i) => { map[t.id] = TEAM_COLORS[i % TEAM_COLORS.length]; });
+  return map;
+}
+
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { hasPoints, computeTeamPoints, pointLabel, eventLabel };
+  module.exports = { hasPoints, computeTeamPoints, pointLabel, eventLabel, TEAM_COLORS, teamColorById };
 }
