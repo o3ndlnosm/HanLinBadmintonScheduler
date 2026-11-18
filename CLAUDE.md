@@ -101,6 +101,10 @@ npx http-server
   網址存在 `tournaments.live_url`，由 `tournament_public_payload` 以 `tournament.liveUrl` 送出（SQL `docs/tournament/live-url-2026-11-25.sql`）。
   只在觀賽模式（`?t=`）掛在點數比分板上方；`youtubeIdFrom` 只認 YouTube 網址、自己組 embed 網址；同一支影片不重掛（記在 `section.dataset.liveId`）。
   整頁是 `no-referrer`，iframe 另設 `referrerPolicy = 'strict-origin-when-cross-origin'` 只送網域——**拿掉會變成 YouTube 錯誤 153**（2026-11-18 對照組實測）
+- **直播畫面疊加比分**（`overlay.html`＋`js/overlay.js`＋`css/overlay.css`，2026-11-18，設計 `docs/superpowers/specs/2026-11-18-live-overlay-design.md`）：
+  給 PRISM 網頁小工具疊在直播畫面左下角，整頁透明；只認 `?t=`（輸分連結只顯示「請改用觀賽連結」）。
+  `overlayLines(view)` 算兩行內容（總點數＋最新確認的一場，比分照左右順序、不照 A/B 隊），每 10 秒重讀；成功顯示過之後，讀取失敗或找不到比賽都保留上一次畫面，直播畫面上不出現錯誤字。
+  尺寸用 `vmin`（直立直播時不會撐得比畫面寬）。隊伍顏色 `TEAM_COLORS`／`teamColorById` 在 `team-points.js`，計分頁與疊加頁共用
 - 負載實測用 `scripts/cheer-load-test.mjs`（每支模擬手機一條 HTTP/2 連線）。**不要改回 fetch**：
   Node fetch 會把模擬手機的請求擠進少數連線排隊，量到的是測試工具的瓶頸（2026-11-17 實測 p95 15 s vs 實際 164 ms）
 - 後端借用 v2 badminton-scheduler 的 Supabase RPC，設定在 `js/tournament-api.js`
@@ -205,7 +209,7 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 354 項跨 22 套件）
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 382 項跨 23 套件）
 2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`
@@ -233,9 +237,10 @@ historyMatches = []    // 比賽歷史
 │   ├── script.js           # 主要應用程式邏輯 (2841 行)
 │   ├── standings.js        # 比賽排名計算（純函式，jest 測試）
 │   ├── tournament-form.js  # 比賽計分頁表單驗證/狀態機、formatLineup（純函式，jest 測試）
-│   ├── team-points.js      # 比點計算、點次標籤（純函式，jest 測試）
+│   ├── team-points.js      # 比點計算、點次標籤、隊伍顏色（純函式，jest 測試）
 │   ├── cheer.js            # 公司應援條：累積／裁切／控制器／火花層／泡泡層（jest）＋ 掛載（jsdom＋瀏覽器）
 │   ├── live.js             # 觀賽頁 YouTube 直播框：網址取 ID（jest）＋ 掛載（jsdom＋瀏覽器）
+│   ├── overlay.js          # 直播畫面疊加比分：兩行內容（jest）＋ 只認觀賽連結、每 10 秒重讀
 │   ├── tournament-api.js   # 比賽計分頁 Supabase RPC 薄封裝（jest 測試）
 │   └── tournament.js       # 比賽計分頁初始化、輪詢、渲染
 ├── tests/
@@ -252,8 +257,9 @@ historyMatches = []    // 比賽歷史
 │   ├── cheer-bubbles.test.js       # 泡泡層（jsdom）：口號、每側上限、移除、建立失敗
 │   ├── cheer-mount.test.js         # 應援條掛載（jsdom）：光點、首次不噴、方向、減少動態、背景分頁、泡泡、公布、唯讀
 │   ├── live.test.js                # 直播框（jsdom）：網址取 ID、只掛一次、換影片、清空
+│   ├── overlay.test.js             # 疊加比分（jsdom）：四種狀態、最新一場、左右順序、只認 ?t=、失敗保留
 │   ├── tournament-render.test.js   # 計分頁渲染（jsdom）：應援／直播框出錯不影響賽程、直播框只在觀賽頁
-│   ├── tournament-html-assets.test.js # 計分頁資源 ?v= 與 sw.js CACHE_NAME 一致
+│   ├── tournament-html-assets.test.js # 計分頁、疊加頁資源 ?v= 與 sw.js CACHE_NAME 一致
 │   └── tournament-api.test.js      # 比賽計分頁 API 薄封裝測試
 ├── img/
 │   └── event-banner.jpg     # 主頁倒數區背景插畫（1400w JPEG，213K）
@@ -265,6 +271,7 @@ historyMatches = []    // 比賽歷史
 ├── scripts/cheer-load-test.mjs # 應援負載實測（每支模擬手機一條 HTTP/2 連線）
 ├── index.html              # 單頁應用程式
 ├── tournament.html         # 比賽計分頁（觀賽 + 隊長輸分）
+├── overlay.html            # 直播畫面疊加比分（給 PRISM 網頁小工具，只認觀賽連結）
 └── CLAUDE.md               # 此檔案
 ```
 
