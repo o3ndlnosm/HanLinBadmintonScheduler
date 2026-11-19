@@ -214,7 +214,7 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 409 項跨 25 套件）
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 416 項跨 25 套件）
 2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`

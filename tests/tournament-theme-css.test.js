@@ -36,7 +36,46 @@ test('白色版色值照 spec', () => {
   expect(light).toMatchObject({
     '--f1-bg': '#f2f2f5', '--f1-panel': '#ffffff', '--f1-line': '#dcdce2',
     '--f1-fg': '#15151e', '--f1-fg-muted': '#5c5c66', '--f1-fg-faint': '#767680',
-    '--f1-conflict': '#c8102e', '--f1-win': '#1a8a4a', '--f1-wait': '#a86b00',
+    '--f1-conflict': '#c8102e', '--f1-win': '#157a40', '--f1-wait': '#8f5b00',
+  });
+});
+
+// 對比（WCAG 2.x 相對亮度公式）：狀態字落在實際會出現的底色上要 ≥ 4.5:1。
+// 2026-11-19 review：原本的綠 #1a8a4a、黃 #a86b00 在自己場次列（淡紅底）上只有約 4.0，連線異常框的黃字只有 3.65。
+function rgbOf(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function over(fg, alpha, bg) { // 半透明色疊在底色上的實際顏色
+  return fg.map((c, i) => c * alpha + bg[i] * (1 - alpha));
+}
+function luminance(rgb) {
+  const [r, g, b] = rgb.map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrast(a, b) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+describe('白色版狀態字在實際底色上的對比 ≥ 4.5', () => {
+  const panel = rgbOf(light['--f1-panel'] || '#000000');
+  const page = rgbOf(light['--f1-bg'] || '#000000');
+  const mineRow = over([225, 6, 0], 0.05, panel); // .match-row.match-mine 的淡紅底
+  const offlineBox = over([230, 164, 23], 0.12, page); // .offline-box 的淡黃底（疊在頁底上）
+  test.each([
+    ['--f1-win（已確認）', '--f1-win', 'panel', panel],
+    ['--f1-win（已確認）', '--f1-win', '自己場次列', mineRow],
+    ['--f1-wait（等待）', '--f1-wait', 'panel', panel],
+    ['--f1-wait（等待）', '--f1-wait', '自己場次列', mineRow],
+    ['--f1-wait（連線異常框）', '--f1-wait', '連線異常框', offlineBox],
+    ['--f1-conflict（比分不一致）', '--f1-conflict', '自己場次列', mineRow],
+    ['--f1-fg-muted（次要字）', '--f1-fg-muted', 'panel', panel],
+  ])('%s 在 %s', (_label, key, _where, bg) => {
+    expect(contrast(rgbOf(light[key]), bg)).toBeGreaterThanOrEqual(4.5);
   });
 });
 
