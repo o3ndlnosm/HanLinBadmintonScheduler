@@ -101,17 +101,16 @@ function bannerCtaText(state, event) {
 
 // ── 以下為瀏覽器渲染層（jest 只測上方純函式） ──────────────
 
+// 2026-11-25 貿聯×翰林友誼賽（2026-11-19 換上；上一場是 8/20 第三屆，見 git log）。
 const EVENT = {
-  name: '第三屆翰林匹克羽球運動會',
-  // startAt 取自第 1 輪 timeSlot（18:10-18:20）。
-  // endAt 不等於賽程表第 10 輪的預定結束時間（19:50）：10 輪 × 10 分鐘首尾相接、
-  // 零緩衝，實際幾乎不可能準時，且主頁是進入計分頁的唯一入口，19:50 一到入口消失，
-  // 屆時可能還在打最後幾輪、名次正在決定。故留 70 分鐘延誤緩衝到 21:00，
-  // 賽後這段時間也讓想回看最終戰績的人仍找得到入口。
-  startAt: '2026-08-20T18:10:00+08:00',
-  endAt: '2026-08-20T21:00:00+08:00',
-  // 公開觀賽 token，本來就要貼社團群組
-  url: 'tournament.html?t=4478488eb60c20146ae9639634944336',
+  name: '貿聯×翰林2026羽球聯合友誼賽',
+  // startAt 取自第 1 輪 timeSlot（18:15-18:30）。
+  // endAt 不等於第 6 輪的預定結束時間（19:45）：每輪 15 分鐘首尾相接、零緩衝，
+  // 實際幾乎不可能準時；比照第三屆留約 75 分鐘延誤緩衝到 21:00，賽後一段時間橫幅仍在。
+  startAt: '2026-11-25T18:15:00+08:00',
+  endAt: '2026-11-25T21:00:00+08:00',
+  // 刻意沒有 url：repo 公開，友誼賽觀賽頁有貿聯同仁的名字，連結不寫進程式。
+  // 彈窗與提示字改成「觀賽連結請看社團群組」（見 hasEventLink）。社內比賽要放連結時再加回 url。
 };
 
 let countdownTimer = null;
@@ -194,6 +193,6 @@ if (typeof document !== 'undefined') {
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    countdownState, formatCountdown, formatEventDate, eventDialogText, eventDialogButtons, bannerCtaText,
+    countdownState, formatCountdown, formatEventDate, eventDialogText, eventDialogButtons, bannerCtaText, EVENT,
   };
 }

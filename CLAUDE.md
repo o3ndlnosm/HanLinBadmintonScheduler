@@ -120,8 +120,13 @@ npx http-server
 - 建賽時同一交易內 `now()` 相同，隊伍 `created_at` 要明確錯開，否則 payload 的隊伍順序（左右與配色）不保證
 
 ### 8. 主頁賽事倒數（js/countdown.js）
-- 主頁頂端顯示 8/20 比賽倒數，歸零後轉為即時計分板入口，21:00 後自動隱藏
-  （非賽程表第 10 輪預定結束時間 19:50——留 70 分鐘延誤緩衝，賽後也讓人找得到戰績入口）
+- 目前倒數 **2026-11-25 貿聯×翰林友誼賽**（2026-11-19 起；上一場是 8/20 第三屆），開打後顯示「比賽進行中」，21:00 後自動隱藏
+  （第 6 輪預定 19:45 結束，比照第三屆留延誤緩衝）
+- **`EVENT.url` 是選填**（2026-11-19，設計 `docs/superpowers/specs/2026-11-19-countdown-friendly-design.md`）：
+  - 有 → 彈窗有「前往賽程／進入即時計分板」（新分頁開），提示字「查看賽程 ›／進入即時計分板 ›」（第三屆用法）。
+  - 沒有（或空字串）→ 彈窗只有「關閉」並多一行「觀賽連結請看社團群組」，提示字「比賽資訊 ›／觀賽連結請看社團群組」。
+  - 友誼賽**刻意不放**：repo 公開，觀賽頁有貿聯同仁名字，連結寫進程式等於公開名單（`tests/countdown.test.js` 釘住 `EVENT.url` 為空）。
+    對外比賽照這樣做；社內比賽要放連結時再加回 `url`。
 - **橫幅是 `<button>` 不是連結**：點擊只開賽事彈窗（`eventDialogText` 組內文 + `openDialog`），
   要進計分頁得走彈窗裡的「前往賽程」，以新分頁開啟。為什麼：排場資料只在記憶體，
   上課途中誰誤觸把頁面導走就全沒了。不要改回 `<a href>`——那還有中鍵、長按選單等
@@ -132,8 +137,8 @@ npx http-server
   （曾把 8/20 標成星期三，實際是星期四）
 - 時間換算固定用台北時間：epoch 加 8 小時後用 `getUTC*` 讀取，不可用 `getMonth()` /
   `getDay()` 等本地時區方法，否則使用者在別的時區會看到錯的日期
-- 純函式 `countdownState` / `formatCountdown` / `formatEventDate` 有 jest 測試，
-  渲染層靠瀏覽器驗證
+- 純函式 `countdownState` / `formatCountdown` / `formatEventDate` / `eventDialogText` /
+  `eventDialogButtons` / `bannerCtaText` 有 jest 測試，渲染層靠瀏覽器驗證
 - 背景是 `img/event-banner.jpg`（賽事插畫），上面壓一層半透明品牌色漸層當遮罩。
   遮罩不可拿掉：插畫高飽和高對比，白字直接疊上去會讀不清楚。`is-during` 只換遮罩
   顏色、保留插畫，所以用 `background-image` 而非 `background` 簡寫（後者會清掉 url）
@@ -214,7 +219,7 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 416 項跨 25 套件）
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 426 項跨 25 套件）
 2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`

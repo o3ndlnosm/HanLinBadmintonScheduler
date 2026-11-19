@@ -187,3 +187,15 @@ describe('有連結時照舊（第三屆用法）', () => {
     expect(eventDialogButtons(countdownState(END, EVENT), EVENT)).toEqual([]);
   });
 });
+
+describe('目前上線的 EVENT（2026-11-25 友誼賽）', () => {
+  const { EVENT: LIVE } = require('../js/countdown');
+  test('名稱與時間', () => {
+    expect(LIVE.name).toBe('貿聯×翰林2026羽球聯合友誼賽');
+    expect(formatEventDate(LIVE.startAt)).toBe('11/25 (三) 18:15 開打');
+    expect(LIVE.endAt).toBe('2026-11-25T21:00:00+08:00');
+  });
+  test('不放觀賽連結（repo 公開，觀賽頁有貿聯同仁名字）', () => {
+    expect(LIVE.url).toBeUndefined();
+  });
+});
