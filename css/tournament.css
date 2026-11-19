@@ -681,3 +681,33 @@
   font-size: 0.8rem;
   color: var(--f1-fg-muted);
 }
+
+/* ===== 輸分頁白色版（2026-11-19 孟娜許願：輸分頁跟觀賽頁的外觀分開，避免搞混）=====
+   spec：docs/superpowers/specs/2026-11-19-captain-light-theme-design.md
+   輸分連結（?c=）由 js/page-theme.js 在 <head> 替 <html> 加上 theme-light；觀賽連結不加，維持上面的黑色版。
+   只在這裡新增、不改上面的原規則：觀賽頁的外觀因此一個值都不會變（tests/tournament-theme-css.test.js 釘住原值）。
+   白底上的字對比至少約 4.5:1，綠、黃、標籤字色都用同色系加深；隊伍紅、青與 --f1-red 不變。 */
+:root.theme-light {
+  --f1-bg: #f2f2f5;
+  --f1-panel: #ffffff;
+  --f1-line: #dcdce2;
+  --f1-fg: #15151e;
+  --f1-fg-muted: #5c5c66;
+  --f1-fg-faint: #767680;
+  --f1-conflict: #c8102e;
+  --f1-win: #1a8a4a;
+  --f1-wait: #a86b00;
+}
+
+/* 上面寫死成深色的地方 */
+.theme-light .report-overlay { background: rgba(21, 21, 30, 0.45); }
+.theme-light .report-modal { background: var(--f1-panel); }
+.theme-light .score-inputs input { background: #f7f7f9; }
+.theme-light .tournament-page .app-toast {
+  background: var(--f1-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+.theme-light .cheer-btn:active { background: rgba(0, 0, 0, 0.05); }
+.theme-light .event-chip.男雙 { color: #2f5f9e; }
+.theme-light .event-chip.女雙 { color: #a0325f; }
+.theme-light .event-chip.混雙 { color: #1f7a5a; }

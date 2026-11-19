@@ -105,6 +105,11 @@ npx http-server
   給 PRISM 網頁小工具疊在直播畫面左下角，整頁透明；只認 `?t=`（輸分連結只顯示「請改用觀賽連結」）。
   `overlayLines(view)` 算兩行內容（總點數＋最新確認的一場，比分照左右順序、不照 A/B 隊），每 10 秒重讀；成功顯示過之後，讀取失敗或找不到比賽都保留上一次畫面，直播畫面上不出現錯誤字。
   尺寸用 `vmin`（直立直播時不會撐得比畫面寬）。隊伍顏色 `TEAM_COLORS`／`teamColorById` 在 `team-points.js`，計分頁與疊加頁共用
+- **輸分頁白色版**（`js/page-theme.js`，2026-11-19，設計 `docs/superpowers/specs/2026-11-19-captain-light-theme-design.md`）：
+  輸分連結（`?c=`）是白色、觀賽連結（`?t=`）維持黑色，避免兩種頁面搞混；所有比賽都套用。
+  `<head>` 先載 `tournament-form.js` 再載 `page-theme.js`，在 body 畫出來前替 `<html>` 加 `theme-light`（判斷只沿用 `parseTokenFromUrl`）。
+  白色版只在 `css/tournament.css` 檔尾新增（`:root.theme-light` 變數＋`.theme-light …` 覆寫寫死深色處），**上面的黑色原規則不要改**；
+  在 `:root` 加新的顏色變數時，白色版也要給一個值（`tests/tournament-theme-css.test.js` 會擋）
 - 負載實測用 `scripts/cheer-load-test.mjs`（每支模擬手機一條 HTTP/2 連線）。**不要改回 fetch**：
   Node fetch 會把模擬手機的請求擠進少數連線排隊，量到的是測試工具的瓶頸（2026-11-17 實測 p95 15 s vs 實際 164 ms）
 - 後端借用 v2 badminton-scheduler 的 Supabase RPC，設定在 `js/tournament-api.js`
@@ -209,7 +214,7 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 388 項跨 23 套件）
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 409 項跨 25 套件）
 2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`
@@ -242,6 +247,7 @@ historyMatches = []    // 比賽歷史
 │   ├── cheer.js            # 公司應援條：累積／裁切／控制器／火花層／泡泡層（jest）＋ 掛載（jsdom＋瀏覽器）
 │   ├── live.js             # 觀賽頁 YouTube 直播框：網址取 ID（jest）＋ 掛載（jsdom＋瀏覽器）
 │   ├── overlay.js          # 直播畫面疊加比分：兩行內容（jest）＋ 只認觀賽連結、每 10 秒重讀
+│   ├── page-theme.js       # 計分頁顏色：輸分連結白色、觀賽連結黑色（在 <head> 執行，jsdom 測試）
 │   ├── tournament-api.js   # 比賽計分頁 Supabase RPC 薄封裝（jest 測試）
 │   └── tournament.js       # 比賽計分頁初始化、輪詢、渲染
 ├── tests/
@@ -260,7 +266,9 @@ historyMatches = []    // 比賽歷史
 │   ├── live.test.js                # 直播框（jsdom）：網址取 ID、只掛一次、換影片、清空
 │   ├── overlay.test.js             # 疊加比分（jsdom）：四種狀態、最新一場、左右順序、只認 ?t=、失敗保留
 │   ├── tournament-render.test.js   # 計分頁渲染（jsdom）：應援／直播框出錯不影響賽程、直播框只在觀賽頁
-│   ├── tournament-html-assets.test.js # 計分頁、疊加頁資源 ?v= 與 sw.js CACHE_NAME 一致
+│   ├── tournament-html-assets.test.js # 計分頁、疊加頁資源 ?v= 與 sw.js CACHE_NAME 一致；page-theme.js 在 <head>
+│   ├── page-theme.test.js          # 頁面顏色（jsdom）：哪種連結用白色、<html> class、theme-color
+│   ├── tournament-theme-css.test.js # 白色版配色：黑色原值不變、每個顏色變數都有白色版、寫死深色處有覆寫
 │   └── tournament-api.test.js      # 比賽計分頁 API 薄封裝測試
 ├── img/
 │   └── event-banner.jpg     # 主頁倒數區背景插畫（1400w JPEG，213K）
