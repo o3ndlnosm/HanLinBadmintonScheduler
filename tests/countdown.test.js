@@ -3,14 +3,19 @@ const {
   formatCountdown,
   formatEventDate,
   eventDialogText,
+  eventDialogButtons,
+  bannerCtaText,
 } = require('../js/countdown');
 
 // 測試專用固定值，與 js/countdown.js 的 EVENT 常數無關（不需同步）：
 // 這裡測的是 countdownState 的三狀態邊界邏輯，用什麼時間值都成立。
+// 帶 url 的 EVENT 代表「有觀賽連結」的用法（第三屆）；NO_LINK 代表不放連結（2026-11-25 友誼賽）。
 const EVENT = {
   startAt: '2026-08-20T18:10:00+08:00',
   endAt: '2026-08-20T19:50:00+08:00',
+  url: 'tournament.html?t=test',
 };
+const NO_LINK = { startAt: EVENT.startAt, endAt: EVENT.endAt };
 const START = Date.parse(EVENT.startAt);
 const END = Date.parse(EVENT.endAt);
 
@@ -136,5 +141,49 @@ describe('eventDialogText', () => {
 
   test('結束後回傳 null——橫幅此時已隱藏，本來就開不了彈窗', () => {
     expect(eventDialogText(countdownState(END + 1000, EVENT), EVENT)).toBeNull();
+  });
+});
+
+describe('沒有連結時（2026-11-19 友誼賽：觀賽連結不進公開 repo）', () => {
+  test('彈窗開打前：多一行請看社團群組', () => {
+    expect(eventDialogText(countdownState(before(16, 8, 24, 31), NO_LINK), NO_LINK))
+      .toBe('還有 16 天 08 : 24 : 31\n8/20 (四) 18:10 開打\n觀賽連結請看社團群組');
+  });
+  test('彈窗進行中：多一行請看社團群組', () => {
+    expect(eventDialogText(countdownState(START, NO_LINK), NO_LINK))
+      .toBe('比賽進行中\n8/20 (四) 18:10 開打\n觀賽連結請看社團群組');
+  });
+  test('url 是空字串也當成沒有連結', () => {
+    const blank = { ...NO_LINK, url: '' };
+    expect(eventDialogButtons(countdownState(START, blank), blank)).toEqual([
+      { text: '關閉', value: false, className: 'btn-primary', primary: true },
+    ]);
+  });
+  test('按鈕只有關閉', () => {
+    expect(eventDialogButtons(countdownState(START - 1000, NO_LINK), NO_LINK)).toEqual([
+      { text: '關閉', value: false, className: 'btn-primary', primary: true },
+    ]);
+  });
+  test('提示字：開打前「比賽資訊 ›」、進行中「觀賽連結請看社團群組」、結束後空字串', () => {
+    expect(bannerCtaText(countdownState(START - 1000, NO_LINK), NO_LINK)).toBe('比賽資訊 ›');
+    expect(bannerCtaText(countdownState(START, NO_LINK), NO_LINK)).toBe('觀賽連結請看社團群組');
+    expect(bannerCtaText(countdownState(END, NO_LINK), NO_LINK)).toBe('');
+  });
+});
+
+describe('有連結時照舊（第三屆用法）', () => {
+  test('按鈕：關閉＋前往賽程／進入即時計分板', () => {
+    expect(eventDialogButtons(countdownState(START - 1000, EVENT), EVENT)).toEqual([
+      { text: '關閉', value: false, className: 'btn-secondary' },
+      { text: '前往賽程', value: true, href: EVENT.url, className: 'btn-primary', primary: true },
+    ]);
+    expect(eventDialogButtons(countdownState(START, EVENT), EVENT)[1].text).toBe('進入即時計分板');
+  });
+  test('提示字：查看賽程 ›／進入即時計分板 ›', () => {
+    expect(bannerCtaText(countdownState(START - 1000, EVENT), EVENT)).toBe('查看賽程 ›');
+    expect(bannerCtaText(countdownState(START, EVENT), EVENT)).toBe('進入即時計分板 ›');
+  });
+  test('結束後按鈕為空陣列', () => {
+    expect(eventDialogButtons(countdownState(END, EVENT), EVENT)).toEqual([]);
   });
 });

@@ -51,14 +51,52 @@ function formatEventDate(isoString) {
 }
 
 /**
- * 點橫幅時彈窗要顯示的內文（兩行）。
+ * 有沒有觀賽連結。event.url 是選填：社內比賽（第三屆）放公開觀賽連結；
+ * 對外友誼賽（2026-11-25）不放——repo 公開，觀賽頁有對方同仁的名字，
+ * 連結寫進程式等於任何翻 GitHub 的人都打得開（spec：docs/superpowers/specs/2026-11-19-countdown-friendly-design.md）。
+ * 空字串也當成沒有，免得出現指向空網址的「前往賽程」。
+ */
+const NO_LINK_NOTE = '觀賽連結請看社團群組';
+
+function hasEventLink(event) {
+  return Boolean(event.url);
+}
+
+/**
+ * 點橫幅時彈窗要顯示的內文（兩行；沒有連結時多一行告訴大家去哪裡找）。
  * 內容是開窗當下的快照，不逐秒更新——要看跳動的倒數，關掉彈窗看橫幅即可。
  * 賽事結束後橫幅已隱藏，理論上開不了彈窗，回 null 讓呼叫端直接不開。
  */
 function eventDialogText(state, event) {
   if (state.phase === 'ended') return null;
   const first = state.phase === 'during' ? '比賽進行中' : `還有 ${formatCountdown(state)}`;
-  return `${first}\n${formatEventDate(event.startAt)}`;
+  const text = `${first}\n${formatEventDate(event.startAt)}`;
+  return hasEventLink(event) ? text : `${text}\n${NO_LINK_NOTE}`;
+}
+
+/** 彈窗按鈕：有連結時「關閉＋前往賽程／進入即時計分板」（新分頁開）；沒有連結時只有「關閉」。 */
+function eventDialogButtons(state, event) {
+  if (state.phase === 'ended') return [];
+  if (!hasEventLink(event)) {
+    return [{ text: '關閉', value: false, className: 'btn-primary', primary: true }];
+  }
+  return [
+    { text: '關閉', value: false, className: 'btn-secondary' },
+    {
+      text: state.phase === 'during' ? '進入即時計分板' : '前往賽程',
+      value: true,
+      href: event.url,
+      className: 'btn-primary',
+      primary: true,
+    },
+  ];
+}
+
+/** 橫幅最下面那行提示字（點下去會發生什麼）。 */
+function bannerCtaText(state, event) {
+  if (state.phase === 'ended') return '';
+  if (hasEventLink(event)) return state.phase === 'during' ? '進入即時計分板 ›' : '查看賽程 ›';
+  return state.phase === 'during' ? NO_LINK_NOTE : '比賽資訊 ›';
 }
 
 // ── 以下為瀏覽器渲染層（jest 只測上方純函式） ──────────────
@@ -90,12 +128,11 @@ function renderCountdown(state, els) {
   if (state.phase === 'during') {
     els.main.textContent = '比賽進行中';
     els.sub.textContent = '';
-    els.cta.textContent = '進入即時計分板 ›';
   } else {
     els.main.textContent = formatCountdown(state);
     els.sub.textContent = formatEventDate(EVENT.startAt);
-    els.cta.textContent = '查看賽程 ›';
   }
+  els.cta.textContent = bannerCtaText(state, EVENT);
 }
 
 function initCountdown() {
@@ -124,16 +161,7 @@ function initCountdown() {
       type: 'info',
       iconClass: 'fa-trophy dialog-icon-trophy',
       dismissValue: false,
-      buttons: [
-        { text: '關閉', value: false, className: 'btn-secondary' },
-        {
-          text: state.phase === 'during' ? '進入即時計分板' : '前往賽程',
-          value: true,
-          href: EVENT.url,
-          className: 'btn-primary',
-          primary: true,
-        },
-      ],
+      buttons: eventDialogButtons(state, EVENT),
     });
   });
 
@@ -165,5 +193,7 @@ if (typeof document !== 'undefined') {
 
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { countdownState, formatCountdown, formatEventDate, eventDialogText };
+  module.exports = {
+    countdownState, formatCountdown, formatEventDate, eventDialogText, eventDialogButtons, bannerCtaText,
+  };
 }
