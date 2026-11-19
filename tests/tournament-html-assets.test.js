@@ -24,6 +24,20 @@ test.each(localAssets)('%s 帶有與 CACHE_NAME 相同的版本號', (url) => {
   expect(url).toMatch(new RegExp(`\\?v=${version}$`));
 });
 
+// 輸分頁改白色（2026-11-19）：顏色要在 body 畫出來之前決定，才不會先黑一下再變白，
+// 所以 page-theme.js 放 <head>，且要排在它依賴的 tournament-form.js（parseTokenFromUrl）之後。
+test('page-theme.js 在 <head>、排在 tournament-form.js 之後；body 不再重複載 tournament-form.js', () => {
+  const head = html.match(/<head>([\s\S]*)<\/head>/)[1];
+  const body = html.match(/<body[^>]*>([\s\S]*)<\/body>/)[1];
+  // 比對 <script src=…> 標籤本身，不比對純文字：註解裡提到檔名不算載入
+  const formAt = head.indexOf('<script src="js/tournament-form.js');
+  const themeAt = head.indexOf('<script src="js/page-theme.js');
+  expect(formAt).toBeGreaterThan(-1);
+  expect(themeAt).toBeGreaterThan(formAt);
+  expect(body).not.toContain('<script src="js/tournament-form.js');
+  expect(body).toContain('<script src="js/tournament.js');
+});
+
 // 直播疊加比分頁（2026-11-18）：同樣受 SW 快取影響，資源網址也要帶同一個版本號
 const overlayHtml = fs.readFileSync(path.join(root, 'overlay.html'), 'utf8');
 const overlayAssets = [
