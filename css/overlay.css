@@ -58,3 +58,13 @@ body {
   font-size: 3.6vmin;
   font-weight: 500;
 }
+
+/* 冠軍時刻標籤（2026-11-25 友誼賽）：最終戰「冠軍時刻」、揭曉後「🏆 冠軍」，金色漸層字（同示範頁） */
+.ov-tag {
+  margin-right: 1vmin;
+  letter-spacing: 0.15em;
+  background: linear-gradient(180deg, #fffaf0, #ffd36b 60%, #e8a020);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

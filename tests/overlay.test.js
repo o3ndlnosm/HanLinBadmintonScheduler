@@ -3,7 +3,7 @@
  */
 // 直播畫面疊加比分（spec：docs/superpowers/specs/2026-11-18-live-overlay-design.md）
 // 反目標：直播畫面上不能出現錯誤訊息；不接受輸分通行碼。
-Object.assign(global, require('../js/team-points'), require('../js/tournament-form'));
+Object.assign(global, require('../js/team-points'), require('../js/tournament-form'), require('../js/champion-moment'));
 const {
   OVERLAY_POLL_MS, latestConfirmedMatch, overlayLines, renderOverlay, initOverlay,
 } = require('../js/overlay');
@@ -61,9 +61,10 @@ describe('latestConfirmedMatch：最新打完的一場', () => {
 describe('overlayLines：比分條兩行的內容', () => {
   test('都沒確認：0 : 0、尚未開打', () => {
     expect(overlayLines(friendlyView())).toEqual({
-      left: { name: '貿聯', color: '#0077cb', points: 0 },
-      right: { name: '翰林', color: '#ffffff', points: 0 },
+      left: { name: '貿聯', color: '#0077cb', edge: '#0077cb', points: 0 },
+      right: { name: '翰林', color: '#ffffff', edge: '#187fc4', points: 0 },
       detail: '尚未開打',
+      tag: null,
     });
   });
 
@@ -257,5 +258,58 @@ describe('initOverlay：只認觀賽連結、每 10 秒重讀、失敗保留上�
     ctl.stop();
     jest.advanceTimersByTime(OVERLAY_POLL_MS * 3);
     expect(fetchView).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('冠軍時刻的標籤與第二行（2026-11-25 友誼賽）', () => {
+  // 第 1～upTo 輪全部確認，winnerOf(match) 決定每場勝方
+  const confirmRounds = (v, upTo, winnerOf = () => 'M') => {
+    v.matches.filter((m) => m.roundNo <= upTo).forEach((m) => win(v, m.id, winnerOf(m)));
+    return v;
+  };
+  const BLUE_EDGE = /#187fc4|rgb\(24, 127, 196\)/;
+
+  test('最後一輪之前全部確認：標籤「冠軍時刻」、第二行是最後一輪的場次', () => {
+    const lines = overlayLines(confirmRounds(friendlyView(), 5));
+    expect(lines.tag).toBe('冠軍時刻');
+    expect(lines.detail).toBe('最終戰　第四點 混雙B · 第五點 男雙B');
+  });
+
+  test('15 場全部確認：標籤「🏆 冠軍」、第二行沿用比賽結束', () => {
+    const lines = overlayLines(confirmRounds(friendlyView(), 6, (m) => (m.pointNo <= 3 ? 'M' : 'H')));
+    expect(lines.tag).toBe('🏆 冠軍');
+    expect(lines.detail).toBe('比賽結束：貿聯 以 3：2 勝出');
+  });
+
+  test('還沒到最終戰：沒有標籤', () => {
+    expect(overlayLines(confirmRounds(friendlyView(), 3)).tag).toBeNull();
+  });
+
+  test('兩隊但不是貿聯翰林：沒有標籤、第二行照舊（其他比賽不變）', () => {
+    const v = confirmRounds(friendlyView(), 5);
+    v.teams = [{ id: 'M', name: 'A隊', players: [] }, { id: 'H', name: 'B隊', players: [] }];
+    const lines = overlayLines(v);
+    expect(lines.tag).toBeNull();
+    expect(lines.detail).not.toContain('最終戰');
+  });
+
+  test('有標籤：比分前面多一個 .ov-tag；沒有標籤就不出現', () => {
+    const root = document.createElement('div');
+    renderOverlay(root, overlayLines(confirmRounds(friendlyView(), 5)));
+    expect(root.querySelector('.ov-score .ov-tag').textContent).toBe('冠軍時刻');
+    expect(root.querySelector('.ov-score').firstElementChild.className).toBe('ov-tag');
+    renderOverlay(root, overlayLines(friendlyView()));
+    expect(root.querySelector('.ov-tag')).toBeNull();
+  });
+
+  test('色點：貿聯藍、翰林白加藍色內框', () => {
+    const root = document.createElement('div');
+    renderOverlay(root, overlayLines(friendlyView()));
+    const [m, h] = root.querySelectorAll('.ov-dot');
+    expect(m.style.backgroundColor).toBe('rgb(0, 119, 203)');
+    expect(m.style.boxShadow).toBe('');
+    expect(h.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(h.style.boxShadow).toMatch(/inset/);
+    expect(h.style.boxShadow).toMatch(BLUE_EDGE);
   });
 });

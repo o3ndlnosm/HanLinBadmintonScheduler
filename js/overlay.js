@@ -4,7 +4,8 @@
  * 相依（由 overlay.html 的 <script> 順序保證）：
  *   tournament-form.js → parseTokenFromUrl
  *   tournament-api.js → fetchPublicView
- *   team-points.js → hasPoints / computeTeamPoints / pointLabel / eventLabel / teamColorById
+ *   team-points.js → hasPoints / computeTeamPoints / pointLabel / eventLabel / teamStyleById
+ *   champion-moment.js → finalPhase / finalRoundLabel（2026-11-25 冠軍時刻）
  * 反目標：
  * - 直播畫面上不能出現錯誤訊息：成功顯示過一次之後，讀取失敗、找不到比賽、算不出比分都保留上一次的畫面。
  * - 不接受輸分通行碼：只認 ?t=，有輸分權限的連結不該被貼進第三方 App。
@@ -25,17 +26,22 @@ function latestConfirmedMatch(matches) {
   return best;
 }
 
-// 比分條兩行的內容；非比點賽事或不足兩隊回 null（不畫）
+// 比分條兩行的內容；非比點賽事或不足兩隊回 null（不畫）。
+// 冠軍時刻（只在左貿聯右翰林）：最終戰時加「冠軍時刻」標籤、第二行換成最後一輪的場次；揭曉後標籤「🏆 冠軍」。
 function overlayLines(view) {
   if (!view || !Array.isArray(view.teams) || view.teams.length < 2) return null;
   if (!Array.isArray(view.matches) || !hasPoints(view.matches)) return null;
   const [ta, tb] = view.teams;
-  const colors = teamColorById(view);
+  const styles = teamStyleById(view);
   const result = computeTeamPoints(view.teams, view.matches);
-  const side = (t) => ({ name: t.name, color: colors[t.id], points: result.totals[t.id] || 0 });
+  const side = (t) => ({ name: t.name, color: styles[t.id].fill, edge: styles[t.id].edge, points: result.totals[t.id] || 0 });
+  const phase = finalPhase(view);
+  const tag = { final: '冠軍時刻', done: '🏆 冠軍' }[phase] || null;
 
   let detail;
-  if (result.winnerId) {
+  if (phase === 'final') {
+    detail = finalRoundLabel(view);
+  } else if (result.winnerId) {
     // 文字同觀賽頁點數比分板的橫幅
     const winner = result.winnerId === ta.id ? ta : tb;
     const loser = winner === ta ? tb : ta;
@@ -55,7 +61,7 @@ function overlayLines(view) {
       detail = `最新：${pointLabel(m.pointNo)} ${eventLabel(m)} ${leftScore}:${rightScore} ${winnerName}勝`;
     }
   }
-  return { left: side(ta), right: side(tb), detail };
+  return { left: side(ta), right: side(tb), detail, tag };
 }
 
 function renderOverlay(root, lines, message) {
@@ -69,10 +75,12 @@ function renderOverlay(root, lines, message) {
     root.appendChild(bar);
     return;
   }
-  const dot = (color) => {
+  // 邊框色與底色不同（翰林白點）時加內框，點的大小不變
+  const dot = (color, edge) => {
     const el = document.createElement('span');
     el.className = 'ov-dot';
     el.style.backgroundColor = color;
+    if (edge && edge !== color) el.style.boxShadow = `inset 0 0 0 0.45vmin ${edge}`;
     return el;
   };
   const name = (text) => {
@@ -86,7 +94,16 @@ function renderOverlay(root, lines, message) {
   const nums = document.createElement('span');
   nums.className = 'ov-nums';
   nums.textContent = `${lines.left.points} : ${lines.right.points}`;
-  score.append(dot(lines.left.color), name(lines.left.name), nums, name(lines.right.name), dot(lines.right.color));
+  if (lines.tag) {
+    const tag = document.createElement('span');
+    tag.className = 'ov-tag';
+    tag.textContent = lines.tag;
+    score.append(tag);
+  }
+  score.append(
+    dot(lines.left.color, lines.left.edge), name(lines.left.name), nums,
+    name(lines.right.name), dot(lines.right.color, lines.right.edge)
+  );
 
   const detail = document.createElement('div');
   detail.className = 'ov-detail';
