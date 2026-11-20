@@ -128,12 +128,17 @@ function overlayStorage() {
   }
 }
 
+// 比賽當天不改版就能關掉冠軍時刻動畫：PRISM 小工具網址加 &cm=0，只留比分條（標籤照常）
+function overlayChampionEnabled(search) {
+  return new URLSearchParams(search || '').get('cm') !== '0';
+}
+
 // 冠軍時刻（2026-11-25）：出錯（含 champion-moment.js 沒載入）就不播，比分條照常
-function createChampionForOverlay({ doc, storage }) {
+function createChampionForOverlay({ doc, storage, enabled }) {
   try {
     const reduce = typeof window.matchMedia === 'function'
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    return createOverlayChampion({ doc, store: createPlayedStore(storage), reduce });
+    return createOverlayChampion({ doc, store: createPlayedStore(storage), reduce, enabled });
   } catch (e) {
     console.warn('[overlay] 冠軍時刻無法啟用', e);
     return null;
@@ -147,7 +152,7 @@ function initOverlay({ search, root, fetchView, intervalMs = OVERLAY_POLL_MS, do
     renderOverlay(root, null, OVERLAY_BAD_LINK);
     return { refresh: async () => {}, stop: () => {}, ready: Promise.resolve() };
   }
-  const champion = createChampionForOverlay({ doc, storage });
+  const champion = createChampionForOverlay({ doc, storage, enabled: overlayChampionEnabled(search) });
 
   // 設定時（還沒成功顯示過比分）每種狀態都要看得出來：透明頁一片空白時，設定的人分不出還在讀、讀不到或連結不對。
   // 顯示過比分之後（直播中）一律保留上一次畫面，不出現任何提示或錯誤字。

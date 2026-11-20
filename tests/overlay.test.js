@@ -444,3 +444,54 @@ describe('疊加頁的冠軍時刻動畫：只在輪詢時親眼看到階段切�
     }
   });
 });
+
+describe('疊加頁網址加 &cm=0：關掉冠軍時刻動畫（比賽當天不改版就能關）', () => {
+  let root;
+  const OPEN_FINAL = (m) => ({ 1: 'M', 2: 'M', 3: 'H' }[m.pointNo] || (m.roundNo === 2 ? 'M' : 'H'));
+  const upTo = (round) => {
+    const v = friendlyView();
+    v.matches.filter((m) => m.roundNo <= round).forEach((m) => win(v, m.id, OPEN_FINAL(m)));
+    return v;
+  };
+  const layers = () => document.querySelectorAll('body > .cm-layer');
+  let current;
+  // 每次一份新的記錄（不能傳 undefined：預設參數會改用 jsdom 的 localStorage，測試之間互相影響）
+  const freshStorage = () => {
+    const data = {};
+    return { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } };
+  };
+  const start = (search) => initOverlay({
+    search, root, fetchView: jest.fn(() => Promise.resolve(current)), storage: freshStorage(),
+  });
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    document.body.textContent = '';
+    root = document.createElement('div');
+    document.body.appendChild(root);
+    HTMLCanvasElement.prototype.getContext = () => null;
+  });
+  afterEach(() => { jest.useRealTimers(); });
+
+  test('&cm=0：輪詢看到 none → final 也不播；比分條與「冠軍時刻」標籤照常', async () => {
+    current = upTo(4);
+    const ctl = start('?t=tok&cm=0');
+    await ctl.ready;
+    current = upTo(5);
+    await ctl.refresh();
+    expect(layers()).toHaveLength(0);
+    expect(root.querySelector('.ov-tag').textContent).toBe('冠軍時刻');
+    expect(root.querySelector('.ov-nums').textContent).toBe('2 : 1');
+    ctl.stop();
+  });
+
+  test('cm 是其他值（cm=1）：照常播', async () => {
+    current = upTo(4);
+    const ctl = start('?t=tok&cm=1');
+    await ctl.ready;
+    current = upTo(5);
+    await ctl.refresh();
+    expect(layers()).toHaveLength(1);
+    ctl.stop();
+  });
+});
