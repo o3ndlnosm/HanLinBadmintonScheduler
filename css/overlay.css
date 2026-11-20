@@ -68,3 +68,7 @@ body {
   background-clip: text;
   color: transparent;
 }
+
+/* 冠軍時刻動畫播放期間（body.cm-playing）藏起比分條，播完才回到比分條 */
+.ov-bar { transition: opacity 0.4s ease; }
+.cm-playing .ov-bar { opacity: 0; }

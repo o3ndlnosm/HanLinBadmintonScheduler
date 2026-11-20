@@ -495,3 +495,101 @@ describe('疊加頁網址加 &cm=0：關掉冠軍時刻動畫（比賽當天不�
     ctl.stop();
   });
 });
+
+describe('疊加頁與觀賽頁的「已播過」各記各的（2026-11-20 瀏覽器實看發現）', () => {
+  let root;
+  const OPEN_FINAL = (m) => ({ 1: 'M', 2: 'M', 3: 'H' }[m.pointNo] || (m.roundNo === 2 ? 'M' : 'H'));
+  const upTo = (round) => {
+    const v = friendlyView();
+    v.matches.filter((m) => m.roundNo <= round).forEach((m) => win(v, m.id, OPEN_FINAL(m)));
+    return v;
+  };
+  beforeEach(() => {
+    jest.useFakeTimers();
+    document.body.textContent = '';
+    root = document.createElement('div');
+    document.body.appendChild(root);
+    HTMLCanvasElement.prototype.getContext = () => null;
+  });
+  afterEach(() => { jest.useRealTimers(); });
+
+  test('同一個瀏覽器的觀賽頁已經播過最終戰開場：疊加頁看到切換時照樣播', async () => {
+    const { playedKey } = require('../js/champion-moment');
+    const data = { [playedKey(upTo(5), 'final')]: '1' }; // 觀賽頁記下的
+    const storage = { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } };
+    let current = upTo(4);
+    const ctl = initOverlay({ search: '?t=tok', root, fetchView: () => Promise.resolve(current), storage });
+    await ctl.ready;
+    current = upTo(5);
+    await ctl.refresh();
+    expect(document.querySelectorAll('body > .cm-layer.cm-intro')).toHaveLength(1);
+    ctl.stop();
+  });
+});
+
+describe('動畫播放期間藏起比分條，播完才回到比分條（2026-11-20 瀏覽器實看發現）', () => {
+  const { CM_INTRO_MS, CM_REVEAL_MS } = require('../js/champion-moment');
+  const fs = require('fs');
+  const path = require('path');
+  let root;
+  const OPEN_FINAL = (m) => ({ 1: 'M', 2: 'M', 3: 'H' }[m.pointNo] || (m.roundNo === 2 ? 'M' : 'H'));
+  const upTo = (round, winnerOf = OPEN_FINAL) => {
+    const v = friendlyView();
+    v.matches.filter((m) => m.roundNo <= round).forEach((m) => win(v, m.id, winnerOf(m)));
+    return v;
+  };
+  const fresh = () => {
+    const data = {};
+    return { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } };
+  };
+  const flush = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
+  const playing = () => document.body.classList.contains('cm-playing');
+  beforeEach(() => {
+    jest.useFakeTimers();
+    document.body.textContent = '';
+    document.body.className = '';
+    root = document.createElement('div');
+    document.body.appendChild(root);
+    HTMLCanvasElement.prototype.getContext = () => null;
+    delete HTMLImageElement.prototype.decode;
+  });
+  afterEach(() => { jest.useRealTimers(); });
+
+  test('開場播放中 body 有 cm-playing，播完拿掉', async () => {
+    let current = upTo(4);
+    const ctl = initOverlay({ search: '?t=tok', root, fetchView: () => Promise.resolve(current), storage: fresh() });
+    await ctl.ready;
+    expect(playing()).toBe(false);
+    current = upTo(5);
+    await ctl.refresh();
+    expect(playing()).toBe(true);
+    await flush();
+    jest.advanceTimersByTime(CM_INTRO_MS);
+    expect(playing()).toBe(false);
+    ctl.stop();
+  });
+
+  test('開場還沒播完就換成揭曉：開場留下的計時器不會提早拿掉 cm-playing', async () => {
+    let current = upTo(4);
+    const ctl = initOverlay({ search: '?t=tok', root, fetchView: () => Promise.resolve(current), storage: fresh() });
+    await ctl.ready;
+    current = upTo(5);
+    await ctl.refresh();
+    await flush();
+    jest.advanceTimersByTime(1000);
+    current = upTo(6, (m) => (m.roundNo === 6 ? 'H' : OPEN_FINAL(m)));
+    await ctl.refresh();
+    await flush();
+    jest.advanceTimersByTime(CM_INTRO_MS + 2000);
+    expect(document.querySelector('body > .cm-layer.cm-reveal')).not.toBeNull();
+    expect(playing()).toBe(true);
+    jest.advanceTimersByTime(CM_REVEAL_MS);
+    expect(playing()).toBe(false);
+    ctl.stop();
+  });
+
+  test('overlay.css：cm-playing 期間比分條透明', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'css', 'overlay.css'), 'utf8');
+    expect(css).toMatch(/\.cm-playing \.ov-bar\s*\{[^}]*opacity:\s*0/);
+  });
+});

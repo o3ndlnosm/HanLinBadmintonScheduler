@@ -175,9 +175,10 @@ function cmWaitImages(imgs, win) {
   return Promise.race([ready, timeout]);
 }
 
-// 同時只留一個圖層（開場還在播時就揭曉 → 換成揭曉）
+// 同時只留一個圖層（開場還在播時就揭曉 → 換成揭曉）：連同舊圖層的計時器一起清掉，
+// 免得舊計時器晚點跑完時把新圖層的播放狀態（body.cm-playing）拿掉
 function cmClearLayers(doc) {
-  doc.querySelectorAll('.cm-layer').forEach((el) => el.remove());
+  doc.querySelectorAll('.cm-layer').forEach((el) => (typeof el.cmRemove === 'function' ? el.cmRemove() : el.remove()));
 }
 
 // 建圖層＋計時器：remove 會清掉所有計時器；不管圖載入與時間軸，capMs 到一定移除
@@ -190,11 +191,15 @@ function cmMountLayer(doc, className, { reduce, stream, capMs }) {
   layer.setAttribute('aria-hidden', 'true');
   const timers = [];
   const at = (ms, fn) => { timers.push(win.setTimeout(fn, ms)); };
+  // 播放期間 body 加 cm-playing（疊加頁藉此藏起比分條，播完才回到比分條）
   const remove = () => {
     timers.forEach((t) => win.clearTimeout(t));
     layer.remove();
+    if (!doc.querySelector('.cm-layer')) doc.body.classList.remove('cm-playing');
   };
+  layer.cmRemove = remove;
   layer.addEventListener('click', remove);
+  doc.body.classList.add('cm-playing');
   at(capMs, remove);
   return { layer, win, at, remove };
 }
@@ -364,14 +369,15 @@ function createOverlayChampion({ doc = document, store, enabled = true, reduce =
       seen = phase;
       if (!enabled || prev === null || !store) return;
       if (CM_PHASE_ORDER[phase] <= CM_PHASE_ORDER[prev]) return; // 沒有往前切換（含改判倒退）不播
-      const finalKey = playedKey(view, 'final');
+      // 疊加頁與觀賽頁各記各的：同一個瀏覽器先開過觀賽頁（例如賽前在電腦上測），疊加頁照樣要播
+      const finalKey = `${playedKey(view, 'final')}:overlay`;
       if (phase === 'final') {
         if (store.has(finalKey)) return;
         store.mark(finalKey);
         playIntro({ doc, reduce, stream: true });
         return;
       }
-      const doneKey = playedKey(view, 'done');
+      const doneKey = `${playedKey(view, 'done')}:overlay`;
       const info = championInfo(view);
       if (!info || store.has(doneKey)) return;
       store.mark(doneKey);
