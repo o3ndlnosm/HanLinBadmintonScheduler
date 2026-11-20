@@ -108,7 +108,16 @@ npx http-server
 - **直播畫面疊加比分**（`overlay.html`＋`js/overlay.js`＋`css/overlay.css`，2026-11-18，設計 `docs/superpowers/specs/2026-11-18-live-overlay-design.md`）：
   給 PRISM 網頁小工具疊在直播畫面左下角，整頁透明；只認 `?t=`（輸分連結只顯示「請改用觀賽連結」）。
   `overlayLines(view)` 算兩行內容（總點數＋最新確認的一場，比分照左右順序、不照 A/B 隊），每 10 秒重讀；成功顯示過之後，讀取失敗或找不到比賽都保留上一次畫面，直播畫面上不出現錯誤字。
-  尺寸用 `vmin`（直立直播時不會撐得比畫面寬）。隊伍顏色 `TEAM_COLORS`／`teamColorById` 在 `team-points.js`，計分頁與疊加頁共用
+  尺寸用 `vmin`（直立直播時不會撐得比畫面寬）。隊伍顏色在 `team-points.js`，計分頁與疊加頁共用：
+  `teamStyleById` 回傳 `{ fill, edge, ink }`，恰好兩隊且左貿聯右翰林（`isFriendlyPair`）時用代表色（貿聯實心藍白字、翰林白底藍邊深藍字），
+  其他比賽沿用 `TEAM_COLORS`、edge 同底色——**edge 與底色相同時不加任何外框**，第三屆畫面因此不變
+- **冠軍時刻**（v24，2026-11-20，設計 `docs/superpowers/specs/2026-11-20-champion-moment-design.md`、計劃 `docs/superpowers/plans/2026-11-20-champion-moment.md`）：
+  `js/champion-moment.js`＋`css/champion-moment.css`＋`img/champion/*.webp`（AI 生成團體圖，不是真實同仁），只在 `isFriendlyPair` 時啟用。
+  `finalPhase(view)`：第 1～5 輪全確認 → `final`（最終戰開場＋點數比分區上方的主視覺）；全部確認或 finished 且有勝方 → `done`（冠軍揭曉）。
+  觀賽頁才播（輸分頁只換代表色）；每台裝置各播一次（localStorage `cm:<比賽名>|<日期>:final/done`），分頁在背景不播。
+  全螢幕圖層一律掛在 `body`、由計時器移除——`#pointBoard`／`#overlay` 每 10 秒清空重畫，**圖層放進去會被切掉**。
+  疊加頁只在輪詢「親眼看到」階段往前切換才播（載入或 PRISM 重新載入不播），網址加 `&cm=0` 可關動畫。
+  視覺依據是示範頁（artifact「冠軍時刻示範」v13，不進 repo）；字型多載 Anton 與 Noto Sans TC 900
 - **輸分頁白色版**（`js/page-theme.js`，2026-11-19，設計 `docs/superpowers/specs/2026-11-19-captain-light-theme-design.md`）：
   輸分連結（`?c=`）是白色、觀賽連結（`?t=`）維持黑色，避免兩種頁面搞混；所有比賽都套用。
   `<head>` 先載 `tournament-form.js` 再載 `page-theme.js`，在 body 畫出來前替 `<html>` 加 `theme-light`（判斷只沿用 `parseTokenFromUrl`）。
@@ -223,7 +232,7 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 435 項跨 26 套件）
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 511 項跨 28 套件）
 2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`
@@ -241,7 +250,8 @@ historyMatches = []    // 比賽歷史
 ├── css/
 │   ├── style.css           # 使用 CSS 變數的樣式
 │   ├── tournament.css      # 比賽計分頁專屬樣式
-│   └── overlay.css         # 直播畫面疊加比分（透明背景、vmin 尺寸）
+│   ├── overlay.css         # 直播畫面疊加比分（透明背景、vmin 尺寸）
+│   └── champion-moment.css # 冠軍時刻：主視覺、全螢幕開場與揭曉、直播版（.cm-stream）
 ├── js/
 │   ├── court-actions.js    # 場地數量調整與選手替換邏輯（純函式，jest 測試）
 │   ├── countdown.js        # 主頁賽事倒數（純函式 + 渲染，jest 測試）
@@ -256,6 +266,7 @@ historyMatches = []    // 比賽歷史
 │   ├── cheer.js            # 公司應援條：累積／裁切／控制器／火花層／泡泡層（jest）＋ 掛載（jsdom＋瀏覽器）
 │   ├── live.js             # 觀賽頁 YouTube 直播框：網址取 ID（jest）＋ 掛載（jsdom＋瀏覽器）
 │   ├── overlay.js          # 直播畫面疊加比分：兩行內容（jest）＋ 只認觀賽連結、每 10 秒重讀
+│   ├── champion-moment.js  # 冠軍時刻：階段判斷與只播一次（jest）＋ 主視覺、開場、揭曉、疊加頁版（jsdom＋瀏覽器）
 │   ├── page-theme.js       # 計分頁顏色：輸分連結白色、觀賽連結黑色（在 <head> 執行，jsdom 測試）
 │   ├── tournament-api.js   # 比賽計分頁 Supabase RPC 薄封裝（jest 測試）
 │   └── tournament.js       # 比賽計分頁初始化、輪詢、渲染
