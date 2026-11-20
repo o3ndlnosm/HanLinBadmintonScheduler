@@ -43,7 +43,7 @@ beforeAll(() => {
     let code = fs.readFileSync(path.join(root, 'js', `${name}.js`), 'utf8');
     // tournament.js 頂層的 `let auth` 在間接 eval 下只屬於那次 eval，外面直接 assign 改不到它；
     // 附一個測試用 setter，才能真的切換觀賽／輸分模式。
-    if (name === 'tournament') code += '\nwindow.__setAuth = (a) => { auth = a; };';
+    if (name === 'tournament') code += '\nwindow.__setAuth = (a) => { auth = a; };\nwindow.__resetChampionStore = () => { championStore = null; };';
     globalEval(code);
   });
   window.__setAuth({ mode: 'captain', token: 'cap-M' });
@@ -325,6 +325,7 @@ describe('冠軍時刻主視覺（2026-11-25 友誼賽）', () => {
     window.setCheerReveal = jest.fn();
     window.setCheerReadOnly = jest.fn();
     window.localStorage.clear();
+    window.__resetChampionStore();
     window.__setAuth({ mode: 'public', token: 'pub' });
   });
   afterEach(() => {
@@ -380,11 +381,21 @@ describe('冠軍時刻主視覺（2026-11-25 友誼賽）', () => {
     expect(text('.cm-label')).toBe('貿聯 已拿下 3 點，確定勝出');
   });
 
-  test('輸分模式：不掛主視覺', () => {
+  test('輸分模式：不掛主視覺、不播開場', () => {
     window.__setAuth({ mode: 'captain', token: 'cap-M' });
     render(confirmUpTo(friendlyView(), 5, OPEN_FINAL));
     expect(hero()).toBeNull();
     expect(board().classList.contains('cm-active')).toBe(false);
+    expect(document.querySelectorAll('body > .cm-layer')).toHaveLength(0);
+  });
+
+  test('觀賽模式第一次看到最終戰：renderAll 播開場；之後每 10 秒重畫不再播', () => {
+    const view = confirmUpTo(friendlyView(), 5, OPEN_FINAL);
+    render(view);
+    expect(document.querySelectorAll('body > .cm-layer.cm-intro')).toHaveLength(1);
+    document.querySelector('body > .cm-layer').click();
+    render(view);
+    expect(document.querySelectorAll('body > .cm-layer')).toHaveLength(0);
   });
 
   test('第 5 輪還沒打完：沒有主視覺', () => {

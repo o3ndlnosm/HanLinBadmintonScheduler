@@ -164,11 +164,188 @@ function renderChampionHero(section, view, phase, info) {
   return hero;
 }
 
+// ---------- 全螢幕圖層（開場、揭曉）：一律掛在 body，不放在每 10 秒會清空重畫的 #pointBoard／#overlay 裡 ----------
+
+// 等團體圖解碼完再開始（網路慢時不會出現空白衝入），最多等 CM_IMAGE_WAIT_MS，逾時照播
+function cmWaitImages(imgs, win) {
+  const ready = Promise.all(imgs.map((img) => (
+    typeof img.decode === 'function' ? img.decode().catch(() => {}) : Promise.resolve()
+  )));
+  const timeout = new Promise((resolve) => { win.setTimeout(resolve, CM_IMAGE_WAIT_MS); });
+  return Promise.race([ready, timeout]);
+}
+
+// 同時只留一個圖層（開場還在播時就揭曉 → 換成揭曉）
+function cmClearLayers(doc) {
+  doc.querySelectorAll('.cm-layer').forEach((el) => el.remove());
+}
+
+// 建圖層＋計時器：remove 會清掉所有計時器；不管圖載入與時間軸，capMs 到一定移除
+function cmMountLayer(doc, className, { reduce, stream, capMs }) {
+  cmClearLayers(doc);
+  const win = doc.defaultView;
+  const layer = cmEl(doc, 'div', `cm-layer ${className}`);
+  if (stream) layer.classList.add('cm-stream');
+  if (reduce) layer.classList.add('cm-reduce');
+  layer.setAttribute('aria-hidden', 'true');
+  const timers = [];
+  const at = (ms, fn) => { timers.push(win.setTimeout(fn, ms)); };
+  const remove = () => {
+    timers.forEach((t) => win.clearTimeout(t));
+    layer.remove();
+  };
+  layer.addEventListener('click', remove);
+  at(capMs, remove);
+  return { layer, win, at, remove };
+}
+
+// 紙花：長方形小紙片旋轉飄落（canvas）。沒有 canvas 或 requestAnimationFrame 時回 null（不畫，其餘照常）
+function cmConfetti(canvas, win, count) {
+  let ctx = null;
+  try {
+    ctx = canvas.getContext('2d');
+  } catch (e) {
+    ctx = null;
+  }
+  if (!ctx || typeof win.requestAnimationFrame !== 'function') return null;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  const dpr = Math.min(win.devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const unit = Math.min(w, h);
+  let bits = [];
+  let running = false;
+  let last = 0;
+  function frame(now) {
+    if (!canvas.isConnected) {
+      running = false;
+      return;
+    }
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    ctx.clearRect(0, 0, w, h);
+    bits = bits.filter((b) => {
+      b.sway += dt * 3;
+      b.rot += b.vr * dt;
+      b.x += (b.vx + Math.sin(b.sway) * b.w * 6) * dt;
+      b.y += b.vy * dt;
+      if (b.y > h + 20) return false;
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.rot);
+      ctx.scale(1, Math.abs(Math.cos(b.sway * 1.7)) * 0.8 + 0.2);
+      ctx.fillStyle = b.color;
+      ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      ctx.restore();
+      return true;
+    });
+    if (bits.length) win.requestAnimationFrame(frame);
+    else running = false;
+  }
+  return {
+    burst(colors) {
+      for (let i = 0; i < count; i++) {
+        bits.push({
+          x: Math.random() * w, y: -Math.random() * h * 0.6 - 10,
+          vy: unit * (0.18 + Math.random() * 0.25), vx: unit * (Math.random() - 0.5) * 0.12,
+          w: unit * (0.012 + Math.random() * 0.012), h: unit * (0.02 + Math.random() * 0.02),
+          rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 9, sway: Math.random() * 6.28,
+          color: colors[i % colors.length],
+        });
+      }
+      if (!running) {
+        running = true;
+        last = win.performance ? win.performance.now() : Date.now();
+        win.requestAnimationFrame(frame);
+      }
+    },
+  };
+}
+
+// 最終戰開場（約 4 秒）：變暗 → 兩隊衝進來 → 「冠軍時刻」大字砸下（閃光、震動）→ 大字放大淡出 → 圖層淡出移除。
+// stream：直播疊加頁版本（兩隊左右對峙，收尾時退出）。時間軸照示範頁。
+function playIntro({ doc = document, reduce = false, stream = false } = {}) {
+  const { layer, win, at, remove } = cmMountLayer(doc, 'cm-intro', {
+    reduce, stream, capMs: CM_IMAGE_WAIT_MS + CM_INTRO_MS,
+  });
+  const right = cmTeamImg(doc, 'right');
+  const left = cmTeamImg(doc, 'left');
+  const title = cmEl(doc, 'div', 'cm-title');
+  title.appendChild(cmEl(doc, 'span', '', '冠軍時刻'));
+  layer.append(cmEl(doc, 'div', 'cm-veil'), right, left, title, cmEl(doc, 'div', 'cm-flash'));
+  doc.body.appendChild(layer);
+  cmWaitImages([right, left], win).then(() => {
+    if (!layer.isConnected) return;
+    at(200, () => layer.classList.add('cm-players-in'));
+    at(950, () => {
+      layer.classList.add('cm-title-in');
+      if (!reduce) layer.classList.add('cm-shake');
+    });
+    at(1300, () => layer.classList.remove('cm-shake'));
+    at(2900, () => layer.classList.add('cm-title-out'));
+    at(3300, () => layer.classList.add('cm-out'));
+    at(CM_INTRO_MS, remove);
+  });
+  return layer;
+}
+
+// 冠軍揭曉（約 8 秒）：勝方團體圖從它那一側衝進來、隊名色塊＋金色「奪冠！」＋最終比分、紙花（在圖前、字後）。
+function playReveal(info, view, { doc = document, reduce = false, stream = false } = {}) {
+  const { layer, win, at, remove } = cmMountLayer(doc, `cm-reveal cm-side-${info.side}`, {
+    reduce, stream, capMs: CM_IMAGE_WAIT_MS + CM_REVEAL_MS,
+  });
+  const winner = view.teams.find((t) => t.id === info.winnerId);
+  const style = teamStyleById(view)[winner.id];
+  const img = cmTeamImg(doc, info.side);
+  img.classList.add('cm-reveal-img');
+  const canvas = cmEl(doc, 'canvas', 'cm-confetti');
+  const text = cmEl(doc, 'div', 'cm-reveal-text');
+  const pill = cmEl(doc, 'div', 'cm-pill');
+  cmSetPill(pill, winner, style);
+  text.append(pill, cmEl(doc, 'div', 'cm-win', '奪冠！'), cmEl(doc, 'div', 'cm-reveal-score', `${info.won} : ${info.lost}`));
+  layer.append(cmEl(doc, 'div', 'cm-reveal-bg'), img, canvas, text, cmEl(doc, 'div', 'cm-flash'));
+  doc.body.appendChild(layer);
+  cmWaitImages([img], win).then(() => {
+    if (!layer.isConnected) return;
+    layer.classList.add('cm-on');
+    if (!reduce) {
+      layer.classList.add('cm-shake');
+      at(350, () => layer.classList.remove('cm-shake'));
+    }
+    // 金色＋勝方隊色（翰林白底就用白與翰林藍）
+    const accent = style.edge === style.fill ? '#ffffff' : style.edge;
+    const confetti = cmConfetti(canvas, win, reduce ? 40 : 150);
+    if (confetti) {
+      confetti.burst(['#ffd36b', '#fff3c4', style.fill, accent]);
+      at(1400, () => confetti.burst(['#ffd36b', style.edge]));
+    }
+    at(CM_REVEAL_MS - 600, () => layer.classList.add('cm-out'));
+    at(CM_REVEAL_MS, remove);
+  });
+  return layer;
+}
+
 // 觀賽頁每次 renderAll 後呼叫（tournament.js 包 try/catch）。只在觀賽模式；輸分頁、其他比賽一律拿掉主視覺。
-function syncChampionPage(view, { mode, section } = {}) {
+// 開場、揭曉各自每台裝置只播一次；分頁在背景時不播也不記（回前景時 tournament.js 會 refresh 再呼叫一次）。
+// 第一次看到就已經是 done：跳過開場直接揭曉。階段倒退（改判）不重播、不收回記錄。
+function syncChampionPage(view, { mode, section, store, doc = document, reduce = false } = {}) {
   if (!section) return;
   const phase = mode === 'public' ? finalPhase(view) : 'none';
-  renderChampionHero(section, view, phase, phase === 'none' ? null : championInfo(view));
+  const info = phase === 'none' ? null : championInfo(view);
+  renderChampionHero(section, view, phase, info);
+  if (phase === 'none' || !store || doc.hidden) return;
+  const finalKey = playedKey(view, 'final');
+  const doneKey = playedKey(view, 'done');
+  if (phase === 'final' && !store.has(finalKey)) {
+    store.mark(finalKey);
+    playIntro({ doc, reduce });
+  } else if (phase === 'done' && info && !store.has(doneKey)) {
+    store.mark(doneKey);
+    store.mark(finalKey);
+    playReveal(info, view, { doc, reduce });
+  }
 }
 
 // Node.js 環境下匯出（瀏覽器環境忽略）
@@ -176,6 +353,6 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CM_INTRO_MS, CM_REVEAL_MS, CM_IMAGE_WAIT_MS, CM_IMG,
     finalPhase, championInfo, finalRoundLabel, playedKey, createPlayedStore,
-    renderChampionHero, syncChampionPage,
+    renderChampionHero, syncChampionPage, playIntro, playReveal,
   };
 }

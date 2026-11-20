@@ -20,6 +20,22 @@ let pollTimer = null;
 const seenConfirmed = new Set();
 let firstRenderDone = false;
 
+// 冠軍時刻「已播過」的記錄（每台裝置只播一次）。第一次用到才建、建在 renderAll 的 try/catch 裡：
+// champion-moment.js 沒載入時只影響冠軍時刻，不會讓整頁（含輸分）在載入時就壞掉。
+let championStore = null;
+function getChampionStore() {
+  if (!championStore) {
+    let storage;
+    try {
+      storage = window.localStorage; // Safari 私密瀏覽、沙盒 iframe 取用本身就可能丟例外
+    } catch (e) {
+      storage = undefined;
+    }
+    championStore = createPlayedStore(storage);
+  }
+  return championStore;
+}
+
 function teamNameById(view) {
   const map = {};
   view.teams.forEach((t) => { map[t.id] = t.name; });
@@ -345,7 +361,11 @@ function renderAll(view) {
   // 反目標：冠軍時刻出錯不得連帶讓比分、應援壞掉，包在 try/catch 裡。
   if (pointMode) {
     try {
-      syncChampionPage(view, { mode: auth.mode, section: document.getElementById('pointsSection') });
+      const reduce = typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      syncChampionPage(view, {
+        mode: auth.mode, section: document.getElementById('pointsSection'), store: getChampionStore(), reduce,
+      });
     } catch (e) {
       // 冠軍時刻失敗靜默略過
     }

@@ -174,3 +174,135 @@
   .cm-hero .cm-aura,
   .cm-hero .cm-nums { animation: none; }
 }
+
+/* ---------- 全螢幕圖層（最終戰開場、冠軍揭曉）：手機直式；直播疊加頁版本見 .cm-stream ---------- */
+.cm-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  isolation: isolate;
+  container-type: size;
+  cursor: pointer;
+  background: radial-gradient(120% 80% at 50% 50%, #141a2a 0%, #0a0c14 60%, #05060a 100%);
+  transition: opacity 0.6s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.cm-layer > * { position: absolute; }
+.cm-layer.cm-out { opacity: 0; }
+.cm-veil { inset: 0; background: #000; opacity: 0.55; }
+
+.cm-layer .cm-img {
+  width: 104%;
+  height: auto;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  transition: transform 0.7s cubic-bezier(0.2, 0.9, 0.2, 1), opacity 0.5s ease;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.55));
+}
+.cm-intro .cm-img-left {
+  left: -4%;
+  bottom: 0;
+  transform: translateX(-110%);
+  -webkit-mask-image: linear-gradient(to top, #000 84%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 84%, transparent 100%);
+}
+.cm-intro .cm-img-right {
+  right: -4%;
+  top: 0;
+  transform: translateX(110%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 66%, transparent 97%);
+  mask-image: linear-gradient(to bottom, #000 66%, transparent 97%);
+}
+.cm-intro.cm-players-in .cm-img { transform: translateX(0); opacity: 1; }
+
+.cm-title { inset: 0; display: grid; place-items: center; pointer-events: none; }
+.cm-title span {
+  font: 900 clamp(40px, 15cqmin, 140px) / 1 var(--cm-font-display);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #fffdf2 0%, #ffe8a3 40%, #ffc23a 75%, #e08a00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 10px rgba(255, 210, 110, 0.85)) drop-shadow(0 0 34px rgba(255, 170, 40, 0.55));
+  opacity: 0;
+  transform: scale(2.6);
+}
+.cm-title-in .cm-title span { animation: cm-slam 0.38s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+.cm-title-out .cm-title span { animation: cm-lift 0.5s ease-in forwards; }
+@keyframes cm-slam {
+  from { opacity: 0; transform: scale(2.6); filter: blur(6px); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes cm-lift {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.3); filter: blur(4px) brightness(1.8); }
+}
+
+.cm-flash { inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.cm-title-in .cm-flash,
+.cm-reveal.cm-on .cm-flash { animation: cm-flash 0.35s ease-out; }
+@keyframes cm-flash {
+  0% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+/* 震動時略放大，畫面邊緣不會露出底下的頁面 */
+.cm-layer.cm-shake { animation: cm-shake 0.32s linear; }
+@keyframes cm-shake {
+  0%, 100% { transform: translate(0, 0) scale(1.03); }
+  20% { transform: translate(-6px, 3px) scale(1.03); }
+  40% { transform: translate(5px, -4px) scale(1.03); }
+  60% { transform: translate(-4px, 2px) scale(1.03); }
+  80% { transform: translate(3px, -2px) scale(1.03); }
+}
+
+/* 冠軍揭曉：勝方團體圖從它那一側衝進來停在下半部；紙花在圖前、字後 */
+.cm-reveal-bg {
+  inset: 0;
+  background: radial-gradient(90% 60% at 50% 38%, rgba(255, 205, 90, 0.28), rgba(5, 6, 10, 0.9) 72%);
+}
+.cm-layer .cm-reveal-img {
+  bottom: 0;
+  transition: transform 0.8s cubic-bezier(0.2, 0.9, 0.2, 1), opacity 0.4s ease;
+  filter: drop-shadow(0 0 22px rgba(255, 210, 110, 0.45));
+}
+.cm-side-left .cm-reveal-img { left: -4%; transform: translateX(-100%); }
+.cm-side-right .cm-reveal-img { right: -4%; transform: translateX(100%); }
+.cm-reveal.cm-on .cm-reveal-img { transform: translateX(0); opacity: 1; }
+.cm-confetti { inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cm-reveal-text {
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2cqmin;
+  padding-top: 12%;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: transform 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 0.55s, opacity 0.3s ease 0.55s;
+}
+.cm-reveal.cm-on .cm-reveal-text { opacity: 1; transform: scale(1); }
+.cm-reveal-text .cm-pill { font-size: clamp(18px, 7cqmin, 56px); padding: 0.4em 0.8em; border-radius: 0.35em; }
+.cm-win {
+  font: 900 clamp(52px, 21cqmin, 190px) / 1 var(--cm-font-display);
+  letter-spacing: 0.02em;
+  background: linear-gradient(180deg, #fffdf2 0%, #ffe8a3 40%, #ffc23a 75%, #e08a00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 12px rgba(255, 210, 110, 0.9)) drop-shadow(0 0 40px rgba(255, 170, 40, 0.6));
+}
+.cm-reveal-score {
+  font: 400 clamp(30px, 11cqmin, 100px) / 1 var(--cm-font-num);
+  color: #fff;
+  text-shadow: 0 0 14px rgba(255, 220, 140, 0.85);
+}
+
+/* 減少動態效果：不閃光、動畫縮短（震動在 JS 就不加） */
+.cm-layer.cm-reduce .cm-flash { display: none; }
+.cm-layer.cm-reduce .cm-img,
+.cm-layer.cm-reduce .cm-reveal-text { transition-duration: 0.2s; transition-delay: 0s; }
