@@ -1,5 +1,5 @@
 const {
-  parseTokenFromUrl, validateScores, matchState, formatLineup, resolveScoreRule, maxScoreOf,
+  parseTokenFromUrl, validateScores, matchState, formatLineup, lineupNames, resolveScoreRule, maxScoreOf,
 } = require('../js/tournament-form');
 
 describe('parseTokenFromUrl', () => {
@@ -133,6 +133,22 @@ describe('matchState', () => {
   test('pending＋對方已報我方未報 → 提示輸入（2026-08-03 縮短為 5 字，見 375px 版面實測）', () => {
     expect(matchState(match, myCtx({ m1: { myReport: null, oppReported: true } }))).toEqual(
       { label: '對方已回報', cssClass: 'action-needed', canReport: true });
+  });
+});
+
+// 賽程列逐位選手排版用（2026-11-20：名字只在人與人之間折行）；formatLineup 是它用・接起來的結果
+describe('lineupNames', () => {
+  test('依序回傳每位選手的名字', () => {
+    expect(lineupNames([{ name: '王小明Ming' }, { name: '李小華Hua' }])).toEqual(['王小明Ming', '李小華Hua']);
+  });
+
+  test('去掉前後空白、略過沒有名字或空白的項目', () => {
+    expect(lineupNames([{ name: ' 小悠 ' }, {}, null, { name: '   ' }, { name: '雨彤' }])).toEqual(['小悠', '雨彤']);
+  });
+
+  test('不是陣列（未灌資料、RPC 尚未更新、人為誤植）回空陣列', () => {
+    expect(lineupNames(undefined)).toEqual([]);
+    expect(lineupNames({ name: '小悠' })).toEqual([]);
   });
 });
 

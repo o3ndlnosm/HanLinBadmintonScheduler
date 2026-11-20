@@ -238,14 +238,15 @@ function setCheerReveal(revealed) {
   if (cheerRenderHead) cheerRenderHead();
 }
 
-// 頁面開著時比賽才變 finished（賽後收尾）：mountCheerBar 只掛一次，由 tournament.js 每次刷新時呼叫這個切成唯讀。
+// 頁面開著時比賽才變 finished（賽後收尾）：mountCheerBar 只掛一次，由 tournament.js 每次刷新時呼叫這個切成唯讀
+// （輸分頁掛載時就帶 readOnly: true，這裡等於沒動作）。
 // 只會從可加油切到唯讀，不會切回來（比賽重開要重新整理）。掛載前呼叫沒有作用，由 mountCheerBar 的 readOnly 處理。
 function setCheerReadOnly(readOnly) {
   if (readOnly && cheerGoReadOnly) cheerGoReadOnly();
 }
 
 // teams：[{ id, name, color }]，取前兩隊（左 A、右 B）
-// readOnly（比賽 finished）：沒有加油按鈕、不送應援；總數照常輪詢
+// readOnly（比賽 finished，或輸分頁）：沒有加油按鈕、不送應援；總數照常輪詢，別人加油時照樣噴火花、冒泡泡
 function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
   if (cheerMounted || !container || teams.length < 2) return;
   cheerMounted = true;

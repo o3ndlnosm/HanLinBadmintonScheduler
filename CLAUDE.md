@@ -85,6 +85,8 @@ npx http-server
 - **比點模式**（11/25 貿聯×翰林友誼賽）：任一場有 `pointNo` 就顯示點數計分板（`js/team-points.js`），
   取代排名表；每點過半勝場拿下、整體過半點數勝出，過半數由資料推導不寫死。
   賽程標籤顯示「第一點 男雙A」（`point_no` + `event_tag`）
+- **賽程列的選手名**：每位選手一個 `.side-player`（inline-block；不能叫 `.player-name`，排場主頁 `style.css` 已用掉），分隔號 `・` 跟在前一位後面，
+  放不下就整位換行、不從「李小華｜Hua」這種中文名與英文名之間斷開（2026-11-20 名單改中英文後 375px 實測）；名字陣列用 `lineupNames`，彈窗的整行文字用 `formatLineup`
 - **公司應援條**（`js/cheer.js`，只在比點模式）：純炒氣氛、不影響比分。本機累積、每 2 秒送一次、
   每隊每 2 秒窗口最多算 10 下、總數每 3 秒輪詢；失敗一律靜默、與計分完全分開。
   後端只檢查單次 1–10，anon key 公開可被灌數——已知且接受（觀賽 token 全場共用，無法依 token 限流）
@@ -97,6 +99,8 @@ npx http-server
   比賽中標題列只顯示隊名；`renderAll` 依 `allConfirmed || status === 'finished'` 呼叫 `setCheerReveal()` 才公布應援總數。
   finished 後應援條仍掛但唯讀（`mountCheerBar(..., { readOnly: true })`，沒有按鈕），收尾後才打開的人也看得到總數；
   頁面開著時才變 finished，由 `renderAll` 每次呼叫的 `setCheerReadOnly(true)` 切成唯讀（拿掉按鈕、停掉定時送出）
+- **輸分頁的應援條唯讀**（2026-11-20，孟娜許願，設計 `docs/superpowers/specs/2026-11-20-captain-cheer-readonly-name-wrap-design.md`）：
+  輸分連結（`?c=`）一律 `readOnly`（`finished || auth.mode === 'captain'`），只看拔河比例與別人加油時的火花／泡泡；加油按鈕只在觀賽頁。只是介面，後端不擋輸分通行碼的應援
 - **YouTube 直播框**（`js/live.js`，2026-11-18，設計 `docs/superpowers/specs/2026-11-18-live-stream-design.md`）：
   網址存在 `tournaments.live_url`，由 `tournament_public_payload` 以 `tournament.liveUrl` 送出（SQL `docs/tournament/live-url-2026-11-25.sql`）。
   只在觀賽模式（`?t=`）掛在點數比分板上方；`youtubeIdFrom` 只認 YouTube 網址、自己組 embed 網址；同一支影片不重掛（記在 `section.dataset.liveId`）。
@@ -219,7 +223,7 @@ historyMatches = []    // 比賽歷史
 ## 測試方法
 
 已安裝 jest（含 jest-environment-jsdom）。測試方法：
-1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 426 項跨 25 套件）
+1. `npm test` 執行全部 jest 測試（純函式邏輯 + DOM 互動，現為 435 項跨 26 套件）
 2. 純函式模組（`countdown.js` / `court-actions.js` / `dialog.js` / `player-state.js` / `pairing-logic.js` /
    `standings.js` / `tournament-form.js`）與 API 薄封裝（`tournament-api.js`）各有對應
    `tests/*.test.js`
@@ -270,10 +274,11 @@ historyMatches = []    // 比賽歷史
 │   ├── cheer-mount.test.js         # 應援條掛載（jsdom）：光點、首次不噴、方向、減少動態、背景分頁、泡泡、公布、唯讀
 │   ├── live.test.js                # 直播框（jsdom）：網址取 ID、只掛一次、換影片、清空
 │   ├── overlay.test.js             # 疊加比分（jsdom）：四種狀態、最新一場、左右順序、只認 ?t=、失敗保留
-│   ├── tournament-render.test.js   # 計分頁渲染（jsdom）：應援／直播框出錯不影響賽程、直播框只在觀賽頁
+│   ├── tournament-render.test.js   # 計分頁渲染（jsdom）：應援／直播框出錯不影響賽程、直播框只在觀賽頁、輸分頁應援唯讀、選手名分塊
 │   ├── tournament-html-assets.test.js # 計分頁、疊加頁資源 ?v= 與 sw.js CACHE_NAME 一致；page-theme.js 在 <head>
 │   ├── page-theme.test.js          # 頁面顏色（jsdom）：哪種連結用白色、<html> class、theme-color
 │   ├── tournament-theme-css.test.js # 白色版配色：黑色原值不變、每個顏色變數都有白色版、寫死深色處有覆寫
+│   ├── tournament-name-wrap-css.test.js # 選手名 .side-player 是 inline-block、不跟 style.css 撞名
 │   └── tournament-api.test.js      # 比賽計分頁 API 薄封裝測試
 ├── img/
 │   └── event-banner.jpg     # 主頁倒數區背景插畫（1400w JPEG，213K）

@@ -292,6 +292,13 @@
   color: var(--f1-fg-muted);
 }
 
+/* 每位選手一塊：放不下就整位換行，不從名字中間斷開。單一名字比欄位還寬時 inline-block 會縮到欄寬、在塊內折行；
+   max-width 只是保險。class 不能叫 .player-name（排場主頁 style.css 已用掉） */
+.side-player {
+  display: inline-block;
+  max-width: 100%;
+}
+
 .match-vs {
   flex: none;
   font-size: 0.72rem;

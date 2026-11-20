@@ -98,20 +98,24 @@ function matchState(match, captainCtx) {
   return { label: '請輸入比分', cssClass: 'action-needed', canReport: true };
 }
 
+// 出賽選手名字：[{name:' 小悠 '},{},{name:'雨彤'}] → ['小悠','雨彤']；名單缺漏或格式不符回空陣列
+function lineupNames(players) {
+  if (!Array.isArray(players)) return [];
+  return players
+    .map((p) => (p && typeof p.name === 'string' ? p.name.trim() : ''))
+    .filter((n) => n !== '');
+}
+
 // 出賽選手名單格式化：[{name:'小悠'},{name:'雨彤'}] → '小悠・雨彤'
 // 名單缺漏或格式不符時一律回空字串，呼叫端據此退回「只顯示隊名」的版面
 function formatLineup(players) {
-  if (!Array.isArray(players)) return '';
-  return players
-    .map((p) => (p && typeof p.name === 'string' ? p.name.trim() : ''))
-    .filter((n) => n !== '')
-    .join('・');
+  return lineupNames(players).join('・');
 }
 
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    parseTokenFromUrl, validateScores, isLegalFinalScore, matchState, formatLineup,
+    parseTokenFromUrl, validateScores, isLegalFinalScore, matchState, formatLineup, lineupNames,
     SCORE_RULES, resolveScoreRule, maxScoreOf,
   };
 }

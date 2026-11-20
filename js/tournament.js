@@ -50,12 +50,19 @@ function makeSide(teamId, players, names, colors, isRight) {
   }
   side.appendChild(teamLine);
 
-  // 名單為空（未灌資料、或 RPC 尚未更新）就不加這一行，版面等同改版前
-  const lineup = formatLineup(players);
-  if (lineup) {
+  // 名單為空（未灌資料、或 RPC 尚未更新）就不加這一行，版面等同改版前。
+  // 每位選手一個 inline-block（.side-player），放不下就整位換行，不會從「李小華｜Hua」這種中文名與英文名之間斷開；
+  // 分隔號跟在前一位後面，折行時留在行尾。整行 textContent 仍是「A・B」。
+  const playerNames = lineupNames(players);
+  if (playerNames.length) {
     const playersEl = document.createElement('span');
     playersEl.className = 'side-players';
-    playersEl.textContent = lineup;
+    playerNames.forEach((name, i) => {
+      const nameEl = document.createElement('span');
+      nameEl.className = 'side-player';
+      nameEl.textContent = i < playerNames.length - 1 ? `${name}・` : name;
+      playersEl.appendChild(nameEl);
+    });
     side.appendChild(playersEl);
   }
   return side;
@@ -333,19 +340,21 @@ function renderAll(view) {
   // 應援條只在比點模式出現；mountCheerBar 內部保證只掛一次。
   // 應援數比賽結束才公布（15 場全部確認，或比賽 finished）；先設公布狀態再掛，finished 後才打開的人第一眼就看到總數。
   // finished 後應援條唯讀（沒有按鈕，後端也會擋應援），仍顯示應援總數。
+  // 輸分頁一律唯讀：只看應援狀況（拔河比例、別人加油時的火花與泡泡），加油按鈕只在觀賽頁（2026-11-20 孟娜許願）。
   if (pointMode) {
     try {
       const finished = view.tournament.status === 'finished';
+      const readOnly = finished || auth.mode === 'captain';
       setCheerReveal(finished || computeTeamPoints(view.teams, view.matches).allConfirmed);
       const colors = teamColorById(view);
       mountCheerBar(
         document.getElementById('cheerSection'),
         view.teams.slice(0, 2).map((t) => ({ id: t.id, name: t.name, color: colors[t.id] })),
         auth.token,
-        { readOnly: finished }
+        { readOnly }
       );
       // 頁面開著時才變 finished：上面不會重掛，另外切成唯讀
-      setCheerReadOnly(finished);
+      setCheerReadOnly(readOnly);
     } catch (e) {
       // 應援失敗靜默略過
     }

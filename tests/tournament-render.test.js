@@ -78,6 +78,42 @@ test('點數比分板的隊伍色點：貿聯紅、翰林青', () => {
   expect(dots[1].style.backgroundColor).toBe('rgb(0, 161, 156)');
 });
 
+// 2026-11-20 名單改中英文後，375px 時「李小華｜Hua」這種中文名與英文名之間被斷開：改成每位選手一個不拆開的區塊
+describe('賽程列的選手名', () => {
+  const withPlayers = () => {
+    const view = friendlyView();
+    view.matches[4].playersA = [{ name: '張大同Datong' }, { name: '劉美美Mei' }];
+    view.matches[4].playersB = [{ name: '王小明Ming' }, { name: '李小華Hua' }];
+    return view;
+  };
+
+  beforeEach(() => {
+    window.mountCheerBar = jest.fn();
+    window.setCheerReveal = jest.fn();
+    window.setCheerReadOnly = jest.fn();
+  });
+
+  test('每位選手一個 .side-player，分隔號跟在前一位後面（折行時・留在行尾）', () => {
+    globalEval('renderAll')(withPlayers());
+    const sides = document.querySelectorAll('#schedule .match-row')[4].querySelectorAll('.side-players');
+    expect(sides).toHaveLength(2);
+    const names = (el) => [...el.querySelectorAll('.side-player')].map((n) => n.textContent);
+    expect(names(sides[0])).toEqual(['張大同Datong・', '劉美美Mei']);
+    expect(names(sides[1])).toEqual(['王小明Ming・', '李小華Hua']);
+  });
+
+  test('整行文字跟改版前一樣是「A・B」', () => {
+    globalEval('renderAll')(withPlayers());
+    const sides = document.querySelectorAll('#schedule .match-row')[4].querySelectorAll('.side-players');
+    expect(sides[1].textContent).toBe('王小明Ming・李小華Hua');
+  });
+
+  test('名單是空的：不加選手那一行（版面等同只顯示隊名）', () => {
+    globalEval('renderAll')(withPlayers());
+    expect(document.querySelectorAll('#schedule .match-row')[0].querySelectorAll('.side-players')).toHaveLength(0);
+  });
+});
+
 // 2026-11-17 比賽結束才公布應援數：15 場全部確認或比賽 finished 才公布；finished 後應援條唯讀仍掛
 describe('應援條公布與唯讀', () => {
   let mountSpy;
@@ -97,27 +133,48 @@ describe('應援條公布與唯讀', () => {
     window.setCheerReadOnly = readOnlySpy;
   });
 
-  test('比賽中（還有沒確認的）：不公布、可以加油', () => {
-    globalEval('renderAll')(friendlyView());
+  // 這個檔的預設是輸分模式；觀賽頁的情境用這個切過去再切回來
+  const asPublic = (fn) => {
+    window.__setAuth({ mode: 'public', token: 'pub' });
+    try {
+      fn();
+    } finally {
+      window.__setAuth({ mode: 'captain', token: 'cap-M' });
+    }
+  };
+
+  test('觀賽頁比賽中（還有沒確認的）：不公布、可以加油', () => {
+    asPublic(() => globalEval('renderAll')(friendlyView()));
     expect(revealSpy).toHaveBeenLastCalledWith(false);
     expect(mountSpy).toHaveBeenCalledTimes(1);
     expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false });
+    expect(readOnlySpy).toHaveBeenLastCalledWith(false);
   });
 
-  test('15 場全部確認：公布', () => {
-    globalEval('renderAll')(allConfirmed(friendlyView()));
+  // 2026-11-20 孟娜：輸分頁只顯示應援狀況、不要加油按鈕（場邊的人看的、按的都是觀賽頁）
+  test('輸分頁比賽中：應援條唯讀（沒有加油按鈕），一樣不公布', () => {
+    globalEval('renderAll')(friendlyView());
+    expect(revealSpy).toHaveBeenLastCalledWith(false);
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
+    expect(readOnlySpy).toHaveBeenLastCalledWith(true);
+  });
+
+  test('觀賽頁 15 場全部確認（還沒 finished）：公布、仍可以加油', () => {
+    asPublic(() => globalEval('renderAll')(allConfirmed(friendlyView())));
     expect(revealSpy).toHaveBeenLastCalledWith(true);
     expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false });
   });
 
-  test('比賽 finished：仍掛應援條（唯讀）並公布', () => {
+  // 要在觀賽頁跑：輸分頁本來就一律唯讀，在輸分頁跑的話拿掉 finished 判斷也會過（2026-11-20 review Important 1）
+  test('觀賽頁比賽 finished：仍掛應援條（唯讀）並公布', () => {
     const view = friendlyView();
     view.tournament.status = 'finished';
-    globalEval('renderAll')(view);
+    asPublic(() => globalEval('renderAll')(view));
     expect(mountSpy).toHaveBeenCalledTimes(1);
     expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
     expect(revealSpy).toHaveBeenLastCalledWith(true);
-    // 頁面開著時才變 finished：mountCheerBar 只掛一次，要另外切成唯讀（review Important 1）
+    // 頁面開著時才變 finished：mountCheerBar 只掛一次，要另外切成唯讀（2026-11-17 review Important 1）
     expect(readOnlySpy).toHaveBeenLastCalledWith(true);
   });
 
