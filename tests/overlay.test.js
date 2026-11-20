@@ -313,3 +313,134 @@ describe('冠軍時刻的標籤與第二行（2026-11-25 友誼賽）', () => {
     expect(h.style.boxShadow).toMatch(BLUE_EDGE);
   });
 });
+
+describe('疊加頁的冠軍時刻動畫：只在輪詢時親眼看到階段切換才播（2026-11-25 友誼賽）', () => {
+  const { CM_INTRO_MS } = require('../js/champion-moment');
+  let root;
+  // 第 1～5 輪：總點數 2：1；第 6 輪都給翰林 → 翰林 3：2
+  const OPEN_FINAL = (m) => ({ 1: 'M', 2: 'M', 3: 'H' }[m.pointNo] || (m.roundNo === 2 ? 'M' : 'H'));
+  const upTo = (round, winnerOf) => {
+    const v = friendlyView();
+    v.matches.filter((m) => m.roundNo <= round).forEach((m) => win(v, m.id, winnerOf(m)));
+    return v;
+  };
+  const finalView = () => upTo(5, OPEN_FINAL);
+  const hanlinWins = () => upTo(6, (m) => (m.roundNo === 6 ? 'H' : OPEN_FINAL(m)));
+  const fakeStorage = () => {
+    const data = {};
+    return { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); } };
+  };
+  const layers = () => document.querySelectorAll('body > .cm-layer');
+  const flush = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
+  let current;
+  const start = (storage = fakeStorage(), extra = {}) => initOverlay({
+    search: '?t=tok', root, fetchView: jest.fn(() => Promise.resolve(current)), storage, ...extra,
+  });
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    document.body.textContent = '';
+    root = document.createElement('div');
+    document.body.appendChild(root);
+    HTMLCanvasElement.prototype.getContext = () => null;
+    delete HTMLImageElement.prototype.decode;
+  });
+  afterEach(() => { jest.useRealTimers(); });
+
+  test('載入時已經是最終戰：不播；之後輪詢變成全部打完 → 播揭曉（直播版）', async () => {
+    current = finalView();
+    const ctl = start();
+    await ctl.ready;
+    expect(layers()).toHaveLength(0);
+    current = hanlinWins();
+    await ctl.refresh();
+    const layer = document.querySelector('body > .cm-layer');
+    expect(layer.classList.contains('cm-reveal')).toBe(true);
+    expect(layer.classList.contains('cm-stream')).toBe(true);
+    expect(layer.classList.contains('cm-side-right')).toBe(true);
+    ctl.stop();
+  });
+
+  test('輪詢看到 none → final：播開場，收尾時兩隊退出，時間到移除', async () => {
+    current = upTo(4, OPEN_FINAL);
+    const ctl = start();
+    await ctl.ready;
+    current = finalView();
+    await ctl.refresh();
+    const layer = document.querySelector('body > .cm-layer');
+    expect(layer.classList.contains('cm-intro')).toBe(true);
+    expect(layer.classList.contains('cm-stream')).toBe(true);
+    await flush();
+    jest.advanceTimersByTime(3300);
+    expect(layer.classList.contains('cm-players-out')).toBe(true);
+    jest.advanceTimersByTime(CM_INTRO_MS - 3300);
+    expect(layers()).toHaveLength(0);
+    ctl.stop();
+  });
+
+  test('播放中又輪詢一次：圖層還在、比分條照常更新', async () => {
+    current = upTo(4, OPEN_FINAL);
+    const ctl = start();
+    await ctl.ready;
+    current = finalView();
+    await ctl.refresh();
+    current = finalView();
+    win(current, 'r6c1', 'H');
+    await ctl.refresh();
+    expect(layers()).toHaveLength(1);
+    expect(root.querySelector('.ov-nums').textContent).toBe('2 : 2');
+    expect(root.querySelector('.ov-tag').textContent).toBe('冠軍時刻');
+    ctl.stop();
+  });
+
+  test('PRISM 重新載入後（同一台電腦）再看到 none → final：不重播', async () => {
+    const storage = fakeStorage();
+    current = upTo(4, OPEN_FINAL);
+    const first = start(storage);
+    await first.ready;
+    current = finalView();
+    await first.refresh();
+    first.stop();
+    document.querySelectorAll('.cm-layer').forEach((el) => el.remove());
+
+    current = upTo(4, OPEN_FINAL);
+    const second = start(storage);
+    await second.ready;
+    current = finalView();
+    await second.refresh();
+    expect(layers()).toHaveLength(0);
+    second.stop();
+  });
+
+  test('冠軍時刻出錯：比分條照常、畫面沒有錯誤字', async () => {
+    const brokenDoc = { querySelectorAll: () => [], createElement: () => { throw new Error('boom'); }, defaultView: window };
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    current = upTo(4, OPEN_FINAL);
+    const ctl = start(fakeStorage(), { doc: brokenDoc });
+    await ctl.ready;
+    current = finalView();
+    await ctl.refresh();
+    expect(root.querySelector('.ov-nums').textContent).toBe('2 : 1');
+    expect(root.textContent).not.toMatch(/boom|錯誤|Error/);
+    warn.mockRestore();
+    ctl.stop();
+  });
+
+  test('冠軍時刻的檔案沒載入：比分條照常、沒有標籤', async () => {
+    const saved = { finalPhase: global.finalPhase, createOverlayChampion: global.createOverlayChampion };
+    delete global.finalPhase;
+    delete global.createOverlayChampion;
+    try {
+      const lines = overlayLines(finalView());
+      expect(lines.tag).toBeNull();
+      expect(lines.detail).not.toContain('最終戰');
+      current = finalView();
+      const ctl = start();
+      await ctl.ready;
+      expect(root.querySelector('.ov-nums').textContent).toBe('2 : 1');
+      ctl.stop();
+    } finally {
+      Object.assign(global, saved);
+    }
+  });
+});

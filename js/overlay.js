@@ -5,7 +5,7 @@
  *   tournament-form.js → parseTokenFromUrl
  *   tournament-api.js → fetchPublicView
  *   team-points.js → hasPoints / computeTeamPoints / pointLabel / eventLabel / teamStyleById
- *   champion-moment.js → finalPhase / finalRoundLabel（2026-11-25 冠軍時刻）
+ *   champion-moment.js → finalPhase / finalRoundLabel / createPlayedStore / createOverlayChampion（2026-11-25 冠軍時刻）
  * 反目標：
  * - 直播畫面上不能出現錯誤訊息：成功顯示過一次之後，讀取失敗、找不到比賽、算不出比分都保留上一次的畫面。
  * - 不接受輸分通行碼：只認 ?t=，有輸分權限的連結不該被貼進第三方 App。
@@ -35,7 +35,13 @@ function overlayLines(view) {
   const styles = teamStyleById(view);
   const result = computeTeamPoints(view.teams, view.matches);
   const side = (t) => ({ name: t.name, color: styles[t.id].fill, edge: styles[t.id].edge, points: result.totals[t.id] || 0 });
-  const phase = finalPhase(view);
+  // 冠軍時刻的檔案沒載入或出錯時當作一般畫面：比分條永遠要畫得出來
+  let phase = 'none';
+  try {
+    phase = finalPhase(view);
+  } catch (e) {
+    phase = 'none';
+  }
   const tag = { final: '冠軍時刻', done: '🏆 冠軍' }[phase] || null;
 
   let detail;
@@ -113,12 +119,35 @@ function renderOverlay(root, lines, message) {
   root.appendChild(bar);
 }
 
-function initOverlay({ search, root, fetchView, intervalMs = OVERLAY_POLL_MS }) {
+// localStorage 取用本身就可能丟例外（沙盒、私密瀏覽）
+function overlayStorage() {
+  try {
+    return window.localStorage;
+  } catch (e) {
+    return undefined;
+  }
+}
+
+// 冠軍時刻（2026-11-25）：出錯（含 champion-moment.js 沒載入）就不播，比分條照常
+function createChampionForOverlay({ doc, storage }) {
+  try {
+    const reduce = typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return createOverlayChampion({ doc, store: createPlayedStore(storage), reduce });
+  } catch (e) {
+    console.warn('[overlay] 冠軍時刻無法啟用', e);
+    return null;
+  }
+}
+
+// doc、storage 給測試注入（預設是這一頁與它的 localStorage）
+function initOverlay({ search, root, fetchView, intervalMs = OVERLAY_POLL_MS, doc = document, storage = overlayStorage() }) {
   const auth = parseTokenFromUrl(search || '');
   if (auth.mode !== 'public') {
     renderOverlay(root, null, OVERLAY_BAD_LINK);
     return { refresh: async () => {}, stop: () => {}, ready: Promise.resolve() };
   }
+  const champion = createChampionForOverlay({ doc, storage });
 
   // 設定時（還沒成功顯示過比分）每種狀態都要看得出來：透明頁一片空白時，設定的人分不出還在讀、讀不到或連結不對。
   // 顯示過比分之後（直播中）一律保留上一次畫面，不出現任何提示或錯誤字。
@@ -138,6 +167,14 @@ function initOverlay({ search, root, fetchView, intervalMs = OVERLAY_POLL_MS }) 
       }
       renderOverlay(root, lines);
       shown = true;
+      if (champion) {
+        try {
+          champion.update(view);
+        } catch (e) {
+          // 冠軍時刻出錯只寫主控台，比分條已經畫好、不受影響
+          console.warn('[overlay] 冠軍時刻播放失敗', e);
+        }
+      }
     } catch (e) {
       // 讀取失敗：畫面維持原樣（設定時停在「讀取比分中…」）；原因只寫到主控台，不會出現在直播畫面上
       console.warn('[overlay] 讀取比分失敗', e);

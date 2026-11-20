@@ -306,3 +306,25 @@
 .cm-layer.cm-reduce .cm-flash { display: none; }
 .cm-layer.cm-reduce .cm-img,
 .cm-layer.cm-reduce .cm-reveal-text { transition-duration: 0.2s; transition-delay: 0s; }
+
+/* ---------- 直播疊加頁版本（.cm-stream，16:9 透明頁）：開場兩隊左右對峙後退出；揭曉字放在勝方圖的另一半 ---------- */
+.cm-layer.cm-stream { background: transparent; cursor: default; }
+.cm-veil { transition: opacity 0.4s ease; }
+.cm-stream.cm-players-out .cm-veil { opacity: 0; }
+.cm-stream .cm-img,
+.cm-stream .cm-reveal-img { width: auto; height: 100%; }
+.cm-stream.cm-intro .cm-img-left { left: -6%; -webkit-mask-image: none; mask-image: none; }
+.cm-stream.cm-intro .cm-img-right { right: -6%; -webkit-mask-image: none; mask-image: none; }
+.cm-stream.cm-players-out .cm-img-left { transform: translateX(-110%); opacity: 0; }
+.cm-stream.cm-players-out .cm-img-right { transform: translateX(110%); opacity: 0; }
+.cm-stream.cm-side-left .cm-reveal-img { left: -6%; }
+.cm-stream.cm-side-right .cm-reveal-img { right: -6%; }
+.cm-stream .cm-reveal-text { padding-top: 0; justify-content: center; }
+.cm-stream.cm-side-left .cm-reveal-text { left: 50%; }
+.cm-stream.cm-side-right .cm-reveal-text { right: 50%; }
+.cm-stream.cm-side-left .cm-reveal-bg {
+  background: radial-gradient(55% 80% at 75% 48%, rgba(255, 205, 90, 0.28), rgba(5, 6, 10, 0.9) 72%);
+}
+.cm-stream.cm-side-right .cm-reveal-bg {
+  background: radial-gradient(55% 80% at 25% 48%, rgba(255, 205, 90, 0.28), rgba(5, 6, 10, 0.9) 72%);
+}

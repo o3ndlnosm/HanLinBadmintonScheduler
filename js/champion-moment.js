@@ -285,7 +285,8 @@ function playIntro({ doc = document, reduce = false, stream = false } = {}) {
     });
     at(1300, () => layer.classList.remove('cm-shake'));
     at(2900, () => layer.classList.add('cm-title-out'));
-    at(3300, () => layer.classList.add('cm-out'));
+    // 直播版：兩隊退出、變暗的底淡掉，回到透明畫面＋比分條；手機版整個圖層淡出
+    at(3300, () => layer.classList.add(stream ? 'cm-players-out' : 'cm-out'));
     at(CM_INTRO_MS, remove);
   });
   return layer;
@@ -348,11 +349,43 @@ function syncChampionPage(view, { mode, section, store, doc = document, reduce =
   }
 }
 
+const CM_PHASE_ORDER = { none: 0, final: 1, done: 2 };
+
+// 直播疊加頁（PRISM 網頁小工具）：只在輪詢時親眼看到階段往前切換才播。載入當下只記下階段、不播——
+// PRISM 重新載入小工具、或直播中途才加上疊加頁時，不會突然全螢幕蓋住正在打的球；不需要確認 PRISM 會不會保留 localStorage。
+// 另外照樣記 store，同一台電腦不重播。不看分頁在不在背景（PRISM 可能把小工具當背景頁，照套就永遠不會播）。
+// enabled=false（網址 &cm=0）：只更新比分條，不播動畫。
+function createOverlayChampion({ doc = document, store, enabled = true, reduce = false } = {}) {
+  let seen = null;
+  return {
+    update(view) {
+      const phase = finalPhase(view);
+      const prev = seen;
+      seen = phase;
+      if (!enabled || prev === null || !store) return;
+      if (CM_PHASE_ORDER[phase] <= CM_PHASE_ORDER[prev]) return; // 沒有往前切換（含改判倒退）不播
+      const finalKey = playedKey(view, 'final');
+      if (phase === 'final') {
+        if (store.has(finalKey)) return;
+        store.mark(finalKey);
+        playIntro({ doc, reduce, stream: true });
+        return;
+      }
+      const doneKey = playedKey(view, 'done');
+      const info = championInfo(view);
+      if (!info || store.has(doneKey)) return;
+      store.mark(doneKey);
+      store.mark(finalKey);
+      playReveal(info, view, { doc, reduce, stream: true });
+    },
+  };
+}
+
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CM_INTRO_MS, CM_REVEAL_MS, CM_IMAGE_WAIT_MS, CM_IMG,
     finalPhase, championInfo, finalRoundLabel, playedKey, createPlayedStore,
-    renderChampionHero, syncChampionPage, playIntro, playReveal,
+    renderChampionHero, syncChampionPage, playIntro, playReveal, createOverlayChampion,
   };
 }
