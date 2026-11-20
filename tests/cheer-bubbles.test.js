@@ -79,3 +79,29 @@ test('動畫建立失敗：不冒、不留元素、不佔上限', () => {
   expect(bubbles()).toHaveLength(0);
   expect(api.live('a')).toBe(0);
 });
+
+describe('泡泡的字色與外框（2026-11-25 友誼賽代表色）', () => {
+  test('給 ink 與 edge：字用 ink、加 1px edge 外框', () => {
+    const api = createBubbleLayer(layer);
+    expect(api.pop('b', '翰林加油！', '#ffffff', { ink: '#14649c', edge: '#187fc4' })).toBe(true);
+    const [el] = bubbles('b');
+    expect(el.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(el.style.color).toBe('rgb(20, 100, 156)');
+    expect(el.style.border).toMatch(/1px solid/);
+    expect(el.style.border).toMatch(/#187fc4|rgb\(24, 127, 196\)/);
+  });
+
+  test('edge 與底色相同：不加外框', () => {
+    const api = createBubbleLayer(layer);
+    api.pop('a', '貿聯加油！', '#0077cb', { ink: '#ffffff', edge: '#0077cb' });
+    expect(bubbles('a')[0].style.border).toBe('');
+  });
+
+  test('沒給第四個參數：沿用 CSS 的白字、沒有外框', () => {
+    const api = createBubbleLayer(layer);
+    api.pop('a', '加油！', '#e10600');
+    const [el] = bubbles('a');
+    expect(el.style.color).toBe('');
+    expect(el.style.border).toBe('');
+  });
+});

@@ -259,3 +259,46 @@ describe('直播框', () => {
     expect(document.querySelectorAll('#schedule .match-row')).toHaveLength(15);
   });
 });
+
+describe('代表色的色點（2026-11-25 友誼賽）', () => {
+  beforeEach(() => {
+    window.mountCheerBar = jest.fn();
+    window.setCheerReveal = jest.fn();
+    window.setCheerReadOnly = jest.fn();
+  });
+
+  test('翰林白點加藍色內框、貿聯藍點不加（點的大小不變）：點數比分板與賽程列都一樣', () => {
+    globalEval('renderAll')(friendlyView());
+    const boardDots = [...document.querySelectorAll('#pointBoard .point-score .team-dot')];
+    const rowDots = [...document.querySelectorAll('#schedule .match-row')[0].querySelectorAll('.team-dot')];
+    [boardDots, rowDots].forEach(([m, h]) => {
+      expect(m.style.backgroundColor).toBe('rgb(0, 119, 203)');
+      expect(m.style.boxShadow).toBe('');
+      expect(h.style.backgroundColor).toBe('rgb(255, 255, 255)');
+      expect(h.style.boxShadow).toMatch(/inset/);
+      expect(h.style.boxShadow).toMatch(/#187fc4|rgb\(24, 127, 196\)/);
+    });
+  });
+
+  test('第三屆（五隊、排名表）：色點照舊、沒有內框', () => {
+    const ids = ['A', 'B', 'C', 'D', 'E'];
+    const rgb = ['rgb(225, 6, 0)', 'rgb(0, 161, 156)', 'rgb(255, 128, 0)', 'rgb(155, 93, 229)', 'rgb(245, 197, 24)'];
+    globalEval('renderAll')({
+      tournament: { name: '第三屆翰林匹克羽球運動會', heldOn: '2026-08-20', status: 'active' },
+      teams: ids.map((id) => ({ id, name: `${id}隊`, players: [] })),
+      myTeamId: 'A',
+      reports: {},
+      matches: [{
+        id: 'm1', roundNo: 1, courtNo: 1, timeSlot: '18:10-18:25', event: '男雙',
+        teamAId: 'A', teamBId: 'B', playersA: [], playersB: [], status: 'pending', scoreA: null, scoreB: null,
+      }],
+    });
+    const cells = [...document.querySelectorAll('#standings td.team-name')];
+    expect(cells).toHaveLength(5);
+    cells.forEach((td) => {
+      const dot = td.querySelector('.team-dot');
+      expect(dot.style.backgroundColor).toBe(rgb[ids.indexOf(td.textContent.trim()[0])]);
+      expect(dot.style.boxShadow).toBe('');
+    });
+  });
+});

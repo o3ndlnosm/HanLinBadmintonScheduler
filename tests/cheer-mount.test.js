@@ -207,3 +207,43 @@ describe('比賽結束才公布應援數', () => {
     expect(jest.getTimerCount()).toBe(1); // 只剩輪詢
   });
 });
+
+describe('代表色（2026-11-25 友誼賽）', () => {
+  const BRAND = [
+    { id: 'M', name: '貿聯', color: '#0077cb', edge: '#0077cb', ink: '#ffffff' },
+    { id: 'H', name: '翰林', color: '#ffffff', edge: '#187fc4', ink: '#14649c' },
+  ];
+  const BLUE_EDGE = /#187fc4|rgb\(24, 127, 196\)/;
+
+  test('應援條：左貿聯藍、右翰林白，整條加翰林藍的 1px 內框', () => {
+    mountCheerBar(container(), BRAND, 'pub');
+    const bar = document.querySelector('#cheer .cheer-bar');
+    expect(document.querySelector('#cheer .cheer-fill').style.backgroundColor).toBe('rgb(0, 119, 203)');
+    expect(bar.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(bar.style.boxShadow).toMatch(/inset/);
+    expect(bar.style.boxShadow).toMatch(BLUE_EDGE);
+  });
+
+  test('加油按鈕的邊框用 edge：翰林是藍框', () => {
+    mountCheerBar(container(), BRAND, 'pub');
+    const [a, b] = buttons();
+    expect(a.style.borderColor).toBe('rgb(0, 119, 203)');
+    expect(b.style.borderColor).toBe('rgb(24, 127, 196)');
+  });
+
+  test('翰林那側的泡泡：白底、深藍字、藍框', async () => {
+    mountCheerBar(container(), BRAND, 'pub');
+    await tick();
+    buttons()[1].click();
+    const [el] = bubbles('b');
+    expect(el.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(el.style.color).toBe('rgb(20, 100, 156)');
+    expect(el.style.border).toMatch(BLUE_EDGE);
+  });
+
+  test('只帶 color 的舊寫法：沒有內框、按鈕邊框用 color', () => {
+    mountCheerBar(container(), TEAMS, 'pub');
+    expect(document.querySelector('#cheer .cheer-bar').style.boxShadow).toBe('');
+    expect(buttons()[1].style.borderColor).toBe('rgb(0, 161, 156)');
+  });
+});

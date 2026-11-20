@@ -3,7 +3,7 @@
  * 相依（由 tournament.html 的 <script> 順序保證）：
  *   dialog.js → showToast
  *   standings.js → computeStandings
- *   team-points.js → hasPoints / computeTeamPoints / pointLabel / eventLabel / teamColorById
+ *   team-points.js → hasPoints / computeTeamPoints / pointLabel / eventLabel / teamStyleById
  *   tournament-form.js → parseTokenFromUrl / matchState / validateScores
  *   tournament-api.js → fetchPublicView / fetchCaptainView / reportScore
  *   cheer.js → mountCheerBar
@@ -25,15 +25,19 @@ function teamNameById(view) {
   return map;
 }
 
-function makeTeamDot(color) {
+// style：teamStyleById 的 { fill, edge }。邊框色與底色不同（翰林白點）時加 2px 內框：點的大小不變，白底的輸分頁也看得到。
+// 找不到隊伍時不畫顏色（不拋錯，賽程是輸分入口）。
+function makeTeamDot(style) {
+  const { fill, edge } = style || {};
   const dot = document.createElement('span');
   dot.className = 'team-dot';
-  dot.style.backgroundColor = color;
+  if (fill) dot.style.backgroundColor = fill;
+  if (edge && edge !== fill) dot.style.boxShadow = `inset 0 0 0 2px ${edge}`;
   return dot;
 }
 
 // 賽程列的一側：隊名一行、出賽選手一行。isRight 決定色點在隊名的哪一邊與對齊方向
-function makeSide(teamId, players, names, colors, isRight) {
+function makeSide(teamId, players, names, styles, isRight) {
   const side = document.createElement('span');
   side.className = isRight ? 'match-side right' : 'match-side';
 
@@ -43,9 +47,9 @@ function makeSide(teamId, players, names, colors, isRight) {
   nameEl.textContent = names[teamId];
   if (isRight) {
     teamLine.appendChild(nameEl);
-    teamLine.appendChild(makeTeamDot(colors[teamId]));
+    teamLine.appendChild(makeTeamDot(styles[teamId]));
   } else {
-    teamLine.appendChild(makeTeamDot(colors[teamId]));
+    teamLine.appendChild(makeTeamDot(styles[teamId]));
     teamLine.appendChild(nameEl);
   }
   side.appendChild(teamLine);
@@ -131,7 +135,7 @@ function renderStandings(view) {
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
-  const colors = teamColorById(view);
+  const styles = teamStyleById(view);
   rows.forEach((r) => {
     const tr = document.createElement('tr');
     if (auth.mode === 'captain' && r.teamId === view.myTeamId) tr.className = 'my-team';
@@ -140,7 +144,7 @@ function renderStandings(view) {
       const td = document.createElement('td');
       if (i === 1) {
         td.className = 'team-name';
-        td.appendChild(makeTeamDot(colors[r.teamId]));
+        td.appendChild(makeTeamDot(styles[r.teamId]));
         const label = document.createElement('span');
         label.textContent = value;
         td.appendChild(label);
@@ -160,7 +164,7 @@ function renderStandings(view) {
 function renderPointBoard(view) {
   const result = computeTeamPoints(view.teams, view.matches);
   const names = teamNameById(view);
-  const colors = teamColorById(view);
+  const styles = teamStyleById(view);
   const [ta, tb] = view.teams;
   const box = document.getElementById('pointBoard');
   box.textContent = '';
@@ -184,8 +188,8 @@ function renderPointBoard(view) {
     const label = document.createElement('span');
     label.textContent = team.name;
     if (auth.mode === 'captain' && team.id === view.myTeamId) el.classList.add('my-team');
-    if (isRight) el.append(label, makeTeamDot(colors[team.id]));
-    else el.append(makeTeamDot(colors[team.id]), label);
+    if (isRight) el.append(label, makeTeamDot(styles[team.id]));
+    else el.append(makeTeamDot(styles[team.id]), label);
     return el;
   };
   const nums = document.createElement('span');
@@ -218,7 +222,7 @@ function renderPointBoard(view) {
     const status = document.createElement('span');
     status.className = 'point-status';
     if (p.winnerId) {
-      status.appendChild(makeTeamDot(colors[p.winnerId]));
+      status.appendChild(makeTeamDot(styles[p.winnerId]));
       status.append(`${names[p.winnerId]}拿下`);
     } else {
       status.textContent = p.played ? '進行中' : '未開打';
@@ -242,7 +246,7 @@ function renderSchedule(view) {
     byRound.get(m.roundNo).push(m);
   });
 
-  const colors = teamColorById(view);
+  const styles = teamStyleById(view);
   [...byRound.keys()].sort((a, b) => a - b).forEach((roundNo) => {
     const matches = byRound.get(roundNo);
     const card = document.createElement('div');
@@ -300,12 +304,12 @@ function renderSchedule(view) {
       // 下排：兩隊各佔一半，選手緊貼自己的隊名下方
       const body = document.createElement('span');
       body.className = 'match-body';
-      body.appendChild(makeSide(match.teamAId, match.playersA, names, colors, false));
+      body.appendChild(makeSide(match.teamAId, match.playersA, names, styles, false));
       const vs = document.createElement('span');
       vs.className = 'match-vs';
       vs.textContent = 'vs';
       body.appendChild(vs);
-      body.appendChild(makeSide(match.teamBId, match.playersB, names, colors, true));
+      body.appendChild(makeSide(match.teamBId, match.playersB, names, styles, true));
       row.appendChild(body);
 
       if (state.canReport) {
@@ -346,10 +350,12 @@ function renderAll(view) {
       const finished = view.tournament.status === 'finished';
       const readOnly = finished || auth.mode === 'captain';
       setCheerReveal(finished || computeTeamPoints(view.teams, view.matches).allConfirmed);
-      const colors = teamColorById(view);
+      const styles = teamStyleById(view);
       mountCheerBar(
         document.getElementById('cheerSection'),
-        view.teams.slice(0, 2).map((t) => ({ id: t.id, name: t.name, color: colors[t.id] })),
+        view.teams.slice(0, 2).map((t) => ({
+          id: t.id, name: t.name, color: styles[t.id].fill, edge: styles[t.id].edge, ink: styles[t.id].ink,
+        })),
         auth.token,
         { readOnly }
       );

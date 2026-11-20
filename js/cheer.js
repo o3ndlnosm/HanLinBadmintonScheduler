@@ -188,13 +188,16 @@ function createSparkLayer(layer, maxLive = CHEER_SPARK_MAX_LIVE) {
 function createBubbleLayer(layer, maxPerSide = CHEER_BUBBLE_MAX_PER_SIDE) {
   const live = { a: 0, b: 0 };
 
-  function pop(side, text, color) {
+  // color 是泡泡底色；ink 字色（沒給沿用 CSS 的白字）；edge 與底色不同時加 1px 外框（翰林白底藍框，2026-11-25 代表色）
+  function pop(side, text, color, { ink, edge } = {}) {
     if (typeof layer.animate !== 'function' || !(side in live)) return false;
     if (live[side] >= maxPerSide) return false;
     const el = document.createElement('span');
     el.className = `cheer-bubble cheer-bubble-${side}`;
     el.textContent = text;
     el.style.backgroundColor = color;
+    if (ink) el.style.color = ink;
+    if (edge && edge !== color) el.style.border = `1px solid ${edge}`;
     el.style[side === 'a' ? 'left' : 'right'] = `${2 + Math.random() * 26}%`;
     let anim;
     try {
@@ -245,7 +248,7 @@ function setCheerReadOnly(readOnly) {
   if (readOnly && cheerGoReadOnly) cheerGoReadOnly();
 }
 
-// teams：[{ id, name, color }]，取前兩隊（左 A、右 B）
+// teams：[{ id, name, color, edge?, ink? }]，取前兩隊（左 A、右 B）。color 是底色；edge 邊框色（預設同 color）；ink 泡泡字色（預設白）
 // readOnly（比賽 finished，或輸分頁）：沒有加油按鈕、不送應援；總數照常輪詢，別人加油時照樣噴火花、冒泡泡
 function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
   if (cheerMounted || !container || teams.length < 2) return;
@@ -274,6 +277,8 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
   fillA.className = 'cheer-fill';
   fillA.style.backgroundColor = ta.color;
   bar.style.backgroundColor = tb.color;
+  // B 隊底色與邊框色不同（翰林白底）時整條加 1px 內框，白色輸分頁上也看得出應援條的範圍；左邊 A 色塊蓋住的那段不影響
+  if (tb.edge && tb.edge !== tb.color) bar.style.boxShadow = `inset 0 0 0 1px ${tb.edge}`;
   bar.appendChild(fillA);
 
   // 交界火花：bar 為了圓角是 overflow: hidden，火花另外疊在上面的 fx 層
@@ -298,7 +303,7 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'cheer-btn';
-      btn.style.borderColor = team.color;
+      btn.style.borderColor = team.edge || team.color;
       btn.textContent = `為${team.name}加油`;
       return btn;
     };
@@ -331,8 +336,8 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
   };
   const popBubbles = (bursts) => {
     if (!bursts || motionOff()) return;
-    if (bursts[ta.id]) bubbleLayer.pop('a', pickSlogan(ta), ta.color);
-    if (bursts[tb.id]) bubbleLayer.pop('b', pickSlogan(tb), tb.color);
+    if (bursts[ta.id]) bubbleLayer.pop('a', pickSlogan(ta), ta.color, { ink: ta.ink, edge: ta.edge });
+    if (bursts[tb.id]) bubbleLayer.pop('b', pickSlogan(tb), tb.color, { ink: tb.ink, edge: tb.edge });
   };
 
   let last = {};
