@@ -89,10 +89,93 @@ function createPlayedStore(storage) {
   };
 }
 
+// ---------- DOM ----------
+
+function cmEl(doc, tag, className, text) {
+  const el = doc.createElement(tag);
+  if (className) el.className = className;
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+function cmTeamImg(doc, side) {
+  const img = cmEl(doc, 'img', `cm-img cm-img-${side}`);
+  img.src = CM_IMG[side];
+  img.alt = '';
+  img.setAttribute('aria-hidden', 'true');
+  img.decoding = 'async';
+  return img;
+}
+
+// 隊名色塊：底色、邊框、字色用 CSS 變數帶入（teamStyleById），貿聯藍底白字、翰林白底深藍字藍框
+function cmSetPill(pill, team, style) {
+  pill.textContent = team.name;
+  pill.style.setProperty('--cm-fill', style.fill);
+  pill.style.setProperty('--cm-edge', style.edge);
+  pill.style.setProperty('--cm-ink', style.ink);
+}
+
+function cmBuildHero(doc) {
+  const hero = cmEl(doc, 'div', 'cm-hero');
+  hero.setAttribute('aria-label', '冠軍時刻');
+  const hud = cmEl(doc, 'div', 'cm-hud');
+  const score = cmEl(doc, 'div', 'cm-score');
+  score.append(cmEl(doc, 'span', 'cm-pill cm-left'), cmEl(doc, 'span', 'cm-nums'), cmEl(doc, 'span', 'cm-pill cm-right'));
+  hud.append(cmEl(doc, 'div', 'cm-badge'), score, cmEl(doc, 'div', 'cm-label'), cmEl(doc, 'div', 'cm-decider'));
+  hero.append(cmTeamImg(doc, 'right'), cmTeamImg(doc, 'left'), cmEl(doc, 'div', 'cm-aura'), hud);
+  return hero;
+}
+
+// 觀賽頁主視覺：#pointsSection 裡、#pointBoard 前面維持唯一一個 .cm-hero。
+// #pointBoard 每 10 秒會清空重畫，主視覺放在它外面、原地更新文字，不重建（團體圖不會閃）。
+// 主視覺出現時 #pointBoard 加 cm-active：CSS 藏起大比分與「🏆」橫幅（那句話已在主視覺裡），每點明細照常。
+function renderChampionHero(section, view, phase, info) {
+  const doc = section.ownerDocument;
+  const board = section.querySelector('#pointBoard');
+  let hero = section.querySelector('.cm-hero');
+  if (phase === 'none') {
+    if (hero) hero.remove();
+    if (board) board.classList.remove('cm-active');
+    return null;
+  }
+  if (!hero) {
+    hero = cmBuildHero(doc);
+    section.insertBefore(hero, board);
+  }
+  const done = phase === 'done';
+  const [ta, tb] = view.teams;
+  const styles = teamStyleById(view);
+  const totals = computeTeamPoints(view.teams, view.matches).totals;
+  hero.dataset.state = done ? 'champion' : 'final';
+  if (done && info) hero.dataset.winner = info.side;
+  else delete hero.dataset.winner;
+  hero.querySelector('.cm-badge').textContent = done ? '🏆 冠軍' : '冠軍時刻';
+  cmSetPill(hero.querySelector('.cm-pill.cm-left'), ta, styles[ta.id]);
+  cmSetPill(hero.querySelector('.cm-pill.cm-right'), tb, styles[tb.id]);
+  hero.querySelector('.cm-nums').textContent = `${totals[ta.id]} : ${totals[tb.id]}`;
+  // 冠軍提前確定時，原本橫幅的資訊改放在比分下的小字
+  hero.querySelector('.cm-label').textContent = !done && info
+    ? `${info.winnerName} 已拿下 ${info.won} 點，確定勝出`
+    : '總點數';
+  hero.querySelector('.cm-decider').textContent = done && info
+    ? `比賽結束：${info.winnerName} 以 ${info.won}：${info.lost} 勝出`
+    : finalRoundLabel(view);
+  if (board) board.classList.add('cm-active');
+  return hero;
+}
+
+// 觀賽頁每次 renderAll 後呼叫（tournament.js 包 try/catch）。只在觀賽模式；輸分頁、其他比賽一律拿掉主視覺。
+function syncChampionPage(view, { mode, section } = {}) {
+  if (!section) return;
+  const phase = mode === 'public' ? finalPhase(view) : 'none';
+  renderChampionHero(section, view, phase, phase === 'none' ? null : championInfo(view));
+}
+
 // Node.js 環境下匯出（瀏覽器環境忽略）
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CM_INTRO_MS, CM_REVEAL_MS, CM_IMAGE_WAIT_MS, CM_IMG,
     finalPhase, championInfo, finalRoundLabel, playedKey, createPlayedStore,
+    renderChampionHero, syncChampionPage,
   };
 }

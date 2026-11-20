@@ -1,0 +1,176 @@
+/* 冠軍時刻（2026-11-25 貿聯×翰林友誼賽）：觀賽頁主視覺、全螢幕開場與揭曉、直播疊加頁版本。
+   spec：docs/superpowers/specs/2026-11-20-champion-moment-design.md；數值照示範頁 v13（cq* 單位隨盒子縮放）。
+   只有左貿聯右翰林時才會出現（isFriendlyPair），所以光暈直接寫兩家代表色。 */
+
+.cm-hero,
+.cm-layer {
+  --cm-font-display: "Noto Sans TC", "PingFang TC", "Heiti TC", sans-serif;
+  --cm-font-num: "Anton", "Impact", "Arial Narrow", sans-serif;
+  --cm-muted: #a3aabb;
+  --cm-gold-deep: #f0a020;
+  font-family: var(--cm-font-display);
+}
+
+/* ---------- 觀賽頁主視覺（最終戰／冠軍）：放在 #pointsSection 裡、點數比分板前面 ---------- */
+.cm-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  aspect-ratio: 4 / 5;
+  max-height: 72vh;
+  margin-bottom: 0.8rem;
+  border-radius: 14px;
+  background: radial-gradient(120% 80% at 50% 50%, #141a2a 0%, #0a0c14 60%, #05060a 100%);
+  container-type: size;
+}
+
+.cm-hero .cm-img {
+  position: absolute;
+  width: 78%;
+  height: auto;
+  opacity: 0.4;
+  filter: saturate(0.9) brightness(0.8) drop-shadow(0 6px 18px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.6s ease, filter 0.9s ease;
+}
+/* 翰林右上、貿聯左下斜向對角；翰林下緣裁切線用漸層遮罩藏起來 */
+.cm-hero .cm-img-right {
+  right: -4%;
+  top: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 66%, transparent 97%);
+  mask-image: linear-gradient(to bottom, #000 66%, transparent 97%);
+}
+.cm-hero .cm-img-left {
+  left: -4%;
+  bottom: 0;
+  -webkit-mask-image: linear-gradient(to top, #000 84%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 84%, transparent 100%);
+}
+
+/* 冠軍狀態：勝方固定在下半部、亮；敗方在上半部、變暗變灰（比分永遠壓在暗掉的敗方上） */
+.cm-hero[data-winner="left"] .cm-img-left,
+.cm-hero[data-winner="right"] .cm-img-right {
+  opacity: 0.7;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.55));
+}
+.cm-hero[data-winner="left"] .cm-img-right,
+.cm-hero[data-winner="right"] .cm-img-left {
+  opacity: 0.18;
+  filter: grayscale(0.6) brightness(0.6);
+}
+.cm-hero[data-winner="right"] .cm-img-right {
+  top: auto;
+  bottom: 0;
+  -webkit-mask-image: linear-gradient(to top, #000 84%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 84%, transparent 100%);
+}
+.cm-hero[data-winner="right"] .cm-img-left {
+  bottom: auto;
+  top: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 66%, transparent 97%);
+  mask-image: linear-gradient(to bottom, #000 66%, transparent 97%);
+}
+
+/* 隊色光暈：左下貿聯藍、右上翰林白藍，慢慢呼吸；冠軍狀態只留勝方隊色、從下方亮起 */
+.cm-hero .cm-aura {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 45% at 0% 100%, rgba(0, 119, 203, 0.55), transparent 70%),
+    radial-gradient(70% 45% at 100% 0%, rgba(205, 230, 255, 0.3), transparent 70%);
+  animation: cm-breathe 2.6s ease-in-out infinite;
+}
+.cm-hero[data-winner="left"] .cm-aura {
+  background: radial-gradient(90% 45% at 50% 100%, rgba(0, 119, 203, 0.55), transparent 70%);
+}
+.cm-hero[data-winner="right"] .cm-aura {
+  background: radial-gradient(90% 45% at 50% 100%, rgba(205, 230, 255, 0.35), transparent 70%);
+}
+@keyframes cm-breathe {
+  0%, 100% { filter: brightness(0.8); }
+  50% { filter: brightness(1.2); }
+}
+
+.cm-hero .cm-hud {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2%;
+  padding-top: 7%;
+}
+
+.cm-badge {
+  padding-left: 0.3em;
+  font: 900 clamp(16px, 6cqmin, 40px) / 1 var(--cm-font-display);
+  letter-spacing: 0.3em;
+  background: linear-gradient(180deg, #fffaf0, #ffd36b 55%, #e8a020);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 10px rgba(255, 200, 90, 0.75));
+}
+
+.cm-score {
+  display: flex;
+  align-items: center;
+  gap: 4cqmin;
+  margin-top: 3%;
+}
+
+.cm-pill {
+  padding: 0.45em 0.7em;
+  border-radius: 0.4em;
+  font: 900 clamp(14px, 5cqmin, 34px) / 1 var(--cm-font-display);
+  background: var(--cm-fill);
+  color: var(--cm-ink);
+  box-shadow: 0 0 0 2px var(--cm-edge), 0 0 18px rgba(120, 180, 255, 0.55);
+}
+
+.cm-nums {
+  font: 400 clamp(56px, 24cqmin, 200px) / 1 var(--cm-font-num);
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 0 16px rgba(255, 220, 140, 0.8), 0 0 42px rgba(255, 180, 60, 0.45);
+  font-variant-numeric: tabular-nums;
+  animation: cm-pulse 1.15s infinite ease-in-out;
+}
+.cm-hero[data-state="champion"] .cm-nums { animation: none; }
+@keyframes cm-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+/* 小字壓在團體圖上：加深色陰影才讀得到 */
+.cm-label {
+  font-size: clamp(11px, 3.2cqmin, 20px);
+  color: var(--cm-muted);
+  letter-spacing: 0.2em;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.95), 0 1px 10px rgba(0, 0, 0, 0.9);
+}
+
+.cm-decider {
+  margin-top: 3%;
+  padding: 0.55em 1em;
+  border-radius: 999px;
+  font: 700 clamp(12px, 3.8cqmin, 24px) / 1 var(--cm-font-display);
+  color: #1d1404;
+  background: linear-gradient(180deg, #ffe39a, var(--cm-gold-deep));
+  box-shadow: 0 0 22px rgba(255, 190, 70, 0.55);
+  white-space: nowrap;
+}
+
+/* 主視覺出現期間：點數比分板的大比分與「🏆」橫幅藏起來（字已經在主視覺裡），每點明細照常 */
+#pointBoard.cm-active .point-score,
+#pointBoard.cm-active .champion-banner {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-hero .cm-aura,
+  .cm-hero .cm-nums { animation: none; }
+}

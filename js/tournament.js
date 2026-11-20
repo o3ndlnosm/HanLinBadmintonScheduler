@@ -8,6 +8,7 @@
  *   tournament-api.js → fetchPublicView / fetchCaptainView / reportScore
  *   cheer.js → mountCheerBar
  *   live.js → mountLiveBox
+ *   champion-moment.js → syncChampionPage（2026-11-25 冠軍時刻）
  */
 const POLL_INTERVAL_MS = 10000;
 
@@ -338,6 +339,15 @@ function renderAll(view) {
       mountLiveBox(document.getElementById('liveSection'), view.tournament.liveUrl);
     } catch (e) {
       // 直播框失敗靜默略過
+    }
+  }
+  // 冠軍時刻（2026-11-25 友誼賽）：最終戰與揭曉後的主視覺只在觀賽頁；輸分頁只換代表色。
+  // 反目標：冠軍時刻出錯不得連帶讓比分、應援壞掉，包在 try/catch 裡。
+  if (pointMode) {
+    try {
+      syncChampionPage(view, { mode: auth.mode, section: document.getElementById('pointsSection') });
+    } catch (e) {
+      // 冠軍時刻失敗靜默略過
     }
   }
   // 反目標：應援出錯不得連帶讓比分功能壞掉，所以包在 try/catch 裡、放在最後。

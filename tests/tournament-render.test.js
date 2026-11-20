@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const SCRIPTS = ['dialog', 'standings', 'team-points', 'tournament-form', 'tournament-api', 'cheer', 'live', 'tournament'];
+const SCRIPTS = ['dialog', 'standings', 'team-points', 'tournament-form', 'tournament-api', 'cheer', 'live', 'champion-moment', 'tournament'];
 
 // 友誼賽賽程（輪, 場地, 賽點, A/B, 點）
 const SCHEDULE = [
@@ -300,5 +300,123 @@ describe('代表色的色點（2026-11-25 友誼賽）', () => {
       expect(dot.style.backgroundColor).toBe(rgb[ids.indexOf(td.textContent.trim()[0])]);
       expect(dot.style.boxShadow).toBe('');
     });
+  });
+});
+
+describe('冠軍時刻主視覺（2026-11-25 友誼賽）', () => {
+  // 第 1～round 輪設成 confirmed，winnerOf(match) 決定勝方
+  const confirmUpTo = (view, round, winnerOf) => {
+    view.matches.filter((m) => m.roundNo <= round).forEach((m) => {
+      const w = winnerOf(m);
+      m.status = 'confirmed';
+      [m.scoreA, m.scoreB] = w === m.teamAId ? [21, 15] : [15, 21];
+    });
+    return view;
+  };
+  // 第 1～5 輪打完：第一、二點貿聯、第三點翰林，第四、五點各 1：1 → 總點數 2：1，最後一輪決定冠軍
+  const OPEN_FINAL = (m) => ({ 1: 'M', 2: 'M', 3: 'H' }[m.pointNo] || (m.roundNo === 2 ? 'M' : 'H'));
+  const hero = () => document.querySelector('#pointsSection > .cm-hero');
+  const text = (sel) => hero().querySelector(sel).textContent;
+  const board = () => document.getElementById('pointBoard');
+  const render = (view) => globalEval('renderAll')(view);
+
+  beforeEach(() => {
+    window.mountCheerBar = jest.fn();
+    window.setCheerReveal = jest.fn();
+    window.setCheerReadOnly = jest.fn();
+    window.localStorage.clear();
+    window.__setAuth({ mode: 'public', token: 'pub' });
+  });
+  afterEach(() => {
+    window.__setAuth({ mode: 'captain', token: 'cap-M' });
+    render(friendlyView()); // 回到一般畫面（拿掉主視覺），不影響其他測試
+    document.querySelectorAll('.cm-layer').forEach((el) => el.remove());
+  });
+
+  test('最終戰（總點數 2：1）：主視覺在點數比分板前面，冠軍時刻、大比分、最終輪場次', () => {
+    render(confirmUpTo(friendlyView(), 5, OPEN_FINAL));
+    expect(hero()).not.toBeNull();
+    expect(hero().nextElementSibling).toBe(board());
+    expect(hero().dataset.state).toBe('final');
+    expect(text('.cm-badge')).toBe('冠軍時刻');
+    expect(text('.cm-nums')).toBe('2 : 1');
+    expect(text('.cm-label')).toBe('總點數');
+    expect(text('.cm-decider')).toBe('最終戰　第四點 混雙B · 第五點 男雙B');
+    expect(board().classList.contains('cm-active')).toBe(true);
+  });
+
+  test('隊名色塊用代表色（貿聯藍底白字、翰林白底深藍字藍框）', () => {
+    render(confirmUpTo(friendlyView(), 5, OPEN_FINAL));
+    const [left, right] = hero().querySelectorAll('.cm-pill');
+    expect([left.textContent, right.textContent]).toEqual(['貿聯', '翰林']);
+    expect(left.style.getPropertyValue('--cm-fill')).toBe('#0077cb');
+    expect(right.style.getPropertyValue('--cm-fill')).toBe('#ffffff');
+    expect(right.style.getPropertyValue('--cm-edge')).toBe('#187fc4');
+    expect(right.style.getPropertyValue('--cm-ink')).toBe('#14649c');
+  });
+
+  test('連續 renderAll 兩次：同一個主視覺元素、只有一個', () => {
+    const view = confirmUpTo(friendlyView(), 5, OPEN_FINAL);
+    render(view);
+    const first = hero();
+    render(view);
+    expect(hero()).toBe(first);
+    expect(document.querySelectorAll('.cm-hero')).toHaveLength(1);
+  });
+
+  test('翰林 3：2 全部確認：冠軍狀態、勝方在右、比賽結束', () => {
+    const view = confirmUpTo(friendlyView(), 6, (m) => (m.roundNo === 6 ? 'H' : OPEN_FINAL(m)));
+    render(view);
+    expect(hero().dataset.state).toBe('champion');
+    expect(hero().dataset.winner).toBe('right');
+    expect(text('.cm-badge')).toBe('🏆 冠軍');
+    expect(text('.cm-nums')).toBe('2 : 3');
+    expect(text('.cm-decider')).toBe('比賽結束：翰林 以 3：2 勝出');
+  });
+
+  test('冠軍已提前確定（貿聯 3 點）再進最終戰：比分下的小字改成確定勝出', () => {
+    render(confirmUpTo(friendlyView(), 5, (m) => (m.pointNo <= 3 ? 'M' : 'H')));
+    expect(hero().dataset.state).toBe('final');
+    expect(text('.cm-label')).toBe('貿聯 已拿下 3 點，確定勝出');
+  });
+
+  test('輸分模式：不掛主視覺', () => {
+    window.__setAuth({ mode: 'captain', token: 'cap-M' });
+    render(confirmUpTo(friendlyView(), 5, OPEN_FINAL));
+    expect(hero()).toBeNull();
+    expect(board().classList.contains('cm-active')).toBe(false);
+  });
+
+  test('第 5 輪還沒打完：沒有主視覺', () => {
+    render(confirmUpTo(friendlyView(), 4, OPEN_FINAL));
+    expect(hero()).toBeNull();
+  });
+
+  test('改判退回：從最終戰退回一般畫面時拿掉主視覺', () => {
+    const view = confirmUpTo(friendlyView(), 5, OPEN_FINAL);
+    render(view);
+    expect(hero()).not.toBeNull();
+    view.matches.find((m) => m.id === 'r5c2').status = 'pending';
+    render(view);
+    expect(hero()).toBeNull();
+    expect(board().classList.contains('cm-active')).toBe(false);
+  });
+
+  test('比賽 finished 但點數沒分出勝負：沒有主視覺、不拋錯', () => {
+    const view = confirmUpTo(friendlyView(), 1, OPEN_FINAL);
+    view.tournament.status = 'finished';
+    expect(() => render(view)).not.toThrow();
+    expect(hero()).toBeNull();
+  });
+
+  test('主視覺出錯：賽程照樣 15 列、renderAll 不拋錯', () => {
+    const original = globalEval('renderChampionHero');
+    globalEval("renderChampionHero = function () { throw new Error('cm boom'); };");
+    try {
+      expect(() => render(confirmUpTo(friendlyView(), 5, OPEN_FINAL))).not.toThrow();
+      expect(document.querySelectorAll('#schedule .match-row')).toHaveLength(15);
+    } finally {
+      window.renderChampionHero = original;
+    }
   });
 });
