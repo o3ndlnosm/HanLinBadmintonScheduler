@@ -191,3 +191,31 @@ describe('冠軍揭曉', () => {
     expect(layer().classList.contains('cm-reveal')).toBe(true);
   });
 });
+
+describe('開場與揭曉也等字型（2026-11-20 審查：粗體與 Anton 第一次用到才下載，砸下動畫中途會換字）', () => {
+  afterEach(() => { delete document.fonts; });
+
+  test('一起等 Noto Sans TC 900 與 Anton；字型一直沒好也最多等 CM_IMAGE_WAIT_MS 就照播', async () => {
+    const load = jest.fn(() => new Promise(() => {}));
+    Object.defineProperty(document, 'fonts', { configurable: true, value: { load } });
+    sync(finalView());
+    const specs = load.mock.calls.map((c) => c[0]);
+    expect(specs.some((s) => /900/.test(s) && /Noto Sans TC/.test(s))).toBe(true);
+    expect(specs.some((s) => /Anton/.test(s))).toBe(true);
+    await flush();
+    jest.advanceTimersByTime(200);
+    expect(layer().classList.contains('cm-players-in')).toBe(false);
+    jest.advanceTimersByTime(CM_IMAGE_WAIT_MS);
+    await flush();
+    jest.advanceTimersByTime(200);
+    expect(layer().classList.contains('cm-players-in')).toBe(true);
+  });
+
+  test('字型與圖都好了就馬上開始', async () => {
+    Object.defineProperty(document, 'fonts', { configurable: true, value: { load: jest.fn(() => Promise.resolve([])) } });
+    sync(finalView());
+    await flush();
+    jest.advanceTimersByTime(200);
+    expect(layer().classList.contains('cm-players-in')).toBe(true);
+  });
+});

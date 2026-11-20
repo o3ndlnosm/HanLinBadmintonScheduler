@@ -693,7 +693,7 @@
    spec：docs/superpowers/specs/2026-11-19-captain-light-theme-design.md
    輸分連結（?c=）由 js/page-theme.js 在 <head> 替 <html> 加上 theme-light；觀賽連結不加，維持上面的黑色版。
    只在這裡新增、不改上面的原規則：觀賽頁的外觀因此一個值都不會變（tests/tournament-theme-css.test.js 釘住原值）。
-   白底上的字對比至少約 4.5:1，綠、黃、標籤字色都用同色系加深；隊伍紅、青與 --f1-red 不變。 */
+   白底上的字對比至少約 4.5:1，綠、黃、標籤字色都用同色系加深；隊伍色（友誼賽代表色、其他比賽的 TEAM_COLORS）與 --f1-red 不變。 */
 :root.theme-light {
   --f1-bg: #f2f2f5;
   --f1-panel: #ffffff;

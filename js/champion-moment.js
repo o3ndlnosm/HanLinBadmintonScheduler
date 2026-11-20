@@ -166,13 +166,24 @@ function renderChampionHero(section, view, phase, info) {
 
 // ---------- 全螢幕圖層（開場、揭曉）：一律掛在 body，不放在每 10 秒會清空重畫的 #pointBoard／#overlay 裡 ----------
 
-// 等團體圖解碼完再開始（網路慢時不會出現空白衝入），最多等 CM_IMAGE_WAIT_MS，逾時照播
-function cmWaitImages(imgs, win) {
-  const ready = Promise.all(imgs.map((img) => (
-    typeof img.decode === 'function' ? img.decode().catch(() => {}) : Promise.resolve()
-  )));
+// 等團體圖解碼、粗體與數字字型下載完再開始（網路慢時不會空白衝入、砸下動畫中途不會換字），
+// 最多等 CM_IMAGE_WAIT_MS，逾時照播。字型用 display=swap，不先 load 的話要等字第一次畫出來才開始下載。
+function cmWaitAssets(imgs, doc) {
+  const win = doc.defaultView;
+  const settle = (fn) => {
+    try {
+      return Promise.resolve(fn()).catch(() => {});
+    } catch (e) {
+      return Promise.resolve();
+    }
+  };
+  const waits = imgs.map((img) => settle(() => (typeof img.decode === 'function' ? img.decode() : undefined)));
+  if (doc.fonts && typeof doc.fonts.load === 'function') {
+    waits.push(settle(() => doc.fonts.load('900 1em "Noto Sans TC"', '冠軍時刻奪冠！貿聯翰林')));
+    waits.push(settle(() => doc.fonts.load('1em Anton', '0123456789 :')));
+  }
   const timeout = new Promise((resolve) => { win.setTimeout(resolve, CM_IMAGE_WAIT_MS); });
-  return Promise.race([ready, timeout]);
+  return Promise.race([Promise.all(waits), timeout]);
 }
 
 // 同時只留一個圖層（開場還在播時就揭曉 → 換成揭曉）：連同舊圖層的計時器一起清掉，
@@ -281,7 +292,7 @@ function playIntro({ doc = document, reduce = false, stream = false } = {}) {
   title.appendChild(cmEl(doc, 'span', '', '冠軍時刻'));
   layer.append(cmEl(doc, 'div', 'cm-veil'), right, left, title, cmEl(doc, 'div', 'cm-flash'));
   doc.body.appendChild(layer);
-  cmWaitImages([right, left], win).then(() => {
+  cmWaitAssets([right, left], doc).then(() => {
     if (!layer.isConnected) return;
     at(200, () => layer.classList.add('cm-players-in'));
     at(950, () => {
@@ -313,7 +324,7 @@ function playReveal(info, view, { doc = document, reduce = false, stream = false
   text.append(pill, cmEl(doc, 'div', 'cm-win', '奪冠！'), cmEl(doc, 'div', 'cm-reveal-score', `${info.won} : ${info.lost}`));
   layer.append(cmEl(doc, 'div', 'cm-reveal-bg'), img, canvas, text, cmEl(doc, 'div', 'cm-flash'));
   doc.body.appendChild(layer);
-  cmWaitImages([img], win).then(() => {
+  cmWaitAssets([img], doc).then(() => {
     if (!layer.isConnected) return;
     layer.classList.add('cm-on');
     if (!reduce) {

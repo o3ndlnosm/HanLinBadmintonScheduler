@@ -27,7 +27,7 @@ begin
   values (v_src.club_id, c_name, c_day, 'active', v_src.created_by, 'to21_cap30')
   returning id into v_t;
 
-  -- 隊伍順序（payload 依 created_at 排序）決定左右與代表色：貿聯在左（紅）、翰林在右（青綠）。
+  -- 隊伍順序（payload 依 created_at 排序）決定左右與代表色：貿聯在左（實心藍）、翰林在右（白底藍邊）；順序反了代表色與冠軍時刻都不會啟用（v24）。
   -- 同一交易內 now() 相同，必須明確錯開，否則順序不保證。
   insert into tournament_teams (tournament_id, name, created_at) values (v_t, '貿聯', now())
   returning id into v_m;

@@ -420,6 +420,22 @@ describe('冠軍時刻主視覺（2026-11-25 友誼賽）', () => {
     expect(hero()).toBeNull();
   });
 
+  test('冠軍時刻的檔案沒載入：賽程 15 列、renderAll 不拋錯、點數比分板照常（2026-11-20 審查補）', () => {
+    const saved = { sync: globalEval('syncChampionPage'), store: globalEval('createPlayedStore') };
+    globalEval('syncChampionPage = undefined; createPlayedStore = undefined;');
+    window.__resetChampionStore();
+    try {
+      expect(() => render(confirmUpTo(friendlyView(), 5, OPEN_FINAL))).not.toThrow();
+      expect(document.querySelectorAll('#schedule .match-row')).toHaveLength(15);
+      expect(document.querySelector('#pointBoard .point-score')).not.toBeNull();
+      expect(hero()).toBeNull();
+    } finally {
+      window.syncChampionPage = saved.sync;
+      window.createPlayedStore = saved.store;
+      window.__resetChampionStore();
+    }
+  });
+
   test('主視覺出錯：賽程照樣 15 列、renderAll 不拋錯', () => {
     const original = globalEval('renderChampionHero');
     globalEval("renderChampionHero = function () { throw new Error('cm boom'); };");

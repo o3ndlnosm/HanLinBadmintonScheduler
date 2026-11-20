@@ -48,3 +48,22 @@ test('大數字（主視覺比分、揭曉比分）用 Anton，其餘用 Noto Sa
   expect(css).toMatch(/\.cm-hero \.cm-hud \.cm-nums[^{]*\{[^}]*font-family:\s*var\(--cm-font-num\)/);
   expect(css).toMatch(/\.cm-reveal-score[^{]*\{[^}]*font-family:\s*var\(--cm-font-num\)/);
 });
+
+// 2026-11-20 審查：iOS 15 Safari（iPhone 7 等停在 15 的機型）不支援容器單位，含 cqmin 的宣告整條失效，
+// 大比分與「冠軍時刻」大字會掉回約 16px。每條含容器單位的宣告，前面都要有同屬性、不用容器單位的備援。
+test('用到容器單位（cqmin）的宣告，同一條規則前面都有不用容器單位的備援', () => {
+  const CQ = /\dcq(min|max|w|h|i|b)\b/;
+  const missing = [];
+  [...css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].forEach(([, sel, body]) => {
+    const decls = body.split(';').map((d) => d.trim()).filter(Boolean).map((d) => {
+      const i = d.indexOf(':');
+      return [d.slice(0, i).trim(), d.slice(i + 1).trim()];
+    });
+    decls.forEach(([prop, value], i) => {
+      if (!CQ.test(value)) return;
+      const hasFallback = decls.slice(0, i).some(([p, v]) => p === prop && !CQ.test(v));
+      if (!hasFallback) missing.push(`${sel.trim()} → ${prop}`);
+    });
+  });
+  expect(missing).toEqual([]);
+});
