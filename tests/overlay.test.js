@@ -61,8 +61,8 @@ describe('latestConfirmedMatch：最新打完的一場', () => {
 describe('overlayLines：比分條兩行的內容', () => {
   test('都沒確認：0 : 0、尚未開打', () => {
     expect(overlayLines(friendlyView())).toEqual({
-      left: { name: '貿聯', color: '#e10600', points: 0 },
-      right: { name: '翰林', color: '#00a19c', points: 0 },
+      left: { name: '貿聯', color: '#0077cb', points: 0 },
+      right: { name: '翰林', color: '#ffffff', points: 0 },
       detail: '尚未開打',
     });
   });

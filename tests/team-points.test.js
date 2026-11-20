@@ -1,4 +1,6 @@
-const { hasPoints, computeTeamPoints, pointLabel, eventLabel, TEAM_COLORS, teamColorById } = require('../js/team-points');
+const {
+  hasPoints, computeTeamPoints, pointLabel, eventLabel, TEAM_COLORS, teamColorById, isFriendlyPair, teamStyleById,
+} = require('../js/team-points');
 
 // 2026-11-25 貿聯×翰林友誼賽：M=貿聯（team A）、H=翰林（team B）
 const TEAMS = [{ id: 'M', name: '貿聯' }, { id: 'H', name: '翰林' }];
@@ -161,5 +163,54 @@ describe('teamColorById（計分頁與直播疊加頁共用的隊伍色）', () 
       A: '#e10600', B: '#00a19c', C: '#ff8000', D: '#9b5de5', E: '#f5c518', F: '#e10600',
     });
     expect(TEAM_COLORS).toHaveLength(5);
+  });
+});
+
+// WCAG 2 相對亮度與對比（測試用小工具）
+function luminance(hex) {
+  const [r, g, b] = [1, 3, 5]
+    .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrast(a, b) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+describe('代表色（2026-11-25 友誼賽）', () => {
+  const friendly = { teams: [{ id: 'M', name: '貿聯' }, { id: 'H', name: '翰林' }] };
+
+  test('isFriendlyPair：恰好兩隊、左貿聯右翰林才成立', () => {
+    expect(isFriendlyPair(friendly)).toBe(true);
+    expect(isFriendlyPair({ teams: [{ id: 'H', name: '翰林' }, { id: 'M', name: '貿聯' }] })).toBe(false);
+    expect(isFriendlyPair({ teams: [...friendly.teams, { id: 'X', name: '第三隊' }] })).toBe(false);
+    expect(isFriendlyPair({ teams: [{ id: 'M', name: ' 貿聯' }, { id: 'H', name: '翰林' }] })).toBe(false);
+    expect(isFriendlyPair({})).toBe(false);
+    expect(isFriendlyPair(null)).toBe(false);
+  });
+
+  test('teamStyleById：貿聯實心藍白字、翰林白底藍邊深藍字', () => {
+    expect(teamStyleById(friendly)).toEqual({
+      M: { fill: '#0077cb', edge: '#0077cb', ink: '#ffffff' },
+      H: { fill: '#ffffff', edge: '#187fc4', ink: '#14649c' },
+    });
+  });
+
+  test('其他比賽（第三屆五隊）沿用 TEAM_COLORS：邊框同底色、白字', () => {
+    const five = { teams: ['A', 'B', 'C', 'D', 'E'].map((id) => ({ id, name: `${id}隊` })) };
+    const styles = teamStyleById(five);
+    five.teams.forEach((t, i) => {
+      expect(styles[t.id]).toEqual({ fill: TEAM_COLORS[i], edge: TEAM_COLORS[i], ink: '#ffffff' });
+    });
+  });
+
+  test('teamColorById 回傳各隊底色：友誼賽是代表色', () => {
+    expect(teamColorById(friendly)).toEqual({ M: '#0077cb', H: '#ffffff' });
+  });
+
+  test('翰林小字（#14649c 在白底）與貿聯白字（在 #0077cb）對比都至少 4.5：1', () => {
+    expect(contrast('#14649c', '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    expect(contrast('#ffffff', '#0077cb')).toBeGreaterThanOrEqual(4.5);
   });
 });

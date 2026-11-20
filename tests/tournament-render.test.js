@@ -68,14 +68,14 @@ test('比點資料但隊伍不足兩隊：不拋錯、賽程照樣畫出來', ()
   expect(document.querySelectorAll('#schedule .match-row')).toHaveLength(15);
 });
 
-test('點數比分板的隊伍色點：貿聯紅、翰林青', () => {
+test('點數比分板的隊伍色點：貿聯藍、翰林白（代表色）', () => {
   window.mountCheerBar = jest.fn();
   window.setCheerReveal = jest.fn();
   window.setCheerReadOnly = jest.fn();
   globalEval('renderAll')(friendlyView());
   const dots = [...document.querySelectorAll('#pointBoard .team-dot')];
-  expect(dots[0].style.backgroundColor).toBe('rgb(225, 6, 0)');
-  expect(dots[1].style.backgroundColor).toBe('rgb(0, 161, 156)');
+  expect(dots[0].style.backgroundColor).toBe('rgb(0, 119, 203)');
+  expect(dots[1].style.backgroundColor).toBe('rgb(255, 255, 255)');
 });
 
 // 2026-11-20 名單改中英文後，375px 時「李小華｜Hua」這種中文名與英文名之間被斷開：改成每位選手一個不拆開的區塊
