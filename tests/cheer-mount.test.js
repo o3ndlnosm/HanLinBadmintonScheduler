@@ -206,6 +206,33 @@ describe('比賽結束才公布應援數', () => {
     expect(headText()).toContain('貿聯 100');
     expect(jest.getTimerCount()).toBe(1); // 只剩輪詢
   });
+
+  // 2026-11-23 應援開放時間：開打前唯讀掛載，時間到由 tournament.js 刷新時切回可加油，不用重新整理
+  test('唯讀掛載後切回可加油：出現按鈕、按了會送出、開始定時送出', async () => {
+    mountCheerBar(container(), TEAMS, 'pub', { readOnly: true });
+    await tick();
+    expect(buttons()).toHaveLength(0);
+    expect(jest.getTimerCount()).toBe(1); // 只有輪詢
+    setCheerReadOnly(false);
+    expect(buttons()).toHaveLength(2);
+    expect(buttons()[0].textContent).toBe('為貿聯加油');
+    expect(jest.getTimerCount()).toBe(2); // 定時送出＋輪詢
+    buttons()[0].click();
+    jest.advanceTimersByTime(2000);
+    await tick();
+    expect(global.sendCheer).toHaveBeenCalledWith('pub', 'M', 1);
+  });
+
+  test('重複切回可加油不會多出按鈕或計時器；之後仍可再切唯讀', async () => {
+    mountCheerBar(container(), TEAMS, 'pub', { readOnly: true });
+    setCheerReadOnly(false);
+    setCheerReadOnly(false);
+    expect(buttons()).toHaveLength(2);
+    expect(jest.getTimerCount()).toBe(2);
+    setCheerReadOnly(true);
+    expect(buttons()).toHaveLength(0);
+    expect(jest.getTimerCount()).toBe(1);
+  });
 });
 
 describe('代表色（2026-11-25 友誼賽）', () => {

@@ -151,6 +151,64 @@ describe('應援條公布與唯讀', () => {
     expect(readOnlySpy).toHaveBeenLastCalledWith(false);
   });
 
+  // 2026-11-23 應援開放時間（cheerOpensAt）：還沒到就唯讀，到了就可以加油；沒設（第三屆、舊後端）不限制
+  test('觀賽頁應援還沒開放：唯讀（沒有加油按鈕）', () => {
+    const view = friendlyView();
+    view.tournament.cheerOpensAt = '2999-01-01T00:00:00+00:00';
+    asPublic(() => globalEval('renderAll')(view));
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
+    expect(readOnlySpy).toHaveBeenLastCalledWith(true);
+  });
+
+  test('觀賽頁應援開放時間已過：可以加油', () => {
+    const view = friendlyView();
+    view.tournament.cheerOpensAt = '2000-01-01T00:00:00+00:00';
+    asPublic(() => globalEval('renderAll')(view));
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false });
+    expect(readOnlySpy).toHaveBeenLastCalledWith(false);
+  });
+
+  // 開放時間已過不能蓋掉其他唯讀條件（2026-11-23 review）
+  test('開放時間已過但比賽 finished：仍唯讀', () => {
+    const view = friendlyView();
+    view.tournament.cheerOpensAt = '2000-01-01T00:00:00+00:00';
+    view.tournament.status = 'finished';
+    asPublic(() => globalEval('renderAll')(view));
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
+    expect(readOnlySpy).toHaveBeenLastCalledWith(true);
+  });
+
+  test('開放時間已過但在輸分頁：仍唯讀', () => {
+    const view = friendlyView();
+    view.tournament.cheerOpensAt = '2000-01-01T00:00:00+00:00';
+    globalEval('renderAll')(view);
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
+    expect(readOnlySpy).toHaveBeenLastCalledWith(true);
+  });
+
+  test('頁面開著、時間走過開放時間：下一次刷新切回可加油', () => {
+    const opens = Date.parse('2026-11-25T10:15:00+00:00');
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(opens - 1000);
+    try {
+      const view = friendlyView();
+      view.tournament.cheerOpensAt = '2026-11-25T10:15:00+00:00';
+      asPublic(() => globalEval('renderAll')(view));
+      expect(readOnlySpy).toHaveBeenLastCalledWith(true);
+      nowSpy.mockReturnValue(opens);
+      asPublic(() => globalEval('renderAll')(view));
+      expect(readOnlySpy).toHaveBeenLastCalledWith(false);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  test('開放時間格式不認得：當作沒設，可以加油（後端仍會擋）', () => {
+    const view = friendlyView();
+    view.tournament.cheerOpensAt = 'not-a-date';
+    asPublic(() => globalEval('renderAll')(view));
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false });
+  });
+
   // 2026-11-20 孟娜：輸分頁只顯示應援狀況、不要加油按鈕（場邊的人看的、按的都是觀賽頁）
   test('輸分頁比賽中：應援條唯讀（沒有加油按鈕），一樣不公布', () => {
     globalEval('renderAll')(friendlyView());

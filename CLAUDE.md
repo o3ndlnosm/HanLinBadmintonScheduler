@@ -98,9 +98,13 @@ npx http-server
   跟火花同一個 bursts 觸發，該隊那側冒固定口號泡泡（`cheerSlogans`，不放嗆對方的話），一次增加只冒 1 個、每側同時最多 3 個。
   比賽中標題列只顯示隊名；`renderAll` 依 `allConfirmed || status === 'finished'` 呼叫 `setCheerReveal()` 才公布應援總數。
   finished 後應援條仍掛但唯讀（`mountCheerBar(..., { readOnly: true })`，沒有按鈕），收尾後才打開的人也看得到總數；
-  頁面開著時才變 finished，由 `renderAll` 每次呼叫的 `setCheerReadOnly(true)` 切成唯讀（拿掉按鈕、停掉定時送出）
+  頁面開著時才變 finished，由 `renderAll` 每次呼叫的 `setCheerReadOnly(true)` 切成唯讀（拿掉按鈕、停掉定時送出）；
+  v25 起 `setCheerReadOnly(false)` 也會切回可加油（應援開放時間到、或 finished 被改回進行中），不用重新整理
 - **輸分頁的應援條唯讀**（2026-11-20，孟娜許願，設計 `docs/superpowers/specs/2026-11-20-captain-cheer-readonly-name-wrap-design.md`）：
   輸分連結（`?c=`）一律 `readOnly`（`finished || auth.mode === 'captain'`），只看拔河比例與別人加油時的火花／泡泡；加油按鈕只在觀賽頁。只是介面，後端不擋輸分通行碼的應援
+- **應援開放時間**（v25，2026-11-23）：`tournaments.cheer_opens_at`（SQL `docs/tournament/cheer-open-2026-11-25.sql`），payload 以 `tournament.cheerOpensAt` 送出；
+  null＝不限制（第三屆不變）。還沒到：後端 `tournament_cheer` 拒絕（「應援尚未開放」）、前端 `cheerNotOpenYet` 讓觀賽頁應援條唯讀；
+  時間到，下一次刷新（10 秒）由 `setCheerReadOnly(false)` 切回可加油、出現按鈕，不用重新整理。友誼賽設 2026-11-25 18:15（台北）
 - **YouTube 直播框**（`js/live.js`，2026-11-18，設計 `docs/superpowers/specs/2026-11-18-live-stream-design.md`）：
   網址存在 `tournaments.live_url`，由 `tournament_public_payload` 以 `tournament.liveUrl` 送出（SQL `docs/tournament/live-url-2026-11-25.sql`）。
   只在觀賽模式（`?t=`）掛在點數比分板上方；`youtubeIdFrom` 只認 YouTube 網址、自己組 embed 網址；同一支影片不重掛（記在 `section.dataset.liveId`）。

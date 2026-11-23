@@ -234,6 +234,7 @@ let cheerMounted = false;
 let cheerRevealed = false;
 let cheerRenderHead = null;  // 掛載後：用最後一次的總數重畫標題列
 let cheerGoReadOnly = null;  // 掛載後：把開著的應援條切成唯讀
+let cheerGoWritable = null;  // 掛載後：把唯讀的應援條切回可加油（應援開放時間到了）
 
 // 由 tournament.js 每次刷新時依比賽狀態設定；掛載前呼叫也有效（掛載時讀這個旗標）
 function setCheerReveal(revealed) {
@@ -241,11 +242,12 @@ function setCheerReveal(revealed) {
   if (cheerRenderHead) cheerRenderHead();
 }
 
-// 頁面開著時比賽才變 finished（賽後收尾）：mountCheerBar 只掛一次，由 tournament.js 每次刷新時呼叫這個切成唯讀
-// （輸分頁掛載時就帶 readOnly: true，這裡等於沒動作）。
-// 只會從可加油切到唯讀，不會切回來（比賽重開要重新整理）。掛載前呼叫沒有作用，由 mountCheerBar 的 readOnly 處理。
+// mountCheerBar 只掛一次，由 tournament.js 每次刷新時依目前狀態呼叫這個切換：
+// 頁面開著時比賽才變 finished（賽後收尾）→ 切成唯讀；應援開放時間到了（2026-11-23）→ 切回可加油、出現按鈕。
+// 輸分頁一律帶 readOnly: true，這裡等於沒動作。掛載前呼叫沒有作用，由 mountCheerBar 的 readOnly 處理。
 function setCheerReadOnly(readOnly) {
   if (readOnly && cheerGoReadOnly) cheerGoReadOnly();
+  if (!readOnly && cheerGoWritable) cheerGoWritable();
 }
 
 // teams：[{ id, name, color, edge?, ink? }]，取前兩隊（左 A、右 B）。color 是底色；edge 邊框色（預設同 color）；ink 泡泡字色（預設白）
@@ -292,26 +294,6 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
   track.append(bar, fx);
   container.append(head, track);
 
-  let btnA = null;
-  let btnB = null;
-  let buttons = null;
-  let isReadOnly = readOnly;
-  if (!isReadOnly) {
-    buttons = document.createElement('div');
-    buttons.className = 'cheer-buttons';
-    const makeBtn = (team) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'cheer-btn';
-      btn.style.borderColor = team.edge || team.color;
-      btn.textContent = `為${team.name}加油`;
-      return btn;
-    };
-    btnA = makeBtn(ta);
-    btnB = makeBtn(tb);
-    buttons.append(btnA, btnB);
-    container.append(buttons);
-  }
   container.hidden = false;
 
   const sparkLayer = createSparkLayer(fx);
@@ -376,17 +358,35 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
     token, teamIds: [ta.id, tb.id], send: sendCheer, fetchTotals: fetchCheerTotals, onChange: render,
   });
 
+  // 加油按鈕＋定時送出。掛載時可加油就直接開；唯讀掛載的（應援還沒開放）時間到由 setCheerReadOnly(false) 開
+  let buttons = null;
   let flushTimer = null;
-  if (!isReadOnly) {
-    const bump = (btn) => {
-      btn.classList.remove('bump');
-      void btn.offsetWidth; // 重新觸發動畫
-      btn.classList.add('bump');
-    };
-    btnA.addEventListener('click', () => { ctrl.tap(ta.id); bump(btnA); });
-    btnB.addEventListener('click', () => { ctrl.tap(tb.id); bump(btnB); });
+  let isReadOnly = true;
+  const bump = (btn) => {
+    btn.classList.remove('bump');
+    void btn.offsetWidth; // 重新觸發動畫
+    btn.classList.add('bump');
+  };
+  const makeBtn = (team) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cheer-btn';
+    btn.style.borderColor = team.edge || team.color;
+    btn.textContent = `為${team.name}加油`;
+    btn.addEventListener('click', () => { ctrl.tap(team.id); bump(btn); });
+    return btn;
+  };
+  const goWritable = () => {
+    if (!isReadOnly) return;
+    isReadOnly = false;
+    buttons = document.createElement('div');
+    buttons.className = 'cheer-buttons';
+    buttons.append(makeBtn(ta), makeBtn(tb));
+    container.append(buttons);
     flushTimer = setInterval(() => ctrl.flush(), CHEER_FLUSH_MS);
-  }
+  };
+  if (!readOnly) goWritable();
+  cheerGoWritable = goWritable;
   setInterval(() => { if (document.visibilityState === 'visible') ctrl.poll(); }, CHEER_POLL_MS);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') { if (!isReadOnly) ctrl.flush(); }
@@ -398,7 +398,9 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
     if (isReadOnly) return;
     isReadOnly = true;
     if (buttons) buttons.remove();
+    buttons = null;
     clearInterval(flushTimer);
+    flushTimer = null;
     ctrl.flush();
   };
   ctrl.poll();

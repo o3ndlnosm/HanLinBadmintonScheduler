@@ -378,7 +378,7 @@ function renderAll(view) {
   if (pointMode) {
     try {
       const finished = view.tournament.status === 'finished';
-      const readOnly = finished || auth.mode === 'captain';
+      const readOnly = finished || auth.mode === 'captain' || cheerNotOpenYet(view.tournament.cheerOpensAt, Date.now());
       setCheerReveal(finished || computeTeamPoints(view.teams, view.matches).allConfirmed);
       const styles = teamStyleById(view);
       mountCheerBar(
@@ -395,6 +395,14 @@ function renderAll(view) {
       // 應援失敗靜默略過
     }
   }
+}
+
+// 應援開放時間（2026-11-23）：tournament.cheerOpensAt 還沒到 → 應援條唯讀；每次刷新（10 秒）重算，時間到自動出現按鈕。
+// 沒設或格式不認得一律當作不限制（第三屆、舊後端）；後端 tournament_cheer 也會擋，以伺服器時間為準。
+function cheerNotOpenYet(opensAt, now) {
+  if (!opensAt) return false;
+  const t = Date.parse(opensAt);
+  return Number.isFinite(t) && now < t;
 }
 
 async function refresh() {

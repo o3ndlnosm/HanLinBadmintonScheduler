@@ -5,21 +5,21 @@
 
 with lineup(round_no, court_no, players_a, players_b) as (values
   --  輪 場地  貿聯（左）                翰林（右）                -- 點次
-  (1, 1, '[]'::jsonb, '[]'::jsonb),                               -- 第一點 男雙A
-  (1, 2, '[]'::jsonb, '[]'::jsonb),                               -- 第二點 混雙A
-  (1, 3, '[]'::jsonb, '[]'::jsonb),                               -- 第三點 女雙
-  (2, 1, '[]'::jsonb, '[]'::jsonb),                               -- 第四點 混雙B
-  (2, 2, '[]'::jsonb, '[]'::jsonb),                               -- 第五點 男雙B
-  (2, 3, '[]'::jsonb, '[]'::jsonb),                               -- 第一點 男雙A
-  (3, 1, '[]'::jsonb, '[]'::jsonb),                               -- 第二點 混雙A
-  (3, 2, '[]'::jsonb, '[]'::jsonb),                               -- 第三點 女雙
-  (3, 3, '[]'::jsonb, '[]'::jsonb),                               -- 第四點 混雙B
-  (4, 1, '[]'::jsonb, '[]'::jsonb),                               -- 第五點 男雙B
-  (4, 2, '[]'::jsonb, '[]'::jsonb),                               -- 第一點 男雙A
-  (5, 1, '[]'::jsonb, '[]'::jsonb),                               -- 第二點 混雙A
-  (5, 2, '[]'::jsonb, '[]'::jsonb),                               -- 第三點 女雙
-  (6, 1, '[]'::jsonb, '[]'::jsonb),                               -- 第四點 混雙B
-  (6, 2, '[]'::jsonb, '[]'::jsonb)                                -- 第五點 男雙B
+  (1, 2, '[]'::jsonb, '[]'::jsonb),                               -- 第一點 男雙A
+  (1, 3, '[]'::jsonb, '[]'::jsonb),                               -- 第二點 混雙A
+  (1, 4, '[]'::jsonb, '[]'::jsonb),                               -- 第三點 女雙
+  (2, 2, '[]'::jsonb, '[]'::jsonb),                               -- 第四點 混雙B
+  (2, 3, '[]'::jsonb, '[]'::jsonb),                               -- 第五點 男雙B
+  (2, 4, '[]'::jsonb, '[]'::jsonb),                               -- 第一點 男雙A
+  (3, 2, '[]'::jsonb, '[]'::jsonb),                               -- 第二點 混雙A
+  (3, 3, '[]'::jsonb, '[]'::jsonb),                               -- 第三點 女雙
+  (3, 4, '[]'::jsonb, '[]'::jsonb),                               -- 第四點 混雙B
+  (4, 2, '[]'::jsonb, '[]'::jsonb),                               -- 第五點 男雙B
+  (4, 3, '[]'::jsonb, '[]'::jsonb),                               -- 第一點 男雙A
+  (5, 2, '[]'::jsonb, '[]'::jsonb),                               -- 第二點 混雙A
+  (5, 3, '[]'::jsonb, '[]'::jsonb),                               -- 第三點 女雙
+  (6, 2, '[]'::jsonb, '[]'::jsonb),                               -- 第四點 混雙B
+  (6, 3, '[]'::jsonb, '[]'::jsonb)                                -- 第五點 男雙B
 )
 update tournament_matches m
 set players_a = l.players_a, players_b = l.players_b

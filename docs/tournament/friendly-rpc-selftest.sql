@@ -101,6 +101,20 @@ begin
   perform pg_temp.expect_error(format('select tournament_cheer(%L, %L::uuid, 11)', v_ptok, v_m), '應援次數需為 1–10');
   perform pg_temp.expect_error(format('select tournament_cheer(%L, %L::uuid, 1)', v_ptok, v_a), '找不到這支隊伍');
   perform pg_temp.expect_error(format('select tournament_cheer(%L, %L::uuid, 1)', 'no-such-token', v_m), '無效的連結');
+  -- 應援開放時間（cheer-open-2026-11-25.sql）：還沒到要擋、payload 有 cheerOpensAt；過了或 null 照常收
+  update tournaments set cheer_opens_at = now() + interval '1 hour' where id = v_t;
+  perform pg_temp.expect_error(format('select tournament_cheer(%L, %L::uuid, 1)', v_ptok, v_m), '應援尚未開放');
+  perform pg_temp.expect_error(format('select tournament_cheer(%L, %L::uuid, 1)', v_mtok, v_m), '應援尚未開放');
+  r := tournament_public_view(v_ptok);
+  assert r->'tournament'->>'cheerOpensAt' is not null, 'SELFTEST FAIL: payload 應帶 cheerOpensAt';
+  update tournaments set cheer_opens_at = now() - interval '1 second' where id = v_t;
+  r := tournament_cheer(v_ptok, v_m, 1);
+  assert (r->>v_m::text)::int = 12, 'SELFTEST FAIL: 開放時間已過應照常收';
+  update tournaments set cheer_opens_at = null where id = v_t;
+  r := tournament_cheer(v_ptok, v_m, 1);
+  assert (r->>v_m::text)::int = 13, 'SELFTEST FAIL: 沒設開放時間應照常收';
+  r := tournament_public_view(v_ptok);
+  assert r->'tournament' ? 'cheerOpensAt' and r->'tournament'->'cheerOpensAt' = 'null'::jsonb, 'SELFTEST FAIL: 沒設時 cheerOpensAt 應為 null';
   update tournaments set status = 'finished' where id = v_t;
   perform pg_temp.expect_error(format('select tournament_cheer(%L, %L::uuid, 1)', v_ptok, v_m), '比賽已結束');
 
