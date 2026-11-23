@@ -103,11 +103,14 @@ npx http-server
 - **輸分頁的應援條唯讀**（2026-11-20，孟娜許願，設計 `docs/superpowers/specs/2026-11-20-captain-cheer-readonly-name-wrap-design.md`）：
   輸分連結（`?c=`）一律 `readOnly`（`finished || auth.mode === 'captain'`），只看拔河比例與別人加油時的火花／泡泡；加油按鈕只在觀賽頁。只是介面，後端不擋輸分通行碼的應援
 - **應援開放時間**（v25，2026-11-23）：`tournaments.cheer_opens_at`（SQL `docs/tournament/cheer-open-2026-11-25.sql`），payload 以 `tournament.cheerOpensAt` 送出；
-  null＝不限制（第三屆不變）。還沒到：後端 `tournament_cheer` 拒絕（「應援尚未開放」）、前端 `cheerNotOpenYet` 讓觀賽頁應援條唯讀；
-  時間到，下一次刷新（10 秒）由 `setCheerReadOnly(false)` 切回可加油、出現按鈕，不用重新整理。友誼賽設 2026-11-25 18:15（台北）
+  null＝不限制（第三屆不變）。還沒到：後端 `tournament_cheer` 拒絕（「應援尚未開放」）、前端 `cheerNotOpenYet` 讓觀賽頁加油按鈕**鎖定**
+  （v26 起顯示但 disabled、灰掉；v25 是整個藏起來。鎖定 `locked`／`setCheerLocked` 與唯讀 `readOnly`／`setCheerReadOnly` 分開：唯讀＝沒有按鈕）；
+  時間到，下一次刷新（10 秒）由 `setCheerLocked(false)` 解鎖，不用重新整理。友誼賽設 2026-11-25 18:15（台北）
 - **YouTube 直播框**（`js/live.js`，2026-11-18，設計 `docs/superpowers/specs/2026-11-18-live-stream-design.md`）：
   網址存在 `tournaments.live_url`，由 `tournament_public_payload` 以 `tournament.liveUrl` 送出（SQL `docs/tournament/live-url-2026-11-25.sql`）。
   只在觀賽模式（`?t=`）掛在點數比分板上方；`youtubeIdFrom` 只認 YouTube 網址、自己組 embed 網址；同一支影片不重掛（記在 `section.dataset.liveId`）。
+  **還沒填網址**（v26）：有 `cheerOpensAt` 且比賽沒 finished 時，同一個 16:9 框顯示「直播倒數」到開打（每秒更新，記在 `section.dataset.liveCountdown`、刷新不重畫），
+  時間到還沒網址就顯示「直播即將開始」；填了網址下一次刷新換成播放器。沒有 `cheerOpensAt`（第三屆）照舊隱藏。
   整頁是 `no-referrer`，iframe 另設 `referrerPolicy = 'strict-origin-when-cross-origin'` 只送網域——**拿掉會變成 YouTube 錯誤 153**（2026-11-18 對照組實測）
 - **直播畫面疊加比分**（`overlay.html`＋`js/overlay.js`＋`css/overlay.css`，2026-11-18，設計 `docs/superpowers/specs/2026-11-18-live-overlay-design.md`）：
   給 PRISM 網頁小工具疊在直播畫面左下角，整頁透明；只認 `?t=`（輸分連結只顯示「請改用觀賽連結」）。

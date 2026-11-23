@@ -11,6 +11,7 @@ const TEAMS = [
 let mountCheerBar;
 let setCheerReveal;
 let setCheerReadOnly;
+let setCheerLocked;
 let cheerSlogans;
 let totals;
 let frames;
@@ -39,7 +40,7 @@ beforeEach(() => {
   global.fetchCheerTotals = jest.fn(() => Promise.resolve(totals));
   global.sendCheer = jest.fn(() => Promise.resolve(totals));
   jest.isolateModules(() => {
-    ({ mountCheerBar, setCheerReveal, setCheerReadOnly, cheerSlogans } = require('../js/cheer'));
+    ({ mountCheerBar, setCheerReveal, setCheerReadOnly, setCheerLocked, cheerSlogans } = require('../js/cheer'));
   });
 });
 
@@ -232,6 +233,44 @@ describe('比賽結束才公布應援數', () => {
     setCheerReadOnly(true);
     expect(buttons()).toHaveLength(0);
     expect(jest.getTimerCount()).toBe(1);
+  });
+  // 2026-11-23 第二輪：開打前按鈕照樣顯示、灰掉不能按（不是藏起來）；時間到由 tournament.js 刷新時解鎖
+  test('鎖定掛載：兩個按鈕都在但 disabled，按了不算也不送出', async () => {
+    setCheerReveal(true);
+    mountCheerBar(container(), TEAMS, 'pub', { locked: true });
+    await tick();
+    expect(buttons()).toHaveLength(2);
+    expect(buttons()[0].textContent).toBe('為貿聯加油');
+    expect([...buttons()].every((b) => b.disabled)).toBe(true);
+    buttons()[0].click();
+    expect(headText()).toContain('貿聯 100');
+    jest.advanceTimersByTime(2000);
+    await tick();
+    expect(global.sendCheer).not.toHaveBeenCalled();
+  });
+
+  test('鎖定後解鎖：同一組按鈕變可按，按了會送出', async () => {
+    mountCheerBar(container(), TEAMS, 'pub', { locked: true });
+    await tick();
+    const before = buttons();
+    setCheerLocked(false);
+    expect([...buttons()]).toEqual([...before]);
+    expect([...buttons()].some((b) => b.disabled)).toBe(false);
+    buttons()[0].click();
+    jest.advanceTimersByTime(2000);
+    await tick();
+    expect(global.sendCheer).toHaveBeenCalledWith('pub', 'M', 1);
+  });
+
+  test('鎖定只管按鈕能不能按：唯讀時照樣沒有按鈕；唯讀切回可加油時沿用目前的鎖定狀態', async () => {
+    mountCheerBar(container(), TEAMS, 'pub', { readOnly: true, locked: true });
+    await tick();
+    expect(buttons()).toHaveLength(0);
+    setCheerReadOnly(false);
+    expect(buttons()).toHaveLength(2);
+    expect([...buttons()].every((b) => b.disabled)).toBe(true);
+    setCheerLocked(false);
+    expect([...buttons()].some((b) => b.disabled)).toBe(false);
   });
 });
 

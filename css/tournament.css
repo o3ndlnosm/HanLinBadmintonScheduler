@@ -648,6 +648,12 @@
   user-select: none;
 }
 .cheer-btn:active { background: rgba(255, 255, 255, 0.08); }
+/* 應援還沒開放（2026-11-23）：按鈕看得到、灰掉不能按 */
+.cheer-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.cheer-btn:disabled:active { background: transparent; }
 .cheer-btn.bump { animation: cheer-bump 0.18s ease-out; }
 @keyframes cheer-bump {
   0% { transform: scale(1); }
@@ -680,6 +686,35 @@
   width: 100%;
   height: 100%;
   border: 0;
+}
+
+/* 開打前倒數（2026-11-23）：還沒填直播網址時，同一個 16:9 黑框裡顯示倒數 */
+.live-waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0 1rem;
+  text-align: center;
+  color: var(--f1-fg);
+}
+.live-waiting p { margin: 0; }
+.live-countdown-label {
+  font-size: 0.9rem;
+  color: var(--f1-fg-muted);
+  letter-spacing: 0.1em;
+}
+.live-countdown-time {
+  font-size: clamp(1.6rem, 8vw, 2.6rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.live-countdown-time:empty { display: none; }
+.live-countdown-note {
+  font-size: 0.8rem;
+  color: var(--f1-fg-muted);
 }
 
 .live-open {

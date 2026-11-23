@@ -352,7 +352,9 @@ function renderAll(view) {
   // mountLiveBox 內部保證同一支影片不重掛，每 10 秒重畫不會中斷播放。
   if (auth.mode === 'public') {
     try {
-      mountLiveBox(document.getElementById('liveSection'), view.tournament.liveUrl);
+      // 還沒填直播網址時倒數到開打（cheerOpensAt）；比賽 finished 後不倒數（2026-11-23）
+      const countdownTo = view.tournament.status === 'finished' ? null : view.tournament.cheerOpensAt;
+      mountLiveBox(document.getElementById('liveSection'), view.tournament.liveUrl, { countdownTo });
     } catch (e) {
       // 直播框失敗靜默略過
     }
@@ -378,7 +380,9 @@ function renderAll(view) {
   if (pointMode) {
     try {
       const finished = view.tournament.status === 'finished';
-      const readOnly = finished || auth.mode === 'captain' || cheerNotOpenYet(view.tournament.cheerOpensAt, Date.now());
+      const readOnly = finished || auth.mode === 'captain';
+      // 應援還沒開放：按鈕照樣顯示、灰掉不能按（2026-11-23 第二輪）；後端也會擋
+      const locked = cheerNotOpenYet(view.tournament.cheerOpensAt, Date.now());
       setCheerReveal(finished || computeTeamPoints(view.teams, view.matches).allConfirmed);
       const styles = teamStyleById(view);
       mountCheerBar(
@@ -387,17 +391,19 @@ function renderAll(view) {
           id: t.id, name: t.name, color: styles[t.id].fill, edge: styles[t.id].edge, ink: styles[t.id].ink,
         })),
         auth.token,
-        { readOnly }
+        { readOnly, locked }
       );
-      // 頁面開著時才變 finished：上面不會重掛，另外切成唯讀
+      // 頁面開著時才變 finished／開放時間才到：上面不會重掛，另外切換
       setCheerReadOnly(readOnly);
+      setCheerLocked(locked);
     } catch (e) {
       // 應援失敗靜默略過
     }
   }
 }
 
-// 應援開放時間（2026-11-23）：tournament.cheerOpensAt 還沒到 → 應援條唯讀；每次刷新（10 秒）重算，時間到自動出現按鈕。
+// 應援開放時間（2026-11-23）：tournament.cheerOpensAt 還沒到 → 加油按鈕鎖定（顯示但不能按）；每次刷新（10 秒）重算，時間到自動解鎖。
+// 同一個時間也是直播框倒數的目標（友誼賽 18:15 開打＝開放應援）。
 // 沒設或格式不認得一律當作不限制（第三屆、舊後端）；後端 tournament_cheer 也會擋，以伺服器時間為準。
 function cheerNotOpenYet(opensAt, now) {
   if (!opensAt) return false;

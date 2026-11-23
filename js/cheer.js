@@ -234,7 +234,8 @@ let cheerMounted = false;
 let cheerRevealed = false;
 let cheerRenderHead = null;  // 掛載後：用最後一次的總數重畫標題列
 let cheerGoReadOnly = null;  // 掛載後：把開著的應援條切成唯讀
-let cheerGoWritable = null;  // 掛載後：把唯讀的應援條切回可加油（應援開放時間到了）
+let cheerGoWritable = null;  // 掛載後：把唯讀的應援條切回可加油（比賽 finished 被改回進行中）
+let cheerSetLocked = null;   // 掛載後：鎖定／解鎖加油按鈕（應援開放時間前顯示但不能按）
 
 // 由 tournament.js 每次刷新時依比賽狀態設定；掛載前呼叫也有效（掛載時讀這個旗標）
 function setCheerReveal(revealed) {
@@ -250,9 +251,16 @@ function setCheerReadOnly(readOnly) {
   if (!readOnly && cheerGoWritable) cheerGoWritable();
 }
 
+// 應援開放時間前（2026-11-23 第二輪，使用者要按鈕看得到、只是不能按）：按鈕照樣顯示但 disabled；
+// 時間到由 tournament.js 刷新時 setCheerLocked(false) 解鎖。唯讀時沒有按鈕，鎖定狀態記著，切回可加油時沿用。
+function setCheerLocked(locked) {
+  if (cheerSetLocked) cheerSetLocked(locked);
+}
+
 // teams：[{ id, name, color, edge?, ink? }]，取前兩隊（左 A、右 B）。color 是底色；edge 邊框色（預設同 color）；ink 泡泡字色（預設白）
 // readOnly（比賽 finished，或輸分頁）：沒有加油按鈕、不送應援；總數照常輪詢，別人加油時照樣噴火花、冒泡泡
-function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
+// locked（應援還沒開放）：按鈕顯示但 disabled，按了不算
+function mountCheerBar(container, teams, token, { readOnly = false, locked = false } = {}) {
   if (cheerMounted || !container || teams.length < 2) return;
   cheerMounted = true;
   const [ta, tb] = teams;
@@ -358,10 +366,15 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
     token, teamIds: [ta.id, tb.id], send: sendCheer, fetchTotals: fetchCheerTotals, onChange: render,
   });
 
-  // 加油按鈕＋定時送出。掛載時可加油就直接開；唯讀掛載的（應援還沒開放）時間到由 setCheerReadOnly(false) 開
+  // 加油按鈕＋定時送出。掛載時可加油就直接開；唯讀掛載的由 setCheerReadOnly(false) 開
   let buttons = null;
   let flushTimer = null;
   let isReadOnly = true;
+  let isLocked = !!locked;
+  const applyLocked = () => {
+    if (!buttons) return;
+    buttons.querySelectorAll('.cheer-btn').forEach((b) => { b.disabled = isLocked; });
+  };
   const bump = (btn) => {
     btn.classList.remove('bump');
     void btn.offsetWidth; // 重新觸發動畫
@@ -373,7 +386,11 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
     btn.className = 'cheer-btn';
     btn.style.borderColor = team.edge || team.color;
     btn.textContent = `為${team.name}加油`;
-    btn.addEventListener('click', () => { ctrl.tap(team.id); bump(btn); });
+    btn.addEventListener('click', () => {
+      if (isLocked) return; // disabled 已擋掉點擊，這裡再保險一次
+      ctrl.tap(team.id);
+      bump(btn);
+    });
     return btn;
   };
   const goWritable = () => {
@@ -383,10 +400,15 @@ function mountCheerBar(container, teams, token, { readOnly = false } = {}) {
     buttons.className = 'cheer-buttons';
     buttons.append(makeBtn(ta), makeBtn(tb));
     container.append(buttons);
+    applyLocked();
     flushTimer = setInterval(() => ctrl.flush(), CHEER_FLUSH_MS);
   };
   if (!readOnly) goWritable();
   cheerGoWritable = goWritable;
+  cheerSetLocked = (next) => {
+    isLocked = !!next;
+    applyLocked();
+  };
   setInterval(() => { if (document.visibilityState === 'visible') ctrl.poll(); }, CHEER_POLL_MS);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') { if (!isReadOnly) ctrl.flush(); }
@@ -413,6 +435,6 @@ if (typeof module !== 'undefined' && module.exports) {
     CHEER_BUBBLE_MAX_PER_SIDE, CHEER_BUBBLE_MS,
     addTap, cheerRatio, displayTotals, createCheerController, sparkCount, createSparkLayer,
     cheerSlogans, createBubbleLayer,
-    mountCheerBar, setCheerReveal, setCheerReadOnly,
+    mountCheerBar, setCheerReveal, setCheerReadOnly, setCheerLocked,
   };
 }

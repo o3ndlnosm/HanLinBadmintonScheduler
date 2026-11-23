@@ -119,6 +119,7 @@ describe('應援條公布與唯讀', () => {
   let mountSpy;
   let revealSpy;
   let readOnlySpy;
+  let lockedSpy;
   const allConfirmed = (view) => {
     view.matches.forEach((m) => { m.status = 'confirmed'; m.scoreA = 21; m.scoreB = 15; });
     return view;
@@ -131,6 +132,8 @@ describe('應援條公布與唯讀', () => {
     window.setCheerReveal = revealSpy;
     readOnlySpy = jest.fn();
     window.setCheerReadOnly = readOnlySpy;
+    lockedSpy = jest.fn();
+    window.setCheerLocked = lockedSpy;
   });
 
   // 這個檔的預設是輸分模式；觀賽頁的情境用這個切過去再切回來
@@ -147,16 +150,26 @@ describe('應援條公布與唯讀', () => {
     asPublic(() => globalEval('renderAll')(friendlyView()));
     expect(revealSpy).toHaveBeenLastCalledWith(false);
     expect(mountSpy).toHaveBeenCalledTimes(1);
-    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false });
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false, locked: false });
     expect(readOnlySpy).toHaveBeenLastCalledWith(false);
   });
 
   // 2026-11-23 應援開放時間（cheerOpensAt）：還沒到就唯讀，到了就可以加油；沒設（第三屆、舊後端）不限制
-  test('觀賽頁應援還沒開放：唯讀（沒有加油按鈕）', () => {
+  // 2026-11-23 第二輪：還沒開放時按鈕照樣顯示、灰掉不能按（鎖定），不是唯讀
+  test('觀賽頁應援還沒開放：按鈕顯示但鎖定', () => {
     const view = friendlyView();
     view.tournament.cheerOpensAt = '2999-01-01T00:00:00+00:00';
     asPublic(() => globalEval('renderAll')(view));
-    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false, locked: true });
+    expect(readOnlySpy).toHaveBeenLastCalledWith(false);
+    expect(lockedSpy).toHaveBeenLastCalledWith(true);
+  });
+
+  test('輸分頁應援還沒開放：仍唯讀（沒有按鈕）', () => {
+    const view = friendlyView();
+    view.tournament.cheerOpensAt = '2999-01-01T00:00:00+00:00';
+    globalEval('renderAll')(view);
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true, locked: true });
     expect(readOnlySpy).toHaveBeenLastCalledWith(true);
   });
 
@@ -164,7 +177,7 @@ describe('應援條公布與唯讀', () => {
     const view = friendlyView();
     view.tournament.cheerOpensAt = '2000-01-01T00:00:00+00:00';
     asPublic(() => globalEval('renderAll')(view));
-    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false });
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false, locked: false });
     expect(readOnlySpy).toHaveBeenLastCalledWith(false);
   });
 
@@ -174,7 +187,7 @@ describe('應援條公布與唯讀', () => {
     view.tournament.cheerOpensAt = '2000-01-01T00:00:00+00:00';
     view.tournament.status = 'finished';
     asPublic(() => globalEval('renderAll')(view));
-    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true, locked: false });
     expect(readOnlySpy).toHaveBeenLastCalledWith(true);
   });
 
@@ -182,21 +195,23 @@ describe('應援條公布與唯讀', () => {
     const view = friendlyView();
     view.tournament.cheerOpensAt = '2000-01-01T00:00:00+00:00';
     globalEval('renderAll')(view);
-    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true, locked: false });
     expect(readOnlySpy).toHaveBeenLastCalledWith(true);
   });
 
-  test('頁面開著、時間走過開放時間：下一次刷新切回可加油', () => {
+  test('頁面開著、時間走過開放時間：下一次刷新解鎖按鈕', () => {
     const opens = Date.parse('2026-11-25T10:15:00+00:00');
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(opens - 1000);
     try {
       const view = friendlyView();
       view.tournament.cheerOpensAt = '2026-11-25T10:15:00+00:00';
       asPublic(() => globalEval('renderAll')(view));
-      expect(readOnlySpy).toHaveBeenLastCalledWith(true);
+      expect(readOnlySpy).toHaveBeenLastCalledWith(false);
+      expect(lockedSpy).toHaveBeenLastCalledWith(true);
       nowSpy.mockReturnValue(opens);
       asPublic(() => globalEval('renderAll')(view));
       expect(readOnlySpy).toHaveBeenLastCalledWith(false);
+      expect(lockedSpy).toHaveBeenLastCalledWith(false);
     } finally {
       nowSpy.mockRestore();
     }
@@ -206,7 +221,7 @@ describe('應援條公布與唯讀', () => {
     const view = friendlyView();
     view.tournament.cheerOpensAt = 'not-a-date';
     asPublic(() => globalEval('renderAll')(view));
-    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false });
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false, locked: false });
   });
 
   // 2026-11-20 孟娜：輸分頁只顯示應援狀況、不要加油按鈕（場邊的人看的、按的都是觀賽頁）
@@ -214,14 +229,14 @@ describe('應援條公布與唯讀', () => {
     globalEval('renderAll')(friendlyView());
     expect(revealSpy).toHaveBeenLastCalledWith(false);
     expect(mountSpy).toHaveBeenCalledTimes(1);
-    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true, locked: false });
     expect(readOnlySpy).toHaveBeenLastCalledWith(true);
   });
 
   test('觀賽頁 15 場全部確認（還沒 finished）：公布、仍可以加油', () => {
     asPublic(() => globalEval('renderAll')(allConfirmed(friendlyView())));
     expect(revealSpy).toHaveBeenLastCalledWith(true);
-    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false });
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: false, locked: false });
   });
 
   // 要在觀賽頁跑：輸分頁本來就一律唯讀，在輸分頁跑的話拿掉 finished 判斷也會過（2026-11-20 review Important 1）
@@ -230,7 +245,7 @@ describe('應援條公布與唯讀', () => {
     view.tournament.status = 'finished';
     asPublic(() => globalEval('renderAll')(view));
     expect(mountSpy).toHaveBeenCalledTimes(1);
-    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true });
+    expect(mountSpy.mock.calls[0][3]).toEqual({ readOnly: true, locked: false });
     expect(revealSpy).toHaveBeenLastCalledWith(true);
     // 頁面開著時才變 finished：mountCheerBar 只掛一次，要另外切成唯讀（2026-11-17 review Important 1）
     expect(readOnlySpy).toHaveBeenLastCalledWith(true);
@@ -264,6 +279,7 @@ describe('直播框', () => {
     section.textContent = '';
     section.hidden = true;
     delete section.dataset.liveId;
+    delete section.dataset.liveCountdown;
     window.__setAuth({ mode: 'public', token: 'pub' });
   });
 
@@ -309,6 +325,24 @@ describe('直播框', () => {
     globalEval('renderAll')(view);
     expect(section.hidden).toBe(false);
     expect(section.querySelectorAll('iframe')).toHaveLength(1);
+  });
+
+  // 2026-11-23：沒網址時倒數到開打（cheerOpensAt）；finished 後不倒數
+  test('觀賽模式沒網址、有開打時間：直播框出現倒數', () => {
+    const view = friendlyView();
+    view.tournament.cheerOpensAt = '2999-01-01T00:00:00+00:00';
+    globalEval('renderAll')(view);
+    expect(section.hidden).toBe(false);
+    expect(section.querySelector('.live-countdown-time')).not.toBeNull();
+    globalEval('mountLiveBox')(section, null); // 停掉倒數計時器
+  });
+
+  test('比賽 finished、沒網址：不倒數、直播框不出現', () => {
+    const view = friendlyView();
+    view.tournament.cheerOpensAt = '2999-01-01T00:00:00+00:00';
+    view.tournament.status = 'finished';
+    globalEval('renderAll')(view);
+    expect(section.hidden).toBe(true);
   });
 
   test('直播框掛載出錯：賽程照樣畫出 15 列', () => {
