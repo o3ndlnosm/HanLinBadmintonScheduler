@@ -402,9 +402,6 @@ function renderAll(view) {
   }
 }
 
-// 應援開放時間（2026-11-23）：tournament.cheerOpensAt 還沒到 → 加油按鈕鎖定（顯示但不能按）；每次刷新（10 秒）重算，時間到自動解鎖。
-// 直播框倒數另看開打時間（liveCountdownTarget，2026-11-25 起），兩者可以不同。
-// 沒設或格式不認得一律當作不限制（第三屆、舊後端）；後端 tournament_cheer 也會擋，以伺服器時間為準。
 // 直播框倒數目標（2026-11-25）：開打時間＝heldOn＋最早一場 timeSlot 的開始時刻（台北 +08:00）。
 // 應援可以比開打早開放（友誼賽 17:10 開應援、18:15 開打），所以不再直接拿 cheerOpensAt 當開打時間。
 // 只有設了 cheerOpensAt 的比賽才倒數（第三屆沒設，照舊不顯示直播框）；賽程時間認不得時退回 cheerOpensAt。
@@ -426,6 +423,9 @@ function liveCountdownTarget(view) {
   return opensAt;
 }
 
+// 應援開放時間（2026-11-23）：tournament.cheerOpensAt 還沒到 → 加油按鈕鎖定（顯示但不能按）；每次刷新（10 秒）重算，時間到自動解鎖。
+// 直播框倒數另看開打時間（liveCountdownTarget，2026-11-25 起），兩者可以不同。
+// 沒設或格式不認得一律當作不限制（第三屆、舊後端）；後端 tournament_cheer 也會擋，以伺服器時間為準。
 function cheerNotOpenYet(opensAt, now) {
   if (!opensAt) return false;
   const t = Date.parse(opensAt);

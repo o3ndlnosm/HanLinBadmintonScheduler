@@ -37,7 +37,7 @@ function youtubeIdFrom(url) {
 }
 
 // ---- 開打前倒數（2026-11-23）：還沒填直播網址時直播框照樣出現，倒數到開打 ----
-// 開打時間用 tournament.cheerOpensAt（友誼賽 18:15 開打＝開放應援），由 tournament.js 傳進來；沒有就照舊隱藏。
+// 開打時間由 tournament.js 的 liveCountdownTarget 算好傳進來（v29 起＝第一輪開打，不再等於應援開放時間）；沒有就照舊隱藏。
 let liveCountdownTimer = null;
 
 function stopLiveCountdown() {
