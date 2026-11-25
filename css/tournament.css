@@ -607,21 +607,25 @@
   top: 0; right: 0; bottom: 0; left: 0;
   pointer-events: none;
 }
+/* 交界光縫（2026-11-25 改）：原本是白色圓點左右一起放大縮小，翰林白底那側跟它融在一起，
+   看起來像翰林一個圓弧往貿聯頂（單方面推）。改成左右對稱的直立金色光縫：兩側都看得到，
+   只上下伸縮與明暗閃動，不往任何一邊鼓出去，看起來是兩邊頂在一起。 */
 .cheer-spark-core {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
-  border-radius: 50%;
-  background: #fff;
+  width: 4px;
+  height: 22px;
+  margin: -11px 0 0 -2px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #fff 25%, #fff 75%, rgba(255, 255, 255, 0));
+  box-shadow: 0 0 4px 1px #ffd23f, 0 0 10px 3px rgba(255, 210, 63, 0.55);
   transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   animation: cheer-flicker 0.45s ease-in-out infinite alternate;
 }
 @keyframes cheer-flicker {
-  from { transform: scale(0.7); opacity: 0.7; }
-  to { transform: scale(1.3); opacity: 1; }
+  from { transform: scaleY(0.85); opacity: 0.75; }
+  to { transform: scaleY(1.1); opacity: 1; }
 }
 .cheer-spark {
   position: absolute;
