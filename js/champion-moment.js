@@ -61,9 +61,10 @@ function finalRoundLabel(view) {
 }
 
 // 「已經播過」的鍵：payload 沒有比賽 id，用名稱＋日期；不存通行碼
+// cm2（2026-11-25）：當天上午用正式比賽測試確認過比分，看過的裝置記成已播過；換字首讓舊記錄全部作廢
 function playedKey(view, phase) {
   const t = (view && view.tournament) || {};
-  return `cm:${t.name}|${t.heldOn}:${phase}`;
+  return `cm2:${t.name}|${t.heldOn}:${phase}`;
 }
 
 // 每台裝置只播一次：記在 localStorage；不能用（私密瀏覽、沙盒）就只記在這次開著的頁面

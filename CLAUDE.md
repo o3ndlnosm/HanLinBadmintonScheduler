@@ -121,7 +121,7 @@ npx http-server
 - **冠軍時刻**（v24，2026-11-20，設計 `docs/superpowers/specs/2026-11-20-champion-moment-design.md`、計劃 `docs/superpowers/plans/2026-11-20-champion-moment.md`）：
   `js/champion-moment.js`＋`css/champion-moment.css`＋`img/champion/*.webp`（AI 生成團體圖，不是真實同仁），只在 `isFriendlyPair` 時啟用。
   `finalPhase(view)`：第 1～5 輪全確認 → `final`（最終戰開場＋點數比分區上方的主視覺）；全部確認或 finished 且有勝方 → `done`（冠軍揭曉）。
-  觀賽頁才播（輸分頁只換代表色）；每台裝置各播一次（localStorage `cm:<比賽名>|<日期>:final/done`），分頁在背景不播。
+  觀賽頁才播（輸分頁只換代表色）；每台裝置各播一次（localStorage `cm2:<比賽名>|<日期>:final/done`；v27 由 `cm:` 換成 `cm2:`，讓 11/25 上午用正式比賽測試留下的已播過記錄作廢），分頁在背景不播。
   全螢幕圖層一律掛在 `body`、由計時器移除——`#pointBoard`／`#overlay` 每 10 秒清空重畫，**圖層放進去會被切掉**。
   疊加頁只在輪詢「親眼看到」階段往前切換才播（載入或 PRISM 重新載入不播），網址加 `&cm=0` 可關動畫。
   視覺依據是示範頁（artifact「冠軍時刻示範」v13，不進 repo）；字型多載 Anton 與 Noto Sans TC 900

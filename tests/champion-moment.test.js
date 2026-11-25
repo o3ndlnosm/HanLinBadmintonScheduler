@@ -147,8 +147,22 @@ describe('只播一次的記錄', () => {
   };
 
   test('鍵用比賽名稱＋日期＋階段（不存通行碼）', () => {
-    expect(playedKey(friendlyView(), 'final')).toBe('cm:貿聯×翰林2026羽球聯合友誼賽|2026-11-25:final');
-    expect(playedKey(friendlyView(), 'done')).toBe('cm:貿聯×翰林2026羽球聯合友誼賽|2026-11-25:done');
+    expect(playedKey(friendlyView(), 'final')).toBe('cm2:貿聯×翰林2026羽球聯合友誼賽|2026-11-25:final');
+    expect(playedKey(friendlyView(), 'done')).toBe('cm2:貿聯×翰林2026羽球聯合友誼賽|2026-11-25:done');
+  });
+
+  // 2026-11-25 10:00 測試直播時用正式比賽確認過 15 場（之後清回 pending），看過的裝置記成已播過；
+  // 換鍵（cm: → cm2:）讓那批舊記錄全部作廢，晚上照常播
+  test('11/25 上午彩排留下的舊記錄（cm: 開頭）不算播過', () => {
+    const storage = fakeStorage();
+    for (const phase of ['final', 'done', 'final:overlay', 'done:overlay']) {
+      storage.setItem(`cm:貿聯×翰林2026羽球聯合友誼賽|2026-11-25:${phase}`, '1');
+    }
+    const store = createPlayedStore(storage);
+    expect(store.has(playedKey(friendlyView(), 'final'))).toBe(false);
+    expect(store.has(playedKey(friendlyView(), 'done'))).toBe(false);
+    expect(store.has(`${playedKey(friendlyView(), 'final')}:overlay`)).toBe(false);
+    expect(store.has(`${playedKey(friendlyView(), 'done')}:overlay`)).toBe(false);
   });
 
   test('先 false、mark 之後 true；同一個 storage 的另一個 store（重新整理後）也看得到', () => {
