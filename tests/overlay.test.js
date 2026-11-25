@@ -621,6 +621,23 @@ describe('overlayLines.games：15 場照開打順序', () => {
     Object.assign(v.matches.find((m) => m.id === 'r1c3'), { status: 'conflict', scoreA: 21, scoreB: 18 });
     expect(overlayLines(v).games[2].score).toBeNull();
   });
+
+  test('資料順序打亂也照輪次、場地排', () => {
+    const v = friendlyView();
+    v.matches.reverse();
+    const labels = overlayLines(v).games.map((g) => g.label);
+    expect(labels.slice(0, 3)).toEqual(['一 男雙A', '二 混雙A', '三 女雙']);
+    expect(labels[14]).toBe('五 男雙B');
+  });
+
+  test('同分：兩邊都不亮', () => {
+    const v = friendlyView();
+    Object.assign(v.matches.find((m) => m.id === 'r1c1'), { status: 'confirmed', scoreA: 20, scoreB: 20 });
+    expect(overlayLines(v).games[0].score.winner).toBeNull();
+    const root = document.createElement('div');
+    renderOverlay(root, overlayLines(v));
+    expect(root.querySelector('.ov-game-row .ov-win')).toBeNull();
+  });
 });
 
 describe('renderOverlay：左邊直條', () => {

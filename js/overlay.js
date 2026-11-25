@@ -27,7 +27,7 @@ function latestConfirmedMatch(matches) {
   return best;
 }
 
-// 比分條兩行的內容；非比點賽事或不足兩隊回 null（不畫）。
+// 比分條的內容（總點數 left/right、標籤 tag、進度文字 detail、15 場 games）；非比點賽事或不足兩隊回 null（不畫）。
 // 冠軍時刻（只在左貿聯右翰林）：最終戰時加「冠軍時刻」標籤、第二行換成最後一輪的場次；揭曉後標籤「🏆 冠軍」。
 function overlayLines(view) {
   if (!view || !Array.isArray(view.teams) || view.teams.length < 2) return null;

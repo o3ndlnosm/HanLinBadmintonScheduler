@@ -114,7 +114,7 @@ npx http-server
   整頁是 `no-referrer`，iframe 另設 `referrerPolicy = 'strict-origin-when-cross-origin'` 只送網域——**拿掉會變成 YouTube 錯誤 153**（2026-11-18 對照組實測）
 - **直播畫面疊加比分**（`overlay.html`＋`js/overlay.js`＋`css/overlay.css`，2026-11-18，設計 `docs/superpowers/specs/2026-11-18-live-overlay-design.md`）：
   給 PRISM 網頁小工具疊在直播畫面左邊（v28 起是直條：總點數＋15 場照開打順序一行一場 `overlayGames`＋最下面一行 detail；之前是左下角兩行橫條），整頁透明；只認 `?t=`（輸分連結只顯示「請改用觀賽連結」）。
-  `overlayLines(view)` 算兩行內容（總點數＋最新確認的一場，比分照左右順序、不照 A/B 隊），每 10 秒重讀；成功顯示過之後，讀取失敗或找不到比賽都保留上一次畫面，直播畫面上不出現錯誤字。
+  `overlayLines(view)` 算比分條內容（總點數、進度文字 detail＝最新確認的一場等、v28 起加 15 場 `games`；比分照左右順序、不照 A/B 隊），每 10 秒重讀；成功顯示過之後，讀取失敗或找不到比賽都保留上一次畫面，直播畫面上不出現錯誤字。
   尺寸用 `vmin`（直立直播時不會撐得比畫面寬）。隊伍顏色在 `team-points.js`，計分頁與疊加頁共用：
   `teamStyleById` 回傳 `{ fill, edge, ink }`，恰好兩隊且左貿聯右翰林（`isFriendlyPair`）時用代表色（貿聯實心藍白字、翰林白底藍邊深藍字），
   其他比賽沿用 `TEAM_COLORS`、edge 同底色——**edge 與底色相同時不加任何外框**，第三屆畫面因此不變
@@ -272,7 +272,7 @@ historyMatches = []    // 比賽歷史
 │   ├── team-points.js      # 比點計算、點次標籤、隊伍顏色（純函式，jest 測試）
 │   ├── cheer.js            # 公司應援條：累積／裁切／控制器／火花層／泡泡層（jest）＋ 掛載（jsdom＋瀏覽器）
 │   ├── live.js             # 觀賽頁 YouTube 直播框：網址取 ID（jest）＋ 掛載（jsdom＋瀏覽器）
-│   ├── overlay.js          # 直播畫面疊加比分：兩行內容（jest）＋ 只認觀賽連結、每 10 秒重讀
+│   ├── overlay.js          # 直播畫面疊加比分：比分條內容（jest）＋ 只認觀賽連結、每 10 秒重讀
 │   ├── champion-moment.js  # 冠軍時刻：階段判斷與只播一次（jest）＋ 主視覺、開場、揭曉、疊加頁版（jsdom＋瀏覽器）
 │   ├── page-theme.js       # 計分頁顏色：輸分連結白色、觀賽連結黑色（在 <head> 執行，jsdom 測試）
 │   ├── tournament-api.js   # 比賽計分頁 Supabase RPC 薄封裝（jest 測試）
