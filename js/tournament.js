@@ -352,8 +352,8 @@ function renderAll(view) {
   // mountLiveBox 內部保證同一支影片不重掛，每 10 秒重畫不會中斷播放。
   if (auth.mode === 'public') {
     try {
-      // 還沒填直播網址時倒數到開打（cheerOpensAt）；比賽 finished 後不倒數（2026-11-23）
-      const countdownTo = view.tournament.status === 'finished' ? null : view.tournament.cheerOpensAt;
+      // 還沒填直播網址時倒數到開打；比賽 finished 後不倒數（2026-11-23）
+      const countdownTo = view.tournament.status === 'finished' ? null : liveCountdownTarget(view);
       mountLiveBox(document.getElementById('liveSection'), view.tournament.liveUrl, { countdownTo });
     } catch (e) {
       // 直播框失敗靜默略過
@@ -403,8 +403,29 @@ function renderAll(view) {
 }
 
 // 應援開放時間（2026-11-23）：tournament.cheerOpensAt 還沒到 → 加油按鈕鎖定（顯示但不能按）；每次刷新（10 秒）重算，時間到自動解鎖。
-// 同一個時間也是直播框倒數的目標（友誼賽 18:15 開打＝開放應援）。
+// 直播框倒數另看開打時間（liveCountdownTarget，2026-11-25 起），兩者可以不同。
 // 沒設或格式不認得一律當作不限制（第三屆、舊後端）；後端 tournament_cheer 也會擋，以伺服器時間為準。
+// 直播框倒數目標（2026-11-25）：開打時間＝heldOn＋最早一場 timeSlot 的開始時刻（台北 +08:00）。
+// 應援可以比開打早開放（友誼賽 17:10 開應援、18:15 開打），所以不再直接拿 cheerOpensAt 當開打時間。
+// 只有設了 cheerOpensAt 的比賽才倒數（第三屆沒設，照舊不顯示直播框）；賽程時間認不得時退回 cheerOpensAt。
+function liveCountdownTarget(view) {
+  const opensAt = view.tournament.cheerOpensAt;
+  if (!opensAt) return null;
+  const heldOn = view.tournament.heldOn;
+  let earliest = null;
+  for (const m of view.matches || []) {
+    const hit = /^(\d{1,2}):(\d{2})/.exec(String(m.timeSlot || '').trim());
+    if (!hit) continue;
+    const hhmm = `${hit[1].padStart(2, '0')}:${hit[2]}`;
+    if (earliest === null || hhmm < earliest) earliest = hhmm;
+  }
+  if (earliest && /^\d{4}-\d{2}-\d{2}$/.test(String(heldOn || ''))) {
+    const iso = `${heldOn}T${earliest}:00+08:00`;
+    if (Number.isFinite(Date.parse(iso))) return iso;
+  }
+  return opensAt;
+}
+
 function cheerNotOpenYet(opensAt, now) {
   if (!opensAt) return false;
   const t = Date.parse(opensAt);

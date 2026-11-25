@@ -109,7 +109,7 @@ npx http-server
 - **YouTube 直播框**（`js/live.js`，2026-11-18，設計 `docs/superpowers/specs/2026-11-18-live-stream-design.md`）：
   網址存在 `tournaments.live_url`，由 `tournament_public_payload` 以 `tournament.liveUrl` 送出（SQL `docs/tournament/live-url-2026-11-25.sql`）。
   只在觀賽模式（`?t=`）掛在點數比分板上方；`youtubeIdFrom` 只認 YouTube 網址、自己組 embed 網址；同一支影片不重掛（記在 `section.dataset.liveId`）。
-  **還沒填網址**（v26）：有 `cheerOpensAt` 且比賽沒 finished 時，同一個 16:9 框顯示「直播倒數」到開打（每秒更新，記在 `section.dataset.liveCountdown`、刷新不重畫），
+  **還沒填網址**（v26）：有 `cheerOpensAt` 且比賽沒 finished 時，同一個 16:9 框顯示「直播倒數」到開打（v29 起＝heldOn＋最早一場 timeSlot 開始、台北時間，`liveCountdownTarget`；認不得才退回 cheerOpensAt；每秒更新，記在 `section.dataset.liveCountdown`、刷新不重畫），
   時間到還沒網址就顯示「直播即將開始」；填了網址下一次刷新換成播放器。沒有 `cheerOpensAt`（第三屆）照舊隱藏。
   整頁是 `no-referrer`，iframe 另設 `referrerPolicy = 'strict-origin-when-cross-origin'` 只送網域——**拿掉會變成 YouTube 錯誤 153**（2026-11-18 對照組實測）
 - **直播畫面疊加比分**（`overlay.html`＋`js/overlay.js`＋`css/overlay.css`，2026-11-18，設計 `docs/superpowers/specs/2026-11-18-live-overlay-design.md`）：

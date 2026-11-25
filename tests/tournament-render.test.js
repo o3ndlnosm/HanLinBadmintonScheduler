@@ -337,6 +337,31 @@ describe('直播框', () => {
     globalEval('mountLiveBox')(section, null); // 停掉倒數計時器
   });
 
+  // 2026-11-25：應援提早到 17:10 開放，直播倒數仍要到開打 18:15 → 倒數改看第一輪開打時間，不跟應援時間綁在一起
+  test('應援開放時間比開打早：倒數目標是第一輪開打時間（heldOn＋timeSlot，台北時間）', () => {
+    const view = friendlyView();
+    view.tournament.cheerOpensAt = '2026-11-25T09:10:00+00:00'; // 17:10 台北
+    view.matches.forEach((m) => { m.timeSlot = `${17 + m.roundNo}:15-${17 + m.roundNo}:30`; });
+    globalEval('renderAll')(view);
+    expect(section.hidden).toBe(false);
+    expect(section.dataset.liveCountdown).toBe(String(Date.parse('2026-11-25T18:15:00+08:00')));
+    globalEval('mountLiveBox')(section, null);
+  });
+
+  test('賽程時間認不得：倒數退回應援開放時間（舊行為）', () => {
+    const view = friendlyView();
+    view.tournament.cheerOpensAt = '2999-01-01T00:00:00+00:00';
+    view.matches.forEach((m) => { m.timeSlot = '待定'; });
+    globalEval('renderAll')(view);
+    expect(section.dataset.liveCountdown).toBe(String(Date.parse('2999-01-01T00:00:00+00:00')));
+    globalEval('mountLiveBox')(section, null);
+  });
+
+  test('沒設應援開放時間（第三屆）：有賽程時間也不倒數、直播框不出現', () => {
+    globalEval('renderAll')(friendlyView());
+    expect(section.hidden).toBe(true);
+  });
+
   test('比賽 finished、沒網址：不倒數、直播框不出現', () => {
     const view = friendlyView();
     view.tournament.cheerOpensAt = '2999-01-01T00:00:00+00:00';
