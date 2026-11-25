@@ -60,7 +60,7 @@ describe('latestConfirmedMatch：最新打完的一場', () => {
 
 describe('overlayLines：比分條兩行的內容', () => {
   test('都沒確認：0 : 0、尚未開打', () => {
-    expect(overlayLines(friendlyView())).toEqual({
+    expect(overlayLines(friendlyView())).toMatchObject({
       left: { name: '貿聯', color: '#0077cb', edge: '#0077cb', points: 0 },
       right: { name: '翰林', color: '#ffffff', edge: '#187fc4', points: 0 },
       detail: '尚未開打',
@@ -591,5 +591,61 @@ describe('動畫播放期間藏起比分條，播完才回到比分條（2026-11
   test('overlay.css：cm-playing 期間比分條透明', () => {
     const css = fs.readFileSync(path.join(__dirname, '..', 'css', 'overlay.css'), 'utf8');
     expect(css).toMatch(/\.cm-playing \.ov-bar\s*\{[^}]*opacity:\s*0/);
+  });
+});
+
+
+// 2026-11-25：左邊直條，15 場照開打順序一行一場（使用者：只看總點數更新太慢；依點排觀眾看不懂，改一場一場排）
+describe('overlayLines.games：15 場照開打順序', () => {
+  test('都沒打：15 行、照輪次再照場地排、分數都是 null', () => {
+    const { games } = overlayLines(friendlyView());
+    expect(games).toHaveLength(15);
+    expect(games.slice(0, 4).map((g) => g.label)).toEqual(['一 男雙A', '二 混雙A', '三 女雙', '四 混雙B']);
+    expect(games[14].label).toBe('五 男雙B');
+    games.forEach((g) => expect(g.score).toBeNull());
+  });
+
+  test('分數照左右（貿聯在左）排，A 隊是翰林時也一樣；勝方標 left/right', () => {
+    const v = friendlyView();
+    Object.assign(v.matches.find((m) => m.id === 'r1c1'), { status: 'confirmed', scoreA: 21, scoreB: 15 });
+    Object.assign(v.matches.find((m) => m.id === 'r1c2'), {
+      teamAId: 'H', teamBId: 'M', status: 'confirmed', scoreA: 21, scoreB: 18,
+    });
+    const { games } = overlayLines(v);
+    expect(games[0].score).toEqual({ left: 21, right: 15, winner: 'left' });
+    expect(games[1].score).toEqual({ left: 18, right: 21, winner: 'right' });
+  });
+
+  test('還沒確認（衝突）的場次不算分：null', () => {
+    const v = friendlyView();
+    Object.assign(v.matches.find((m) => m.id === 'r1c3'), { status: 'conflict', scoreA: 21, scoreB: 18 });
+    expect(overlayLines(v).games[2].score).toBeNull();
+  });
+});
+
+describe('renderOverlay：左邊直條', () => {
+  test('總點數在上、15 行；沒打的是「–」；勝方分數加 ov-win', () => {
+    const v = friendlyView();
+    Object.assign(v.matches.find((m) => m.id === 'r1c1'), { status: 'confirmed', scoreA: 21, scoreB: 15 });
+    const root = document.createElement('div');
+    renderOverlay(root, overlayLines(v));
+    const bar = root.querySelector('.ov-bar');
+    expect(bar.firstElementChild.className).toBe('ov-score');
+    const rows = root.querySelectorAll('.ov-game-row');
+    expect(rows).toHaveLength(15);
+    expect(rows[0].querySelector('.ov-game-name').textContent).toBe('一 男雙A');
+    expect(rows[0].querySelector('.ov-game').textContent).toBe('21-15');
+    expect(rows[0].querySelector('.ov-win').textContent).toBe('21');
+    expect(rows[1].querySelector('.ov-game').textContent).toBe('–');
+    expect(rows[14].querySelector('.ov-game-name').textContent).toBe('五 男雙B');
+    expect(root.querySelector('.ov-detail').textContent).toBe('最新：第一點 男雙A 21:15 貿聯勝');
+  });
+
+  test('overlay.css：比分在畫面左邊、垂直置中（不再是左下角）', () => {
+    const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'css', 'overlay.css'), 'utf8');
+    const block = css.match(/#overlay\s*\{([^}]*)\}/)[1];
+    expect(block).toMatch(/left:/);
+    expect(block).toMatch(/top:\s*50%/);
+    expect(block).not.toMatch(/bottom:/);
   });
 });

@@ -1,4 +1,4 @@
-/* 直播畫面疊加比分（overlay.html）：整頁透明，比分條固定在左下角。
+/* 直播畫面疊加比分（overlay.html）：整頁透明，比分直條固定在左邊、垂直置中（2026-11-25 由左下角橫條改成直條）。
    尺寸用 vmin：橫向直播時等於跟著畫面高度縮放，直立直播時改跟著寬度，比分條不會撐得比畫面寬。
    字級以「720p 畫面縮到手機嵌入框（約 1/4）仍勉強可讀、全螢幕清楚」為準。 */
 html,
@@ -11,7 +11,8 @@ body {
 #overlay {
   position: fixed;
   left: 2.5vmin;
-  bottom: 2.5vmin;
+  top: 50%;
+  transform: translateY(-50%);
   font-family: 'Titillium Web', 'Noto Sans TC', sans-serif;
   color: #fff;
 }
@@ -29,7 +30,7 @@ body {
   display: flex;
   align-items: center;
   gap: 1.4vmin;
-  font-size: 5.6vmin;
+  font-size: 4.8vmin;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -48,8 +49,8 @@ body {
 }
 
 .ov-detail {
-  margin-top: 0.5vmin;
-  font-size: 3.4vmin;
+  margin-top: 1vmin;
+  font-size: 2.8vmin;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -72,3 +73,38 @@ body {
 /* 冠軍時刻動畫播放期間（body.cm-playing）藏起比分條，播完才回到比分條 */
 .ov-bar { transition: opacity 0.4s ease; }
 .cm-playing .ov-bar { opacity: 0; }
+
+/* 左邊直條（2026-11-25）：15 場照開打順序一行一場；左邊點名、右邊比分，勝方分數亮、敗方淡 */
+.ov-games {
+  margin-top: 1vmin;
+  padding-top: 0.8vmin;
+  border-top: 0.25vmin solid rgba(255, 255, 255, 0.25);
+}
+
+.ov-game-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2.4vmin;
+  font-size: 3vmin;
+  line-height: 1.32;
+  white-space: nowrap;
+}
+
+.ov-game-name {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.ov-game {
+  min-width: 9vmin;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.ov-game .ov-win {
+  color: #fff;
+  font-weight: 700;
+}

@@ -113,7 +113,7 @@ npx http-server
   時間到還沒網址就顯示「直播即將開始」；填了網址下一次刷新換成播放器。沒有 `cheerOpensAt`（第三屆）照舊隱藏。
   整頁是 `no-referrer`，iframe 另設 `referrerPolicy = 'strict-origin-when-cross-origin'` 只送網域——**拿掉會變成 YouTube 錯誤 153**（2026-11-18 對照組實測）
 - **直播畫面疊加比分**（`overlay.html`＋`js/overlay.js`＋`css/overlay.css`，2026-11-18，設計 `docs/superpowers/specs/2026-11-18-live-overlay-design.md`）：
-  給 PRISM 網頁小工具疊在直播畫面左下角，整頁透明；只認 `?t=`（輸分連結只顯示「請改用觀賽連結」）。
+  給 PRISM 網頁小工具疊在直播畫面左邊（v28 起是直條：總點數＋15 場照開打順序一行一場 `overlayGames`＋最下面一行 detail；之前是左下角兩行橫條），整頁透明；只認 `?t=`（輸分連結只顯示「請改用觀賽連結」）。
   `overlayLines(view)` 算兩行內容（總點數＋最新確認的一場，比分照左右順序、不照 A/B 隊），每 10 秒重讀；成功顯示過之後，讀取失敗或找不到比賽都保留上一次畫面，直播畫面上不出現錯誤字。
   尺寸用 `vmin`（直立直播時不會撐得比畫面寬）。隊伍顏色在 `team-points.js`，計分頁與疊加頁共用：
   `teamStyleById` 回傳 `{ fill, edge, ink }`，恰好兩隊且左貿聯右翰林（`isFriendlyPair`）時用代表色（貿聯實心藍白字、翰林白底藍邊深藍字），

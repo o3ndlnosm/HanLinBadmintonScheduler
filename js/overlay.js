@@ -1,5 +1,6 @@
 /**
- * 直播畫面疊加比分（2026-11-25 友誼賽起）：overlay.html?t=<觀賽通行碼>，給 PRISM 網頁小工具疊在直播畫面左下角。
+ * 直播畫面疊加比分（2026-11-25 友誼賽起）：overlay.html?t=<觀賽通行碼>，給 PRISM 網頁小工具疊在直播畫面左邊
+ * （2026-11-25 改成左邊直條：總點數＋15 場照開打順序一行一場；原本左下角的橫條拿掉）。
  * spec：docs/superpowers/specs/2026-11-18-live-overlay-design.md
  * 相依（由 overlay.html 的 <script> 順序保證）：
  *   tournament-form.js → parseTokenFromUrl
@@ -67,7 +68,25 @@ function overlayLines(view) {
       detail = `最新：${pointLabel(m.pointNo)} ${eventLabel(m)} ${leftScore}:${rightScore} ${winnerName}勝`;
     }
   }
-  return { left: side(ta), right: side(tb), detail, tag };
+  return { left: side(ta), right: side(tb), detail, tag, games: overlayGames(view, ta) };
+}
+
+// 左邊直條（2026-11-25）：15 場照開打順序（輪次、場地）一行一場；分數照比分條左右（ta 在左）排，沒確認的場次 score 是 null
+function overlayGames(view, ta) {
+  const POINT_NUMERALS = ['一', '二', '三', '四', '五', '六', '七', '八', '九'];
+  return view.matches
+    .filter((m) => typeof m.pointNo === 'number')
+    .slice()
+    .sort((x, y) => x.roundNo - y.roundNo || x.courtNo - y.courtNo)
+    .map((m) => {
+      const label = `${POINT_NUMERALS[m.pointNo - 1] || m.pointNo} ${eventLabel(m)}`;
+      if (m.status !== 'confirmed' || typeof m.scoreA !== 'number' || typeof m.scoreB !== 'number') {
+        return { label, score: null };
+      }
+      const left = m.teamAId === ta.id ? m.scoreA : m.scoreB;
+      const right = m.teamAId === ta.id ? m.scoreB : m.scoreA;
+      return { label, score: { left, right, winner: left > right ? 'left' : left < right ? 'right' : null } };
+    });
 }
 
 function renderOverlay(root, lines, message) {
@@ -115,8 +134,39 @@ function renderOverlay(root, lines, message) {
   detail.className = 'ov-detail';
   detail.textContent = lines.detail;
 
-  bar.append(score, detail);
+  bar.append(score);
+  if (Array.isArray(lines.games) && lines.games.length) bar.append(renderGameRows(lines.games));
+  bar.append(detail);
   root.appendChild(bar);
+}
+
+// 一行一場：「一 男雙A」＋「21-15」，勝方分數加 ov-win、沒打的是「–」
+function renderGameRows(games) {
+  const list = document.createElement('div');
+  list.className = 'ov-games';
+  games.forEach((g) => {
+    const row = document.createElement('div');
+    row.className = 'ov-game-row';
+    const name = document.createElement('span');
+    name.className = 'ov-game-name';
+    name.textContent = g.label;
+    const cell = document.createElement('span');
+    cell.className = 'ov-game';
+    if (!g.score) {
+      cell.textContent = '–';
+    } else {
+      const num = (value, won) => {
+        const el = document.createElement('span');
+        el.textContent = String(value);
+        if (won) el.className = 'ov-win';
+        return el;
+      };
+      cell.append(num(g.score.left, g.score.winner === 'left'), '-', num(g.score.right, g.score.winner === 'right'));
+    }
+    row.append(name, cell);
+    list.append(row);
+  });
+  return list;
 }
 
 // localStorage 取用本身就可能丟例外（沙盒、私密瀏覽）
@@ -202,6 +252,6 @@ if (typeof module === 'undefined' && typeof document !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     OVERLAY_POLL_MS, OVERLAY_BAD_LINK, OVERLAY_NOT_FOUND, OVERLAY_LOADING, OVERLAY_NO_POINTS,
-    latestConfirmedMatch, overlayLines, renderOverlay, initOverlay,
+    latestConfirmedMatch, overlayLines, overlayGames, renderOverlay, initOverlay,
   };
 }
